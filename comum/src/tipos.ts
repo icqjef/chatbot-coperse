@@ -3,6 +3,7 @@ export interface Site {
   nome: string;
   base: string;
   feed?: string;
+  processo_padrao?: string;
   paginas_chave: string[];
   profundidade: number;
   dominios_permitidos: string[];

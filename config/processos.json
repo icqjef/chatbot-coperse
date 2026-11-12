@@ -1,0 +1,11 @@
+[
+  { "processo": "transgeneros", "padroes": ["transgener"] },
+  { "processo": "quilombolas", "padroes": ["quilomb"] },
+  { "processo": "indigenas", "padroes": ["indigena"] },
+  { "processo": "ead", "padroes": ["\bead\b", "a distancia"] },
+  { "processo": "educacao-do-campo", "padroes": ["educacao do campo"] },
+  { "processo": "vagas-complementares", "padroes": ["vagas complementares"] },
+  { "processo": "proprio", "padroes": ["\bproprio\b"] },
+  { "processo": "sisu", "padroes": ["\bsisu\b"] },
+  { "processo": "vestibular", "padroes": ["vestibular"] }
+]
