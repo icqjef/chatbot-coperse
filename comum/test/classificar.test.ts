@@ -13,6 +13,9 @@ describe('normalizar', () => {
   it('decodifica, remove acentos e separadores', () => {
     expect(normalizar('Homologa%C3%A7%C3%A3o_Final-2017.pdf')).toBe('homologacao final 2017 pdf');
   });
+  it('decodifica as sequências válidas mesmo com uma inválida', () => {
+    expect(normalizar('Homologa%C3%A7%C3%A3o_100%.pdf')).toContain('homologacao');
+  });
   it('não lança com sequência % inválida', () => {
     expect(() => normalizar('%E0%A4%A')).not.toThrow();
   });
@@ -41,6 +44,12 @@ describe('ehListaDeCandidatos', () => {
   });
 });
 
+describe('ehListaDeCandidatos exceções', () => {
+  it('^edital vence o padrão homologa', () => {
+    expect(ehListaDeCandidatos('Edital de Homologação das Inscrições', 'https://coperse.furg.br/x/edital.pdf', regras)).toBe(false);
+  });
+});
+
 describe('inferirProcesso', () => {
   it('casos reais', () => {
     expect(inferirProcesso(['Edital PS Índigenas 2026'], regras)).toBe('indigenas');
@@ -66,5 +75,9 @@ describe('carregarRegras', () => {
   it('lança citando padrão inválido', () => {
     expect(() => carregarRegras([{ processo: 'a', padroes: ['(abc'] }], { padroes: [], excecoes: [] })).toThrow(/\(abc/);
     expect(() => carregarRegras([], { padroes: ['[x'], excecoes: [] })).toThrow(/\[x/);
+  });
+  it('rejeita padrão vazio', () => {
+    expect(() => carregarRegras([{ processo: 'a', padroes: [''] }], { padroes: [], excecoes: [] })).toThrow(/"a".*vazio/);
+    expect(() => carregarRegras([], { padroes: [''], excecoes: [] })).toThrow(/padroes.*vazio/);
   });
 });

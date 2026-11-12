@@ -10,6 +10,7 @@ function compilar(fontes: unknown, onde: string): RegExp[] {
   if (!Array.isArray(fontes) || !fontes.every((x) => typeof x === 'string'))
     throw new Error(`${onde}: deve ser uma lista de textos.`);
   return fontes.map((f: string) => {
+    if (f === '') throw new Error(`${onde}: padrão vazio não é permitido.`);
     try {
       return new RegExp(f);
     } catch {
@@ -36,12 +37,13 @@ export function carregarRegras(processosJson: unknown, listasJson: unknown): Reg
 }
 
 export function normalizar(s: string): string {
-  let t = s;
-  try {
-    t = decodeURIComponent(s);
-  } catch {
-    // sequência % inválida: segue com o texto original
-  }
+  const t = s.replace(/(?:%[0-9a-fA-F]{2})+/g, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run; // sequência inválida: mantém o trecho original
+    }
+  });
   return t
     .toLowerCase()
     .normalize('NFD')
