@@ -4,12 +4,12 @@ import type { VetorTrecho } from '@chatbot/comum/tipos';
 type Linha = Record<string, unknown>;
 
 /** cf em memória: interpreta apenas o SQL emitido por indexar.ts. */
-export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean } = {}) {
+export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean; vetores?: number } = {}) {
   let insertsTrecho = 0;
   const paginas = new Map<string, Linha>();
   let trechos: { id: string; url: string; ordem: number; texto: string }[] = [];
   let fts: { texto: string; trecho_id: string }[] = [];
-  const registro = { upserts: [] as VetorTrecho[][], apagados: [] as string[][], deletes: 0, eventos: [] as string[] };
+  const registro = { upserts: [] as VetorTrecho[][], apagados: [] as string[][], deletes: 0, eventos: [] as string[], linhas: {} as Record<string, Record<string, unknown>[]> };
 
   const cf: ClienteCloudflare = {
     async d1(sql, params = []) {
@@ -67,6 +67,21 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
       }
       throw new Error(`SQL não previsto no fake: ${s}`);
     },
+    async inserirLinhas(tabela, colunas, linhas, opcoes = {}) {
+      for (const l of linhas) {
+        const reg = Object.fromEntries(colunas.map((c, i) => [c, l[i]]));
+        if (tabela === 'trechos') {
+          if (!paginas.has(reg.url as string)) throw new Error('FOREIGN KEY constraint failed');
+          trechos.push(reg as any);
+        } else if (tabela === 'trechos_fts') {
+          fts.push(reg as any);
+        } else {
+          (registro.linhas[tabela] ??= []).push(reg);
+        }
+      }
+      void opcoes;
+    },
+    async contarVetores() { return inj.vetores ?? 0; },
     async upsertVetores(v) { registro.upserts.push(v); },
     async apagarVetores(ids) { registro.apagados.push(ids); },
   };
