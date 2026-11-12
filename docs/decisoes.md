@@ -96,3 +96,14 @@ Edições antigas dos processos seletivos também são indexadas, cada trecho ma
 ## 2026-11-12 — Teto de 6000 vetores
 
 A indexação para quando o índice chega a 6000 vetores (`TETO_VETORES`): a contagem é refeita no início de cada execução, o documento que estouraria o teto fica na fila e o resumo da execução mostra `teto_atingido: true` (a execução não falha). Motivo: manter o Vectorize dentro do plano gratuito com folga. Se o teto for atingido, a decisão é do Jeferson entre reduzir a dimensão dos vetores para 384 (exige recriar o índice e reindexar) ou aumentar o tamanho dos trechos (menos vetores por documento).
+
+Complemento (revisão final da etapa 4): ao atingir o teto a execução para por inteiro (`break`), não só o documento que estouraria. Com isso as revisitas e as retificações de páginas já indexadas também ficam paradas até o Jeferson decidir entre vetores de 384 dimensões, trechos maiores ou o plano pago do Vectorize. O aviso no log da execução (`teto_atingido: true`) é o sinal para essa decisão.
+
+## 2026-11-12 — Ajustes da revisão final da etapa 4
+
+- Links seguidos a partir de uma página classificada como lista entram na fila sem título: numa lista, o texto do link costuma ser o nome de uma pessoa. O PDF filho fica com o título tirado do nome do arquivo e a página filha com o próprio `<title>`. Motivo: nenhum nome pode chegar a `paginas.titulo`, aos trechos ou aos metadados do Vectorize.
+- Data das listas: PDF de lista não é baixado, então a data vem do feed ou de um pedido HEAD (`Last-Modified`), com a mesma pausa de 1 s e o mesmo User-Agent. Sem nenhum dos dois, a data é tratada como desconhecida: o resumo omite a frase "Documento publicado em ..." e `data_publicacao` guarda a data herdada só para ordenar. O "agora" nunca entra no texto do resumo, para o hash não mudar a cada revisita.
+- O hash de cada página passa a ser `JSON.stringify([tipo, processo, ano, titulo, texto])`, não só o texto. Assim uma mudança nas regras de `config/` ou no título reindexa a página uma vez. Efeito conhecido: a primeira execução depois desta mudança refaz uma vez os embeddings das 8 páginas indexadas na etapa 3 (custo desprezível).
+- Erro permanente: uma URL que falhou 5 vezes seguidas sai da fila e só volta depois de 30 dias (janela dos PDFs), em vez de voltar a cada revisita da página que a linka. Na mesma execução ela também não volta.
+- Endereços `/api/documentos/publico?arquivo=...` do vestibular: o nome do arquivo (para o título e para reconhecer listas) vem do parâmetro `arquivo`.
+- Novos padrões em `config/listas.json`: "inscritos", "nominal" e "ensalamento". "relacao" ficou de fora porque esconderia páginas úteis como "Relação de cursos e vagas".
