@@ -92,7 +92,7 @@ describe('robustez', () => {
     expect(m.buscados).toEqual([]);
   });
   it('codigoSaida: 1 só se nada deu certo e houve erro', () => {
-    const z = { nova: 0, alterada: 0, igual: 0, vazia: 0, erro: 0 };
+    const z = { nova: 0, alterada: 0, igual: 0, vazia: 0, erro: 0, teto: 0 };
     expect(codigoSaida({ ...z, erro: 3 })).toBe(1);
     expect(codigoSaida({ ...z, erro: 3, igual: 1 })).toBe(0);
     expect(codigoSaida(z)).toBe(0);

@@ -33,14 +33,14 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         return [];
       }
       if (/^INSERT INTO paginas/i.test(s)) {
-        if (inj.upsertErro && params[7] === 'erro') throw new Error('D1 fora do ar');
-        // ordem dos parâmetros: url, site, titulo, data_publicacao, ano, data_vista, hash, status, erro
-        const [url, site, titulo, data_publicacao, ano, data_vista, hash, status, erro] = params as any[];
+        if (inj.upsertErro && params[9] === 'erro') throw new Error('D1 fora do ar');
+        // ordem dos parâmetros: url, site, titulo, tipo, processo, ano, data_publicacao, data_vista, hash, status, erro
+        const [url, site, titulo, tipo, processo, ano, data_publicacao, data_vista, hash, status, erro] = params as any[];
         registro.eventos.push(`paginas:${status}`);
         const ant = paginas.get(url);
         const falhas = status === 'erro' ? (ant ? (ant.falhas as number) + 1 : 1) : 0;
-        paginas.set(url, { url, site, titulo, data_publicacao, ano, data_vista, hash: status === 'erro' ? (ant?.hash ?? null) : hash, status, falhas, erro });
-        return [];
+        paginas.set(url, { url, site, titulo, tipo, processo, data_publicacao, ano, data_vista, hash: status === 'erro' ? (ant?.hash ?? null) : hash, status, falhas, erro });
+        return [{ falhas }];
       }
       if (/^DELETE FROM trechos_fts/i.test(s)) {
         registro.eventos.push('delete');
@@ -54,15 +54,9 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         trechos = trechos.filter((t) => t.url !== params[0]);
         return [];
       }
-      if (/^INSERT INTO trechos_fts/i.test(s)) {
-        fts.push({ texto: params[0] as string, trecho_id: params[1] as string });
-        return [];
-      }
-      if (/^INSERT INTO trechos/i.test(s)) {
-        const [id, url, ordem, texto] = params as any[];
-        if (inj.insertTrechoN !== undefined && ++insertsTrecho === inj.insertTrechoN) throw new Error('D1 indisponível');
-        if (!paginas.has(url)) throw new Error('FOREIGN KEY constraint failed');
-        trechos.push({ id, url, ordem, texto });
+      if (/^UPDATE paginas SET status = 'removida'/i.test(s)) {
+        const p = paginas.get(params[0] as string);
+        if (p) p.status = 'removida';
         return [];
       }
       throw new Error(`SQL não previsto no fake: ${s}`);
@@ -72,6 +66,7 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         const reg = Object.fromEntries(colunas.map((c, i) => [c, l[i]]));
         if (tabela === 'trechos') {
           if (!paginas.has(reg.url as string)) throw new Error('FOREIGN KEY constraint failed');
+          if (inj.insertTrechoN !== undefined && ++insertsTrecho === inj.insertTrechoN) throw new Error('D1 indisponível');
           trechos.push(reg as any);
         } else if (tabela === 'trechos_fts') {
           fts.push(reg as any);

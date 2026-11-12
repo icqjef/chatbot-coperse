@@ -6,9 +6,10 @@ import type { Site } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
 import { criarBuscar } from './http.js';
-import { indexarPagina, type DepsIndexacao } from './indexar.js';
+import { extrairPagina } from './extrair.js';
+import { indexarDocumento, registrarErro, type DepsIndexacao, type ResultadoIndexacao } from './indexar.js';
 
-export interface Contagem { nova: number; alterada: number; igual: number; vazia: number; erro: number }
+export interface Contagem { nova: number; alterada: number; igual: number; vazia: number; erro: number; teto: number }
 
 export interface OpcoesExecucao {
   limite: number;
@@ -26,14 +27,32 @@ function hostPermitido(url: string, site: Site): boolean {
 }
 
 export function codigoSaida(r: Contagem): 0 | 1 {
-  return r.erro > 0 && r.nova + r.alterada + r.igual + r.vazia === 0 ? 1 : 0;
+  return r.erro > 0 && r.nova + r.alterada + r.igual + r.vazia + r.teto === 0 ? 1 : 0;
+}
+
+async function indexarItem(site: Site, item: { url: string; titulo: string; data: string }, deps: DepsExecucao): Promise<ResultadoIndexacao> {
+  const dataValida = item.data && !Number.isNaN(Date.parse(item.data)) ? item.data : deps.agora();
+  const base = { site, url: item.url, titulo: item.titulo, data: dataValida, tipo: 'html' as const, processo: 'geral', ano: new Date(dataValida).getUTCFullYear() };
+  try {
+    const pagina = extrairPagina(await deps.buscarHtml(item.url), item.url);
+    return await indexarDocumento({ ...base, titulo: item.titulo || pagina.titulo, texto: pagina.texto }, deps);
+  } catch (e) {
+    try {
+      await registrarErro(base, e instanceof Error ? e.message : String(e), deps);
+    } catch {
+      // sem como registrar o erro; segue
+    }
+    return 'erro';
+  }
 }
 
 const dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-export async function executar(opcoes: OpcoesExecucao, deps: DepsIndexacao): Promise<Contagem> {
+export type DepsExecucao = DepsIndexacao & { buscarHtml(url: string): Promise<string> };
+
+export async function executar(opcoes: OpcoesExecucao, deps: DepsExecucao): Promise<Contagem> {
   const esperar = opcoes.esperar ?? dormir;
-  const total: Contagem = { nova: 0, alterada: 0, igual: 0, vazia: 0, erro: 0 };
+  const total: Contagem = { nova: 0, alterada: 0, igual: 0, vazia: 0, erro: 0, teto: 0 };
   const inicio = await deps.cf.d1('INSERT INTO execucoes (inicio) VALUES (?) RETURNING id', [deps.agora()]);
   const id = inicio[0]?.id;
 
@@ -54,11 +73,11 @@ export async function executar(opcoes: OpcoesExecucao, deps: DepsIndexacao): Pro
         continue;
       }
       await esperar(1000);
-      total[await indexarPagina({ site, url: item.url, titulo: item.titulo, data: item.data }, deps)]++;
+      total[await indexarItem(site, item, deps)]++;
     }
   }
 
-  const paginas = total.nova + total.alterada + total.igual + total.vazia + total.erro;
+  const paginas = total.nova + total.alterada + total.igual + total.vazia + total.erro + total.teto;
   await deps.cf.d1('UPDATE execucoes SET fim = ?, paginas = ?, erros = ? WHERE id = ?', [deps.agora(), paginas, total.erro, id]);
   return total;
 }
@@ -88,7 +107,7 @@ async function main(): Promise<void> {
   } as Parameters<typeof criarEmbedder>[0]);
   const buscar = criarBuscar();
   const buscarTexto = async (u: string) => (await buscar(u)).texto ?? '';
-  const deps: DepsIndexacao = { cf, embedder, buscarHtml: buscarTexto, agora: () => new Date().toISOString() };
+  const deps: DepsExecucao = { cf, embedder, buscarHtml: buscarTexto, agora: () => new Date().toISOString() };
 
   const resumo = await executar({ limite, sites }, deps);
   const falhas = (await cf.d1("SELECT url, erro FROM paginas WHERE status = 'erro'")).map((r) => ({ url: r.url, erro: r.erro }));

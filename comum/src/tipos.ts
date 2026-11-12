@@ -51,3 +51,18 @@ export interface VetorTrecho {
   values: number[];
   metadata: MetadadosTrecho;
 }
+
+export type TipoDocumento = 'html' | 'pdf' | 'lista';
+
+/** Texto já extraído de uma página ou PDF, pronto para indexar. */
+export interface Documento {
+  site: Site;
+  url: string;
+  tipo: TipoDocumento;
+  titulo: string;
+  /** ISO 8601 */
+  data: string;
+  processo: string;
+  ano: number;
+  texto: string;
+}
