@@ -61,3 +61,14 @@ O Jeferson perguntou se a assinatura Claude Pro poderia substituir o Gemini. Nã
 Conferido na documentação oficial (https://aistudio.google.com/api-reference/embeddings; ai.google.dev redireciona para lá): endpoint `POST https://generativelanguage.googleapis.com/v1beta/models/{modelo}:batchEmbedContents`; corpo `{ requests: [{ model: "models/{modelo}", content: { parts: [{ text }] }, taskType, outputDimensionality }] }`; resposta `{ embeddings: [{ values: [...] }] }`. Modelo padrão `gemini-embedding-001` (trocável por `MODELO_EMBEDDING`), `outputDimensionality` 768 para casar com o índice Vectorize (`DIMENSAO_EMBEDDING`). Para dimensões diferentes de 3072 o vetor não vem normalizado; por isso `criarEmbedder` normaliza cada vetor para norma 1 (cosseno consistente). Documentos usam `taskType` `RETRIEVAL_DOCUMENT` e perguntas `RETRIEVAL_QUERY`. A chave vai no header `x-goog-api-key`, nunca na URL; lotes de até 100 textos. Obs.: a doc indica que `outputDimensionality` pode migrar para um bloco de configuração nos SDKs; usamos o campo REST por requisição.
 
 Atualização (mesmo dia): existe o `gemini-embedding-2` (mais novo, multimodal, sem `taskType`, já normaliza), mas o `gemini-embedding-001` segue Estável para texto; mantemos o 001 porque aceita `taskType`. A documentação é ambígua sobre `outputDimensionality`/`taskType` irem no topo de cada requisição ou dentro de `embedContentConfig`; mantemos o formato no topo. Se a API ignorasse o campo, devolveria vetores de 3072 dimensões; por isso `criarEmbedder` confere o número de vetores e a dimensão de cada um (e valida `DIMENSAO_EMBEDDING`) e falha antes de gravar no índice de 768. O formato será confirmado na primeira execução real (Task 11).
+
+## 2026-11-12 — Prova real do indexador: aprovada
+
+Workflow `indexar` disparado manualmente com `limite=5` (execução 43269595972). Como coperse e sisu3 têm feed, foram lidos os 5 itens mais recentes do coperse e os 3 que o feed do sisu3 traz: `nova: 8, erro: 0`. Conferido em produção:
+
+- D1: 8 páginas com status `ok`, títulos e datas iguais aos dos feeds (datas em ISO, `ano` 2026); 8 trechos (notícias curtas cabem num trecho cada) e 8 linhas na busca de texto; a busca `inscricao OR inscricoes` sem acento encontra 4.
+- Vectorize: 8 vetores de 768 dimensões, com metadados `site`, `url`, `titulo`, `data`, `processo`, `ano` (número). As gravações do Vectorize levaram cerca de 1 minuto para aparecer na contagem.
+- Gemini: o formato do corpo com `taskType` e `outputDimensionality` no topo de cada requisição funcionou (a trava de dimensão não disparou), confirmando a dúvida registrada na entrada sobre embeddings.
+- Segunda execução com `limite=5`: `igual: 8`, nada regravado.
+
+A indexação agendada a cada 2 horas está ativa desde o merge.
