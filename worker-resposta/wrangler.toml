@@ -1,0 +1,16 @@
+name = "chatbot-coperse"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "chatbot-coperse"
+database_id = "3cbc9b2c-dc1d-430b-95fe-edce33927d3d"
+migrations_dir = "migrations"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "chatbot-coperse"
+
+[observability]
+enabled = true
