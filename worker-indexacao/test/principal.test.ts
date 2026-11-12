@@ -414,6 +414,25 @@ describe('executar: PDF linkado por página lista', () => {
     expect(m.f.paginas.get(`${V}/p`)?.tipo).toBe('html');
   });
 
+  it('PDF já carregado no mesmo lote de proximos respeita a marca dada pela lista processada antes', async () => {
+    const m = montar({ paginas: {
+      [`${V}/res`]: listaCom([['/docs/x.pdf', 'Documento']]),
+      [`${V}/docs/x.pdf`]: { tipo: 'pdf', bytes: enc('Fulano 9,5') },
+    } });
+    const estado = await carregarEstado(m.f.cf);
+    const base = { site: 'vestibular', profundidade: 1, origem: null, titulo: null, processo: null, ano: null, data: null };
+    await enfileirar(m.f.cf, estado, [
+      { ...base, url: `${V}/res`, prioridade: 10 },
+      { ...base, url: `${V}/docs/x.pdf`, prioridade: 2 },
+    ], { agora: m.estado.agora });
+    expect(m.f.fila.get(`${V}/docs/x.pdf`)).toMatchObject({ lista: 0 });
+    const r = await executar(m.opcoes({ sites: [site({ paginas_chave: [] })] }), m.deps);
+    expect(r).toMatchObject({ nova: 2, erro: 0 });
+    expect(m.buscados).not.toContain(`${V}/docs/x.pdf`);
+    expect(m.f.paginas.get(`${V}/docs/x.pdf`)?.tipo).toBe('lista');
+    expect(m.f.trechos().filter((t) => t.url === `${V}/docs/x.pdf`)).toHaveLength(1);
+  });
+
   it('PDF já na fila por outra página fica marcado quando uma lista também o linka', async () => {
     const m = montar({ paginas: {
       [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/docs/x.pdf', 'Documento'], ['/res', 'Resultados']]) },

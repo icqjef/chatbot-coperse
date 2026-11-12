@@ -36,6 +36,8 @@ export interface PaginaVista {
 export interface EstadoRastreio {
   paginas: Map<string, PaginaVista>;
   naFila: Set<string>;
+  /** URLs marcadas como filhas de lista nesta execução (vale também para itens já carregados num lote de proximos) */
+  listas: Set<string>;
 }
 
 /** URL canônica (chave de `fila` e `paginas`): absoluta http(s), sem fragmento, host minúsculo, caminho com %xx canônico. */
@@ -68,7 +70,7 @@ export async function carregarEstado(cf: ClienteCloudflare): Promise<EstadoRastr
     });
   }
   const naFila = new Set((await cf.d1('SELECT url FROM fila')).map((l) => String(l.url)));
-  return { paginas, naFila };
+  return { paginas, naFila, listas: new Set() };
 }
 
 /**
@@ -99,6 +101,7 @@ export async function enfileirar(
   for (const bruto of itens) {
     const url = normalizarUrl(bruto.url);
     if (!url) continue;
+    if (bruto.lista) estado.listas.add(url);
     if (estado.naFila.has(url)) {
       if (opts.forcar) elevar.set(url, Math.max(elevar.get(url) ?? 0, bruto.prioridade));
       // já na fila por outra página: a marca de lista vale mesmo assim (privacidade)

@@ -7,7 +7,7 @@ const antes = (horas: number) => new Date(Date.parse(AGORA) - horas * 3600_000).
 const item = (url: string, extra: Partial<NovoItem> = {}): NovoItem => ({
   url, site: 'coperse', profundidade: 1, origem: null, prioridade: 0, titulo: null, processo: null, ano: null, data: null, ...extra,
 });
-const estadoVazio = (): EstadoRastreio => ({ paginas: new Map(), naFila: new Set() });
+const estadoVazio = (): EstadoRastreio => ({ paginas: new Map(), naFila: new Set(), listas: new Set() });
 const u = (s: string | number) => `https://coperse.furg.br/${s}`;
 
 describe('normalizarUrl', () => {
@@ -120,6 +120,8 @@ describe('enfileirar', () => {
     expect(fila.has(u('ja-lista.pdf'))).toBe(false);
     expect(fila.has(u('pagina'))).toBe(false); // HTML não é reaberto pela marca
     expect((await proximos(cf, 10, AGORA)).find((i) => i.url === u('novo.pdf'))?.lista).toBe(true);
+    // marca em memória para todos os que chegaram com lista, novos ou já na fila
+    expect([...estado.listas].sort()).toEqual(['novo.pdf', 'na-fila.pdf', 'visto.pdf', 'ja-lista.pdf', 'pagina'].map(u).sort());
   });
 
   it('página HTML do tipo lista usa a janela de 20 h', async () => {

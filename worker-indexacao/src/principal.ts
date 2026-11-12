@@ -108,6 +108,8 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
   const { regras } = opcoes;
   const agora = deps.agora();
   const pdfPelaUrl = ehPdf(item.url);
+  // A marca em memória cobre o item que já estava no lote de proximos quando a lista o marcou no D1.
+  const filhoDeLista = item.lista || estado.listas.has(item.url);
   let titulo = pdfPelaUrl ? tituloPdf(item) : (item.titulo ?? '');
   let tipo: TipoDocumento = saida.tipo;
   let data = valida(item.data) ? item.data : agora;
@@ -116,7 +118,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     // Lista nominal em PDF: nunca baixa; indexa só título, data e link. A data vem do feed ou de um HEAD
     // (Last-Modified); sem nenhum dos dois é desconhecida: a herdada da página que linkou só serve para ordenar.
     // PDF linkado por uma página lista também é lista, mesmo com título e nome neutros.
-    if (pdfPelaUrl && (item.lista || ehListaDeCandidatos(titulo, item.url, regras))) {
+    if (pdfPelaUrl && (filhoDeLista || ehListaDeCandidatos(titulo, item.url, regras))) {
       const conhecida = (ctx.doFeed.has(item.url) && valida(item.data) ? item.data : undefined) ?? (await ultimaModificacao(item.url, ctx));
       if (conhecida) data = conhecida;
       const c = classificar(titulo, item.url, data, item, site, regras);
@@ -138,7 +140,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       data = conhecida ?? (valida(item.data) ? item.data : agora);
       const c = classificar(titulo, item.url, data, item, site, regras);
       // URL sem cara de PDF que devolveu PDF: a regra de lista ainda vale (não lê o conteúdo).
-      const lista = item.lista || ehListaDeCandidatos(titulo, item.url, regras);
+      const lista = filhoDeLista || ehListaDeCandidatos(titulo, item.url, regras);
       saida.tipo = lista ? 'lista' : 'pdf';
       const texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
       return await indexarDocumento(
