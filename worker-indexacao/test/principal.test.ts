@@ -87,13 +87,14 @@ describe('executar: rastreamento pela fila', () => {
     expect(m.buscados).not.toContain(`${V}/docs/resultado-final.pdf`);
     expect(m.f.paginas.get(`${V}/docs/resultado-final.pdf`)?.tipo).toBe('lista');
     expect(m.f.trechos().filter((t) => t.url === `${V}/docs/resultado-final.pdf`)).toHaveLength(1);
-    // página HTML de homologação: lista, mas os links são seguidos
+    // página HTML de homologação: lista, mas os links são seguidos; o PDF que ela linka também vira lista
     expect(m.f.paginas.get(`${V}/homologacao`)?.tipo).toBe('lista');
-    expect(m.buscados).toContain(`${V}/docs/anexo.pdf`);
+    expect(m.buscados).not.toContain(`${V}/docs/anexo.pdf`);
+    expect(m.f.paginas.get(`${V}/docs/anexo.pdf`)?.tipo).toBe('lista');
     expect(m.embutidos.join(' ')).not.toMatch(/Fulano/);
     expect(m.f.paginas.get(`${V}/docs/edital.pdf`)?.tipo).toBe('pdf');
-    // a lista em PDF só recebe um HEAD (Last-Modified)
-    expect(m.heads).toEqual([`${V}/docs/resultado-final.pdf`]);
+    // listas em PDF só recebem um HEAD (Last-Modified)
+    expect([...m.heads].sort()).toEqual([`${V}/docs/anexo.pdf`, `${V}/docs/resultado-final.pdf`]);
     // uma espera de 1 s antes de cada requisição, HEAD incluído
     expect(m.esperas).toHaveLength(m.buscados.length + m.heads.length);
     expect(m.esperas.every((ms) => ms === 1000)).toBe(true);
@@ -390,6 +391,58 @@ describe('executar: correções da revisão final', () => {
     expect(r).toMatchObject({ nova: 1, erro: 0 });
     expect(m.buscados).toEqual([]);
     expect(m.f.paginas.get(u)).toMatchObject({ tipo: 'lista', titulo: 'Resultado Final 2026', ano: 2026 });
+  });
+});
+
+describe('executar: PDF linkado por página lista', () => {
+  const listaCom = (links: [string, string][]) => ({ tipo: 'html' as const, texto: pagina('Resultado da homologação', links) });
+
+  it('PDF de nome neutro linkado por lista é lista: nunca baixado, 1 trecho de resumo; HTML filho não é forçado', async () => {
+    const m = montar({ paginas: {
+      [`${V}/`]: listaCom([['/docs/x.pdf', 'Documento'], ['/p', 'Página seguinte']]),
+      [`${V}/docs/x.pdf`]: { tipo: 'pdf', bytes: enc('Fulano 9,5') },
+      [`${V}/p`]: { tipo: 'html', texto: pagina('Página seguinte') },
+    } });
+    const r = await executar(m.opcoes(), m.deps);
+    expect(r).toMatchObject({ nova: 3, erro: 0 });
+    expect(m.buscados).not.toContain(`${V}/docs/x.pdf`);
+    expect(m.f.paginas.get(`${V}/docs/x.pdf`)?.tipo).toBe('lista');
+    const trechos = m.f.trechos().filter((t) => t.url === `${V}/docs/x.pdf`);
+    expect(trechos).toHaveLength(1);
+    expect(trechos[0]!.texto).toMatch(/lista nominal/);
+    expect(m.buscados).toContain(`${V}/p`);
+    expect(m.f.paginas.get(`${V}/p`)?.tipo).toBe('html');
+  });
+
+  it('PDF já na fila por outra página fica marcado quando uma lista também o linka', async () => {
+    const m = montar({ paginas: {
+      [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/docs/x.pdf', 'Documento'], ['/res', 'Resultados']]) },
+      [`${V}/res`]: listaCom([['/docs/x.pdf', 'Documento']]),
+      [`${V}/docs/x.pdf`]: { tipo: 'pdf', bytes: enc('Fulano 9,5') },
+    } });
+    const estado = await carregarEstado(m.f.cf);
+    // a lista é processada antes do PDF (prioridade maior que a do PDF)
+    await enfileirar(m.f.cf, estado, [{ url: `${V}/res`, site: 'vestibular', profundidade: 1, origem: null, prioridade: 3, titulo: null, processo: null, ano: null, data: null }], { agora: m.estado.agora });
+    await executar(m.opcoes(), m.deps);
+    expect(m.buscados).not.toContain(`${V}/docs/x.pdf`);
+    expect(m.f.paginas.get(`${V}/docs/x.pdf`)?.tipo).toBe('lista');
+  });
+
+  it('PDF já indexado com conteúdo volta à fila quando uma lista o linka e vira só resumo', async () => {
+    const paginas: Record<string, Resposta> = {
+      [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/docs/x.pdf', 'Documento']]) },
+      [`${V}/docs/x.pdf`]: { tipo: 'pdf', bytes: enc('Fulano 9,5') },
+    };
+    const m = montar({ paginas });
+    await executar(m.opcoes(), m.deps);
+    expect(m.f.paginas.get(`${V}/docs/x.pdf`)?.tipo).toBe('pdf');
+    // 1 dia depois (PDF dentro da janela de 30 dias) a página inicial passa a ser uma lista
+    paginas[`${V}/`] = listaCom([['/docs/x.pdf', 'Documento']]);
+    m.estado.agora = '2026-11-13T00:00:00.000Z';
+    await executar(m.opcoes(), m.deps);
+    expect(m.f.paginas.get(`${V}/docs/x.pdf`)?.tipo).toBe('lista');
+    expect(m.f.trechos().filter((t) => t.url === `${V}/docs/x.pdf`).map((t) => t.texto).join(' ')).not.toMatch(/Fulano/);
+    expect(m.buscados.filter((u) => u === `${V}/docs/x.pdf`)).toHaveLength(1);
   });
 });
 

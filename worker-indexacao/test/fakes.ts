@@ -100,6 +100,11 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         if (l) Object.assign(l, { titulo: vale(params[0]) ? params[0] : l.titulo, data: vale(params[1]) ? params[1] : l.data, prioridade: Math.max(l.prioridade as number, params[2] as number) });
         return [];
       }
+      if (/^UPDATE fila SET lista = 1 WHERE url = \?$/i.test(s)) {
+        const l = fila.get(params[0] as string);
+        if (l) l.lista = 1;
+        return [];
+      }
       if (/^UPDATE fila SET tentativas = \?, proxima_tentativa = \? WHERE url = \?$/i.test(s)) {
         const l = fila.get(params[2] as string);
         if (l) {
@@ -129,7 +134,7 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
             if (opcoes.ignorarRepetidas) continue;
             throw new Error('UNIQUE constraint failed: fila.url');
           }
-          fila.set(reg.url as string, { tentativas: 0, prioridade: 0, profundidade: 0, proxima_tentativa: null, ...reg });
+          fila.set(reg.url as string, { tentativas: 0, prioridade: 0, profundidade: 0, proxima_tentativa: null, lista: 0, ...reg });
         } else {
           (registro.linhas[tabela] ??= []).push(reg);
         }

@@ -115,7 +115,8 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
   try {
     // Lista nominal em PDF: nunca baixa; indexa só título, data e link. A data vem do feed ou de um HEAD
     // (Last-Modified); sem nenhum dos dois é desconhecida: a herdada da página que linkou só serve para ordenar.
-    if (pdfPelaUrl && ehListaDeCandidatos(titulo, item.url, regras)) {
+    // PDF linkado por uma página lista também é lista, mesmo com título e nome neutros.
+    if (pdfPelaUrl && (item.lista || ehListaDeCandidatos(titulo, item.url, regras))) {
       const conhecida = (ctx.doFeed.has(item.url) && valida(item.data) ? item.data : undefined) ?? (await ultimaModificacao(item.url, ctx));
       if (conhecida) data = conhecida;
       const c = classificar(titulo, item.url, data, item, site, regras);
@@ -137,7 +138,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       data = conhecida ?? (valida(item.data) ? item.data : agora);
       const c = classificar(titulo, item.url, data, item, site, regras);
       // URL sem cara de PDF que devolveu PDF: a regra de lista ainda vale (não lê o conteúdo).
-      const lista = ehListaDeCandidatos(titulo, item.url, regras);
+      const lista = item.lista || ehListaDeCandidatos(titulo, item.url, regras);
       saida.tipo = lista ? 'lista' : 'pdf';
       const texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
       return await indexarDocumento(
@@ -169,6 +170,8 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
           url, site: site.id, profundidade: item.profundidade + 1, origem: item.url, prioridade: ehPdf(url) ? 2 : 1,
           // Privacidade: o texto de um link numa lista costuma ser o nome de uma pessoa; o filho usa o próprio título.
           titulo: lista ? null : l.titulo || null, processo: c.herdavel.processo, ano: c.herdavel.ano, data,
+          // Só vale para PDF (inclusive o servido sem cara de PDF); HTML filho de lista costuma ser navegação.
+          lista,
         });
       }
       await enfileirar(deps.cf, estado, novos, { agora });

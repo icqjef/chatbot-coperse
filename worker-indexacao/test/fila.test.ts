@@ -104,6 +104,24 @@ describe('enfileirar', () => {
     expect([...fila.keys()].sort()).toEqual([u('perm-31d'), u('transitorio')].sort());
   });
 
+  it('marca de lista: grava 1, marca item já na fila e reabre PDF visto sem ser lista', async () => {
+    const { cf, fila } = criarCfFalso();
+    const estado = estadoVazio();
+    await enfileirar(cf, estado, [item(u('na-fila.pdf'))], { agora: AGORA });
+    expect(fila.get(u('na-fila.pdf'))).toMatchObject({ lista: 0 });
+    estado.paginas.set(u('visto.pdf'), { dataVista: antes(24), status: 'ok', tipo: 'pdf' });
+    estado.paginas.set(u('ja-lista.pdf'), { dataVista: antes(24), status: 'ok', tipo: 'lista' });
+    estado.paginas.set(u('pagina'), { dataVista: antes(2), status: 'ok', tipo: 'html' });
+    const n = await enfileirar(cf, estado, ['novo.pdf', 'na-fila.pdf', 'visto.pdf', 'ja-lista.pdf', 'pagina'].map((s) => item(u(s), { lista: true })), { agora: AGORA });
+    expect(n).toBe(2);
+    expect(fila.get(u('novo.pdf'))).toMatchObject({ lista: 1 });
+    expect(fila.get(u('na-fila.pdf'))).toMatchObject({ lista: 1 });
+    expect(fila.get(u('visto.pdf'))).toMatchObject({ lista: 1 });
+    expect(fila.has(u('ja-lista.pdf'))).toBe(false);
+    expect(fila.has(u('pagina'))).toBe(false); // HTML não é reaberto pela marca
+    expect((await proximos(cf, 10, AGORA)).find((i) => i.url === u('novo.pdf'))?.lista).toBe(true);
+  });
+
   it('página HTML do tipo lista usa a janela de 20 h', async () => {
     const { cf, fila } = criarCfFalso();
     const estado = estadoVazio();

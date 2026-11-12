@@ -19,9 +19,11 @@ export interface ItemFila {
   processo: string | null;
   ano: number | null;
   data: string | null;
+  /** linkado por uma página lista: se for PDF, é tratado como lista (nunca baixado) */
+  lista: boolean;
 }
 
-export type NovoItem = Omit<ItemFila, 'tentativas'>;
+export type NovoItem = Omit<ItemFila, 'tentativas' | 'lista'> & { lista?: boolean };
 
 export interface PaginaVista {
   dataVista: string;
@@ -93,35 +95,43 @@ export async function enfileirar(
   const agora = Date.parse(opts.agora);
   const novos = new Map<string, NovoItem>();
   const elevar = new Map<string, number>();
+  const marcarLista = new Set<string>();
   for (const bruto of itens) {
     const url = normalizarUrl(bruto.url);
     if (!url) continue;
     if (estado.naFila.has(url)) {
       if (opts.forcar) elevar.set(url, Math.max(elevar.get(url) ?? 0, bruto.prioridade));
+      // já na fila por outra página: a marca de lista vale mesmo assim (privacidade)
+      if (bruto.lista) marcarLista.add(url);
       continue;
     }
     const anterior = novos.get(url);
     if (anterior) {
       anterior.prioridade = Math.max(anterior.prioridade, bruto.prioridade);
       anterior.titulo ??= bruto.titulo;
+      anterior.lista ||= bruto.lista;
       continue;
     }
-    if (!opts.forcar && dentroDaJanela(url, estado.paginas.get(url), agora)) continue;
+    const vista = estado.paginas.get(url);
+    // PDF já indexado com conteúdo e agora linkado por uma lista: volta à fila para virar só resumo.
+    const reabrir = !!bruto.lista && vista?.status === 'ok' && vista.tipo === 'pdf';
+    if (!opts.forcar && !reabrir && dentroDaJanela(url, vista, agora)) continue;
     novos.set(url, { ...bruto, url });
   }
   for (const [url, prioridade] of elevar) {
     await cf.d1('UPDATE fila SET prioridade = MAX(prioridade, ?) WHERE url = ?', [prioridade, url]);
   }
+  for (const url of marcarLista) await cf.d1('UPDATE fila SET lista = 1 WHERE url = ?', [url]);
   if (novos.size === 0) return 0;
-  const linhas = [...novos.values()].map((i) => [i.url, i.site, i.profundidade, i.origem, i.prioridade, i.titulo, i.processo, i.ano, i.data]);
-  await cf.inserirLinhas('fila', ['url', 'site', 'profundidade', 'origem', 'prioridade', 'titulo', 'processo', 'ano', 'data'], linhas, { ignorarRepetidas: true });
+  const linhas = [...novos.values()].map((i) => [i.url, i.site, i.profundidade, i.origem, i.prioridade, i.titulo, i.processo, i.ano, i.data, i.lista ? 1 : 0]);
+  await cf.inserirLinhas('fila', ['url', 'site', 'profundidade', 'origem', 'prioridade', 'titulo', 'processo', 'ano', 'data', 'lista'], linhas, { ignorarRepetidas: true });
   for (const url of novos.keys()) estado.naFila.add(url);
   return novos.size;
 }
 
 export async function proximos(cf: ClienteCloudflare, n: number, agora: string): Promise<ItemFila[]> {
   const linhas = await cf.d1(
-    'SELECT url, site, profundidade, origem, prioridade, tentativas, titulo, processo, ano, data FROM fila WHERE proxima_tentativa IS NULL OR proxima_tentativa <= ? ORDER BY prioridade DESC, profundidade ASC, rowid LIMIT ?',
+    'SELECT url, site, profundidade, origem, prioridade, tentativas, titulo, processo, ano, data, lista FROM fila WHERE proxima_tentativa IS NULL OR proxima_tentativa <= ? ORDER BY prioridade DESC, profundidade ASC, rowid LIMIT ?',
     [agora, n],
   );
   return linhas.map((l) => ({
@@ -135,6 +145,7 @@ export async function proximos(cf: ClienteCloudflare, n: number, agora: string):
     processo: (l.processo as string | null) ?? null,
     ano: l.ano == null ? null : Number(l.ano),
     data: (l.data as string | null) ?? null,
+    lista: Number(l.lista ?? 0) === 1,
   }));
 }
 
