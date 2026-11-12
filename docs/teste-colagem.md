@@ -10,19 +10,18 @@ O script de teste só mostra um selo "Chatbot COPERSE — teste" no canto inferi
 <script src="https://chatbot-coperse.coperse-furg.workers.dev/widget.js" defer></script>
 ```
 
-## Passo a passo (Joomla 4/5, sisu3.furg.br)
+## Passo a passo (sisu3.furg.br roda Joomla 3)
 
-1. **Trocar o editor para não "limpar" o código** (só para o seu usuário):
-   no canto superior direito do painel, menu do usuário → **Editar conta** → aba **Configurações básicas** → **Editor** = **Editor - CodeMirror** (ou **Editor - Nenhum**) → **Salvar e fechar**.
-   Motivo: o editor visual (TinyMCE) costuma apagar `<script>`.
-2. **Criar o módulo:** **Conteúdo → Módulos do site → Novo → Personalizado** (Custom).
+1. **Criar o módulo:** **Extensões → Gerenciar módulos → Novo → HTML personalizado** (Custom).
    - Título: `Chatbot - teste` (em **Exibir título**, escolha **Ocultar**).
-   - No campo de conteúdo, cole o código acima.
-   - **Posição:** escolha uma posição que aparece no rodapé do site (qualquer uma que esteja visível nas páginas).
+   - **Antes de colar**, clique no botão **Alternar editor** (abaixo da caixa de texto). A caixa passa a mostrar código cru. **Não cole no editor visual**: ele transforma o código em texto e o `<script>` aparece escrito na página.
+   - Apague o que houver na caixa e cole o código acima. Salve sem alternar o editor de novo.
+   - Se não houver botão "Alternar editor": menu do usuário → **Editar conta** → **Configurações básicas** → **Editor** = **Editor - CodeMirror** ou **Editor - Nenhum**.
+   - **Posição:** use a **mesma posição de um módulo que você vê no site** (por exemplo, o do rodapé; a posição aparece na lista de módulos). Posições que o tema "pip" não usa nunca aparecem.
    - Status: **Publicado**.
-3. **Mostrar só numa página** (para o teste não aparecer para todo mundo):
+2. **Mostrar só numa página** (para o teste não aparecer para todo mundo):
    aba **Atribuição de menu** → **Somente nas páginas selecionadas** → marque **uma** página de pouco movimento.
-4. **Salvar.** Depois de salvar, **reabra o módulo** e confira se o código continua lá, igual ao colado.
+3. **Salvar.** Depois de salvar, **reabra o módulo** e confira se o código continua lá, igual ao colado.
 
 ## O que verificar e me contar
 
@@ -41,3 +40,7 @@ O Joomla tem um **filtro de texto** por grupo de usuários. Verifique em **Siste
 ## Depois do teste
 
 Despublique o módulo (**Status: Despublicado**) ou apague-o. O módulo definitivo será criado na publicação do chatbot, já com o widget de verdade.
+
+## Resultado em 2026-11-12 (sisu3)
+
+Funcionou: o `<script>` ficou salvo, chegou às páginas como código e o selo apareceu no computador e no celular. Os dois tropeços foram a posição (a primeira escolhida não existe no tema) e o editor visual (converteu o código em texto). Ambos estão cobertos no passo a passo acima.

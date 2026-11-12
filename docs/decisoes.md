@@ -47,3 +47,7 @@ Conta Cloudflare do Jeferson, Account ID `6d7caf21114ed3ab1289f93cf901a859` (ide
 Subdomínio `workers.dev` da conta: `coperse-furg` (escolhido pelo Jeferson). Endereço do Worker: `https://chatbot-coperse.coperse-furg.workers.dev`. É este endereço que vai no `<script>` colado nos sites e no aviso ao CGTI; trocá-lo depois exige recolar o script em todos os sites.
 
 Publicação automática: o GitHub Actions usa o secret `CLOUDFLARE_API_TOKEN` (permissões: Workers Scripts, D1 e Vectorize, todas Edit, restritas à conta) e a variável `CLOUDFLARE_ACCOUNT_ID`. Ramo `main` protegido: só por pull request, com o teste `testes` passando, valendo também para administradores.
+
+## 2026-11-12 — Teste de colagem no sisu3: aprovado (risco R1 resolvido)
+
+O sisu3 roda **Joomla 3** (tema "pip"). Um `<script src=...>` colado num módulo HTML personalizado, com o editor alternado para código cru e na mesma posição do módulo do rodapé, chega às páginas e executa; o selo de teste apareceu no computador e no celular. O filtro de texto do grupo do Jeferson não remove `<script>`. Conclusão: o caminho "colar um script" funciona sem plugin, sem acesso ao código e sem ação do CGTI. Não há cabeçalho Content-Security-Policy no sisu3. O coperse ainda não foi testado; o vestibular (Next.js) depende do administrador do site.
