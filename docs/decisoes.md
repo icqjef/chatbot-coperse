@@ -51,3 +51,7 @@ Publicação automática: o GitHub Actions usa o secret `CLOUDFLARE_API_TOKEN` (
 ## 2026-11-12 — Teste de colagem no sisu3: aprovado (risco R1 resolvido)
 
 O sisu3 roda **Joomla 3** (tema "pip"). Um `<script src=...>` colado num módulo HTML personalizado, com o editor alternado para código cru e na mesma posição do módulo do rodapé, chega às páginas e executa; o selo de teste apareceu no computador e no celular. O filtro de texto do grupo do Jeferson não remove `<script>`. Conclusão: o caminho "colar um script" funciona sem plugin, sem acesso ao código e sem ação do CGTI. Não há cabeçalho Content-Security-Policy no sisu3. O coperse ainda não foi testado; o vestibular (Next.js) depende do administrador do site.
+
+## 2026-11-12 — Claude no lugar do Gemini: avaliado e adiado
+
+O Jeferson perguntou se a assinatura Claude Pro poderia substituir o Gemini. Não pode: a assinatura não inclui a API, que é cobrada à parte no Claude Console (support.claude.com/en/articles/9876003), e a Anthropic não oferece modelo de embeddings (docs.anthropic.com/en/docs/build-with-claude/embeddings). Usar o Claude só para as respostas exigiria uma segunda conta paga. Decisão: seguir só com o Gemini. Se na etapa 7 as respostas não atingirem o portão de qualidade, comparar com o Claude Haiku nas mesmas perguntas de referência; a troca é por variável de ambiente.
