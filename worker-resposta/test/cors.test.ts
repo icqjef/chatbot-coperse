@@ -11,11 +11,11 @@ describe('cabecalhosCors', () => {
     expect(h['Access-Control-Allow-Methods']).toBe('POST, OPTIONS');
     expect(h['Access-Control-Allow-Headers']).toBe('Content-Type');
   });
-  it('devolve {} para origem não permitida', () => {
-    expect(cabecalhosCors('https://evil.example', permitidas)).toEqual({});
+  it('devolve só Vary para origem não permitida', () => {
+    expect(cabecalhosCors('https://evil.example', permitidas)).toEqual({ Vary: 'Origin' });
   });
-  it('devolve {} para origem nula', () => {
-    expect(cabecalhosCors(null, permitidas)).toEqual({});
+  it('devolve só Vary para origem nula', () => {
+    expect(cabecalhosCors(null, permitidas)).toEqual({ Vary: 'Origin' });
   });
   it('nunca devolve *', () => {
     expect(JSON.stringify(cabecalhosCors('*', permitidas))).not.toContain('*');

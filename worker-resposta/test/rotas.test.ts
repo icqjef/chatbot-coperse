@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import worker, { type Env } from '../src/index';
 
-const env: Env = { DB: {} as D1Database, VECTORIZE: {} as VectorizeIndex, AMBIENTE: 'teste' };
+const env = { DB: {}, VECTORIZE: {}, AMBIENTE: 'teste' } as unknown as Env;
 const base = 'https://chatbot.example';
 
 describe('rotas', () => {
