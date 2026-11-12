@@ -7,6 +7,7 @@ type Linha = Record<string, unknown>;
 export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean; vetores?: number } = {}) {
   let insertsTrecho = 0;
   const paginas = new Map<string, Linha>();
+  const fila = new Map<string, Linha>(); // ordem de inserção = rowid
   let trechos: { id: string; url: string; ordem: number; texto: string }[] = [];
   let fts: { texto: string; trecho_id: string }[] = [];
   const registro = { upserts: [] as VetorTrecho[][], apagados: [] as string[][], deletes: 0, eventos: [] as string[], linhas: {} as Record<string, Record<string, unknown>[]> };
@@ -59,6 +60,36 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         if (p) p.status = 'removida';
         return [];
       }
+      if (/^SELECT url, data_vista, status, tipo FROM paginas$/i.test(s)) {
+        return [...paginas.values()].map((p) => ({ url: p.url, data_vista: p.data_vista, status: p.status, tipo: p.tipo }));
+      }
+      if (/^SELECT url FROM fila$/i.test(s)) return [...fila.keys()].map((url) => ({ url }));
+      if (/^SELECT .* FROM fila WHERE proxima_tentativa IS NULL OR proxima_tentativa <= \? ORDER BY prioridade DESC, profundidade ASC, rowid LIMIT \?$/i.test(s)) {
+        const [agora, n] = params as [string, number];
+        return [...fila.values()]
+          .map((l, rowid) => ({ l, rowid }))
+          .filter(({ l }) => l.proxima_tentativa == null || (l.proxima_tentativa as string) <= agora)
+          .sort((a, b) => (b.l.prioridade as number) - (a.l.prioridade as number) || (a.l.profundidade as number) - (b.l.profundidade as number) || a.rowid - b.rowid)
+          .slice(0, n)
+          .map(({ l }) => ({ ...l }));
+      }
+      if (/^UPDATE fila SET prioridade = MAX\(prioridade, \?\) WHERE url = \?$/i.test(s)) {
+        const l = fila.get(params[1] as string);
+        if (l) l.prioridade = Math.max(l.prioridade as number, params[0] as number);
+        return [];
+      }
+      if (/^UPDATE fila SET tentativas = \?, proxima_tentativa = \? WHERE url = \?$/i.test(s)) {
+        const l = fila.get(params[2] as string);
+        if (l) {
+          l.tentativas = params[0];
+          l.proxima_tentativa = params[1];
+        }
+        return [];
+      }
+      if (/^DELETE FROM fila WHERE url = \?$/i.test(s)) {
+        fila.delete(params[0] as string);
+        return [];
+      }
       throw new Error(`SQL não previsto no fake: ${s}`);
     },
     async inserirLinhas(tabela, colunas, linhas, opcoes = {}) {
@@ -70,15 +101,21 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
           trechos.push(reg as any);
         } else if (tabela === 'trechos_fts') {
           fts.push(reg as any);
+        } else if (tabela === 'fila') {
+          // chave primária url: OR IGNORE descarta repetidas; sem ele, falha como o SQLite
+          if (fila.has(reg.url as string)) {
+            if (opcoes.ignorarRepetidas) continue;
+            throw new Error('UNIQUE constraint failed: fila.url');
+          }
+          fila.set(reg.url as string, { tentativas: 0, prioridade: 0, profundidade: 0, proxima_tentativa: null, ...reg });
         } else {
           (registro.linhas[tabela] ??= []).push(reg);
         }
       }
-      void opcoes;
     },
     async contarVetores() { return inj.vetores ?? 0; },
     async upsertVetores(v) { registro.upserts.push(v); },
     async apagarVetores(ids) { registro.apagados.push(ids); },
   };
-  return { cf, paginas, registro, trechos: () => trechos, fts: () => fts };
+  return { cf, paginas, fila, registro, trechos: () => trechos, fts: () => fts };
 }
