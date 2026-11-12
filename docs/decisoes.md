@@ -72,3 +72,27 @@ Workflow `indexar` disparado manualmente com `limite=5` (execução 43269595972)
 - Segunda execução com `limite=5`: `igual: 8`, nada regravado.
 
 A indexação agendada a cada 2 horas está ativa desde o merge.
+
+## 2026-11-12 — Leitura de PDF: unpdf
+
+PDFs dos editais são lidos com o `unpdf` (unjs/unpdf, licença MIT, cerca de 1,3 mil estrelas, mantido: último envio em 2026-11-11, versão 2.1.0). Motivo: roda em Node puro, sem dependências nativas, o que funciona no GitHub Actions sem instalar nada no sistema. PDF escaneado (sem camada de texto) fica com status `vazia`; não há OCR. Arquivos acima de 15 MB não são baixados e ficam como erro.
+
+## 2026-11-12 — Keepalive do agendamento: liskin/gh-workflow-keepalive
+
+O GitHub desliga workflows agendados de repositórios sem atividade por 60 dias. Usamos a ação `liskin/gh-workflow-keepalive@v1.2.1` (MIT) num job à parte do `indexar.yml`, só nas execuções agendadas. Ela reativa o workflow pela API, sem commits falsos no repositório; precisa apenas da permissão `actions: write` nesse job. Substitui a ideia de "commit mensal" da entrada sobre o GitHub Actions. O `gautamkrishnar/keepalive-workflow`, mais conhecido, foi descartado porque está bloqueado no GitHub.
+
+## 2026-11-12 — Rastreamento próprio pela tabela `fila`
+
+Os três sites são rastreados por código próprio: uma fila no D1 (`fila`), semeada pelos feeds RSS e pelas páginas-chave de `config/sites.json`, seguindo links do mesmo domínio até a profundidade configurada (10), com revisita de HTML após 20 horas e de PDF após 30 dias. Cada execução tem orçamento de itens (`LIMITE`, padrão 400) e de tempo (`PRAZO_MINUTOS`, padrão 25); o que sobra fica na fila para a próxima, a cada 2 horas. Motivo: crawlers prontos (crawlee e afins) exigem navegador ou são pesados para o Actions, e o censo dos sites mostrou que uma busca em largura simples sobre o HTML alcança todas as páginas e PDFs. Falhas são adiadas com espera crescente; uma página só é removida do índice depois de três respostas 404/410 seguidas.
+
+## 2026-11-12 — Listas de candidatos: só título, data e link
+
+Documentos com listas nominais (resultados, homologações, chamadas, notas, locais de prova etc., pelas regras de `config/listas.json`) não têm o conteúdo indexado: o bot guarda só título, data e link, num resumo que orienta o candidato a abrir o documento. PDF reconhecido como lista nem é baixado; página HTML reconhecida como lista é lida apenas para seguir os links. Aprovado pelo Jeferson. Motivo: privacidade dos candidatos e o bot não deve opinar sobre situação individual.
+
+## 2026-11-12 — Todas as edições indexadas, com processo e ano
+
+Edições antigas dos processos seletivos também são indexadas, cada trecho marcado com `processo` e `ano` (decisão b do Jeferson). Processo e ano saem do título e do caminho da URL (nunca do domínio: `sisu3.furg.br` não deve marcar tudo como SiSU), pelas regras de `config/processos.json`; um PDF sem essa informação herda processo e ano da página que o linkou; na falta, vale o processo padrão do site e o ano da data. Motivo: a busca pode filtrar ou priorizar a edição em andamento sem perder o histórico.
+
+## 2026-11-12 — Teto de 6000 vetores
+
+A indexação para quando o índice chega a 6000 vetores (`TETO_VETORES`): a contagem é refeita no início de cada execução, o documento que estouraria o teto fica na fila e o resumo da execução mostra `teto_atingido: true` (a execução não falha). Motivo: manter o Vectorize dentro do plano gratuito com folga. Se o teto for atingido, a decisão é do Jeferson entre reduzir a dimensão dos vetores para 384 (exige recriar o índice e reindexar) ou aumentar o tamanho dos trechos (menos vetores por documento).

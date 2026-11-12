@@ -6,8 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       limite:
-        description: 'Quantos itens de cada feed indexar'
-        default: '20'
+        description: 'Quantos itens processar nesta execução'
+        default: '400'
+      minutos:
+        description: 'Prazo do rastreamento, em minutos'
+        default: '25'
 
 concurrency:
   group: indexacao
@@ -19,7 +22,7 @@ permissions:
 jobs:
   indexar:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,4 +37,14 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
           VECTORIZE_INDICE: ${{ vars.VECTORIZE_INDICE }}
-          LIMITE: ${{ inputs.limite || '20' }}
+          LIMITE: ${{ inputs.limite || '400' }}
+          PRAZO_MINUTOS: ${{ inputs.minutos || '25' }}
+          TETO_VETORES: '6000'
+
+  workflow-keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: liskin/gh-workflow-keepalive@v1.2.1

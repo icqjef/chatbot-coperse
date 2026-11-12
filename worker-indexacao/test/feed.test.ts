@@ -31,3 +31,10 @@ describe('lerFeed', () => {
     expect(() => lerFeed('não é xml')).toThrow(/feed/);
   });
 });
+
+describe('lerFeed: formatos', () => {
+  it('Atom lança "Formato de feed não suportado"', () => {
+    const atom = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><title>x</title><entry><title>a</title><link href="https://coperse.furg.br/a"/></entry></feed>`;
+    expect(() => lerFeed(atom)).toThrow('Formato de feed não suportado');
+  });
+});

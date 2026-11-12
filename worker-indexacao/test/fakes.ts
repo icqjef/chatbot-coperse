@@ -10,7 +10,7 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
   const fila = new Map<string, Linha>(); // ordem de inserção = rowid
   let trechos: { id: string; url: string; ordem: number; texto: string }[] = [];
   let fts: { texto: string; trecho_id: string }[] = [];
-  const registro = { upserts: [] as VetorTrecho[][], apagados: [] as string[][], deletes: 0, eventos: [] as string[], linhas: {} as Record<string, Record<string, unknown>[]> };
+  const registro = { upserts: [] as VetorTrecho[][], apagados: [] as string[][], deletes: 0, eventos: [] as string[], linhas: {} as Record<string, Record<string, unknown>[]>, execucoes: [] as Linha[] };
 
   const cf: ClienteCloudflare = {
     async d1(sql, params = []) {
@@ -40,7 +40,9 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         registro.eventos.push(`paginas:${status}`);
         const ant = paginas.get(url);
         const falhas = status === 'erro' ? (ant ? (ant.falhas as number) + 1 : 1) : 0;
-        paginas.set(url, { url, site, titulo, tipo, processo, data_publicacao, ano, data_vista, hash: status === 'erro' ? (ant?.hash ?? null) : hash, status, falhas, erro });
+        // erro sem título conhecido não apaga o título anterior (COALESCE(NULLIF(...)))
+        const tit = status === 'erro' && !titulo ? (ant?.titulo ?? titulo) : titulo;
+        paginas.set(url, { url, site, titulo: tit, tipo, processo, data_publicacao, ano, data_vista, hash: status === 'erro' ? (ant?.hash ?? null) : hash, status, falhas, erro });
         return [{ falhas }];
       }
       if (/^DELETE FROM trechos_fts/i.test(s)) {
@@ -63,6 +65,16 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
       if (/^SELECT url, data_vista, status, tipo FROM paginas$/i.test(s)) {
         return [...paginas.values()].map((p) => ({ url: p.url, data_vista: p.data_vista, status: p.status, tipo: p.tipo }));
       }
+      if (/^INSERT INTO execucoes \(inicio\) VALUES \(\?\) RETURNING id$/i.test(s)) {
+        registro.execucoes.push({ id: registro.execucoes.length + 1, inicio: params[0] });
+        return [{ id: registro.execucoes.length }];
+      }
+      if (/^UPDATE execucoes SET fim = \?, paginas = \?, erros = \? WHERE id = \?$/i.test(s)) {
+        const e = registro.execucoes.find((x) => x.id === params[3]);
+        if (e) Object.assign(e, { fim: params[0], paginas: params[1], erros: params[2] });
+        return [];
+      }
+      if (/^SELECT COUNT\(\*\) AS n FROM fila$/i.test(s)) return [{ n: fila.size }];
       if (/^SELECT url FROM fila$/i.test(s)) return [...fila.keys()].map((url) => ({ url }));
       if (/^SELECT .* FROM fila WHERE proxima_tentativa IS NULL OR proxima_tentativa <= \? ORDER BY prioridade DESC, profundidade ASC, rowid LIMIT \?$/i.test(s)) {
         const [agora, n] = params as [string, number];

@@ -45,7 +45,7 @@ const SQL_UPSERT_OK = `INSERT INTO paginas (url, site, titulo, tipo, processo, a
 
 const SQL_UPSERT_ERRO = `INSERT INTO paginas (url, site, titulo, tipo, processo, ano, data_publicacao, data_vista, hash, status, falhas, erro)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-  ON CONFLICT(url) DO UPDATE SET titulo=excluded.titulo, data_vista=excluded.data_vista, status=excluded.status,
+  ON CONFLICT(url) DO UPDATE SET titulo=COALESCE(NULLIF(excluded.titulo, ''), paginas.titulo), data_vista=excluded.data_vista, status=excluded.status,
     falhas=paginas.falhas + 1, erro=excluded.erro
   RETURNING falhas`;
 
