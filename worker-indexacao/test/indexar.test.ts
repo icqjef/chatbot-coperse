@@ -8,8 +8,8 @@ const html = readFileSync(new URL('./fixtures/coperse-artigo.html', import.meta.
 const site: Site = { id: 'coperse', nome: 'COPERSE', base: 'https://coperse.furg.br', paginas_chave: [], profundidade: 1, dominios_permitidos: ['coperse.furg.br'] };
 const entrada = { site, url: 'https://coperse.furg.br/a', titulo: 'Título do feed', data: '2026-03-10T12:00:00Z' };
 
-function montar(htmlAtual: () => string | Error = () => html) {
-  const f = criarCfFalso();
+function montar(htmlAtual: () => string | Error = () => html, falhas = {}) {
+  const f = criarCfFalso(falhas);
   let embeds = 0;
   const embedder: Embedder = {
     async embed(t) {
@@ -72,10 +72,24 @@ describe('indexarPagina', () => {
     expect(antigos.length).toBeGreaterThan(1);
     atual = corpo(1);
     expect(await indexarPagina(entrada, deps)).toBe('alterada');
-    expect([...f.registro.apagados[0]!].sort()).toEqual([...antigos].sort());
-    const novos = f.trechos().map((t) => t.id);
-    expect(novos.length).toBeLessThan(antigos.length);
-    expect(f.fts().length).toBe(novos.length);
+    const esperados = [idTrecho(entrada.url, 0)];
+    expect([...f.registro.apagados[0]!].sort()).toEqual(antigos.filter((id) => !esperados.includes(id)).sort());
+    expect(f.registro.apagados).toHaveLength(1);
+    expect(f.trechos().map((t) => t.id)).toEqual(esperados);
+    expect(f.fts().map((t) => t.trecho_id)).toEqual(esperados);
+  });
+
+  it('falha no meio dos inserts (e no registro do erro) não deixa a página como igual', async () => {
+    const f = { insertTrechoN: 2, upsertErro: true };
+    const { f: cfa, deps } = montar(() => corpo(6), f);
+    expect(await indexarPagina(entrada, deps)).toBe('erro');
+    expect(cfa.paginas.get(entrada.url)).toMatchObject({ hash: null, status: 'indexando' });
+    f.insertTrechoN = -1; // sem novas falhas
+    expect(await indexarPagina(entrada, deps)).not.toBe('igual');
+    const ids = cfa.trechos().map((t) => t.id).sort();
+    expect(ids).toEqual(Array.from({ length: ids.length }, (_, i) => idTrecho(entrada.url, i)).sort());
+    expect(ids.length).toBeGreaterThan(1);
+    expect(cfa.paginas.get(entrada.url)).toMatchObject({ status: 'ok' });
   });
 
   it('erro de busca vira status erro com falhas=1 e não lança', async () => {

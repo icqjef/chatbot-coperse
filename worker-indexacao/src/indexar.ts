@@ -65,7 +65,6 @@ export async function indexarPagina(
     if (valores.length !== trechos.length) throw new Error('Embedder devolveu quantidade de vetores diferente da de trechos');
 
     const antigos = (await cf.d1('SELECT id FROM trechos WHERE url = ?', [e.url])).map((r) => r.id as string);
-    if (antigos.length > 0) await cf.apagarVetores(antigos);
     await cf.d1('DELETE FROM trechos_fts WHERE trecho_id IN (SELECT id FROM trechos WHERE url = ?)', [e.url]);
     await cf.d1('DELETE FROM trechos WHERE url = ?', [e.url]);
 
@@ -79,12 +78,20 @@ export async function indexarPagina(
     });
     await cf.upsertVetores(vetores);
 
-    // paginas antes de trechos: trechos.url referencia paginas(url).
-    await gravar(SQL_UPSERT_OK, hash, 'ok', null);
+    // Ids dependem só de url+ordem: apaga apenas os que sobraram, para não correr
+    // contra o upsert (mutações do Vectorize são assíncronas e sem ordem garantida).
+    const novos = new Set(vetores.map((v) => v.id));
+    const obsoletos = antigos.filter((id) => !novos.has(id));
+    if (obsoletos.length > 0) await cf.apagarVetores(obsoletos);
+
+    // paginas antes de trechos (FK). Sem hash e com status 'indexando' até terminar,
+    // para uma falha no meio nunca ser confundida com página 'igual'.
+    await gravar(SQL_UPSERT_OK, null, 'indexando', null);
     for (let i = 0; i < trechos.length; i++) {
       await cf.d1('INSERT INTO trechos (id, url, ordem, texto) VALUES (?, ?, ?, ?)', [vetores[i]!.id, e.url, i, trechos[i]]);
       await cf.d1('INSERT INTO trechos_fts (texto, trecho_id) VALUES (?, ?)', [trechos[i], vetores[i]!.id]);
     }
+    await cf.d1("UPDATE paginas SET hash = ?, status = 'ok' WHERE url = ?", [hash, e.url]);
     return anterior ? 'alterada' : 'nova';
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

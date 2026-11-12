@@ -4,7 +4,8 @@ import type { VetorTrecho } from '@chatbot/comum/tipos';
 type Linha = Record<string, unknown>;
 
 /** cf em memória: interpreta apenas o SQL emitido por indexar.ts. */
-export function criarCfFalso() {
+export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean } = {}) {
+  let insertsTrecho = 0;
   const paginas = new Map<string, Linha>();
   let trechos: { id: string; url: string; ordem: number; texto: string }[] = [];
   let fts: { texto: string; trecho_id: string }[] = [];
@@ -25,7 +26,14 @@ export function criarCfFalso() {
         p.data_vista = params[0];
         return [];
       }
+      if (/^UPDATE paginas SET hash/i.test(s)) {
+        const p = paginas.get(params[1] as string)!;
+        p.hash = params[0];
+        p.status = 'ok';
+        return [];
+      }
       if (/^INSERT INTO paginas/i.test(s)) {
+        if (inj.upsertErro && params[7] === 'erro') throw new Error('D1 fora do ar');
         // ordem dos parâmetros: url, site, titulo, data_publicacao, ano, data_vista, hash, status, erro
         const [url, site, titulo, data_publicacao, ano, data_vista, hash, status, erro] = params as any[];
         const ant = paginas.get(url);
@@ -50,6 +58,7 @@ export function criarCfFalso() {
       }
       if (/^INSERT INTO trechos/i.test(s)) {
         const [id, url, ordem, texto] = params as any[];
+        if (inj.insertTrechoN !== undefined && ++insertsTrecho === inj.insertTrechoN) throw new Error('D1 indisponível');
         if (!paginas.has(url)) throw new Error('FOREIGN KEY constraint failed');
         trechos.push({ id, url, ordem, texto });
         return [];
