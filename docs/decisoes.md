@@ -41,3 +41,9 @@ Conta Cloudflare do Jeferson, Account ID `6d7caf21114ed3ab1289f93cf901a859` (ide
 - Banco D1 `chatbot-coperse`, `database_id` `3cbc9b2c-dc1d-430b-95fe-edce33927d3d`.
 - Índice Vectorize `chatbot-coperse`, 768 dimensões, métrica cosseno.
 - Índices de metadado solicitados antes de qualquer inserção: `site` (string), `processo` (string), `ano` (number).
+
+## 2026-11-12 — Endereço do Worker
+
+Subdomínio `workers.dev` da conta: `coperse-furg` (escolhido pelo Jeferson). Endereço do Worker: `https://chatbot-coperse.coperse-furg.workers.dev`. É este endereço que vai no `<script>` colado nos sites e no aviso ao CGTI; trocá-lo depois exige recolar o script em todos os sites.
+
+Publicação automática: o GitHub Actions usa o secret `CLOUDFLARE_API_TOKEN` (permissões: Workers Scripts, D1 e Vectorize, todas Edit, restritas à conta) e a variável `CLOUDFLARE_ACCOUNT_ID`. Ramo `main` protegido: só por pull request, com o teste `testes` passando, valendo também para administradores.
