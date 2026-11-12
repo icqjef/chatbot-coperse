@@ -1,0 +1,14 @@
+{
+  "name": "@chatbot/comum",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/config.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "vitest": "^2.1.0"
+  }
+}
