@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "main": "src/config.ts",
+  "exports": {
+    ".": "./src/config.ts",
+    "./tipos": "./src/tipos.ts",
+    "./*": "./src/*.ts"
+  },
   "scripts": {
     "test": "vitest run"
   },
