@@ -9,7 +9,7 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
   const paginas = new Map<string, Linha>();
   let trechos: { id: string; url: string; ordem: number; texto: string }[] = [];
   let fts: { texto: string; trecho_id: string }[] = [];
-  const registro = { upserts: [] as VetorTrecho[][], apagados: [] as string[][], deletes: 0 };
+  const registro = { upserts: [] as VetorTrecho[][], apagados: [] as string[][], deletes: 0, eventos: [] as string[] };
 
   const cf: ClienteCloudflare = {
     async d1(sql, params = []) {
@@ -36,12 +36,14 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         if (inj.upsertErro && params[7] === 'erro') throw new Error('D1 fora do ar');
         // ordem dos parâmetros: url, site, titulo, data_publicacao, ano, data_vista, hash, status, erro
         const [url, site, titulo, data_publicacao, ano, data_vista, hash, status, erro] = params as any[];
+        registro.eventos.push(`paginas:${status}`);
         const ant = paginas.get(url);
         const falhas = status === 'erro' ? (ant ? (ant.falhas as number) + 1 : 1) : 0;
         paginas.set(url, { url, site, titulo, data_publicacao, ano, data_vista, hash: status === 'erro' ? (ant?.hash ?? null) : hash, status, falhas, erro });
         return [];
       }
       if (/^DELETE FROM trechos_fts/i.test(s)) {
+        registro.eventos.push('delete');
         registro.deletes++;
         const ids = new Set(trechos.filter((t) => t.url === params[0]).map((t) => t.id));
         fts = fts.filter((f) => !ids.has(f.trecho_id));

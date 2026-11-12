@@ -92,6 +92,18 @@ describe('indexarPagina', () => {
     expect(cfa.paginas.get(entrada.url)).toMatchObject({ status: 'ok' });
   });
 
+  it('grava indexando antes de qualquer DELETE', async () => {
+    let atual = corpo(4);
+    const { f, deps } = montar(() => atual);
+    await indexarPagina(entrada, deps);
+    f.registro.eventos.length = 0;
+    atual = corpo(2);
+    await indexarPagina(entrada, deps);
+    const ev = f.registro.eventos;
+    expect(ev.indexOf('paginas:indexando')).toBeGreaterThanOrEqual(0);
+    expect(ev.indexOf('paginas:indexando')).toBeLessThan(ev.indexOf('delete'));
+  });
+
   it('erro de busca vira status erro com falhas=1 e não lança', async () => {
     const { f, deps } = montar(() => new Error('timeout'));
     expect(await indexarPagina(entrada, deps)).toBe('erro');
