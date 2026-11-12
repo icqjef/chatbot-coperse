@@ -38,12 +38,8 @@ export function normalizarUrl(url: string): string | null {
   }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
   u.hash = '';
-  try {
-    u.pathname = encodeURI(decodeURI(u.pathname));
-  } catch {
-    // %xx malformado: mantém o caminho como o parser deixou
-  }
-  return u.href;
+  // O parser já codifica (UTF-8) espaço e não ASCII e não mexe em %xx existentes; só falta o hex em maiúsculas.
+  return u.href.replace(/%[0-9a-f]{2}/gi, (m) => m.toUpperCase());
 }
 
 export function deveIgnorar(url: string): boolean {
@@ -71,7 +67,7 @@ function dentroDaJanela(url: string, vista: { dataVista: string; status: string;
   if (!vista || vista.status === 'erro' || vista.status === 'indexando') return false;
   const t = Date.parse(vista.dataVista);
   if (Number.isNaN(t)) return false;
-  const pdf = ehPdf(url) || vista.tipo === 'pdf' || vista.tipo === 'lista';
+  const pdf = ehPdf(url) || vista.tipo === 'pdf';
   return agora - t < (pdf ? JANELA_PDF_MS : JANELA_HTML_MS);
 }
 
@@ -91,7 +87,12 @@ export async function enfileirar(
       if (opts.forcar) elevar.set(url, Math.max(elevar.get(url) ?? 0, bruto.prioridade));
       continue;
     }
-    if (novos.has(url)) continue;
+    const anterior = novos.get(url);
+    if (anterior) {
+      anterior.prioridade = Math.max(anterior.prioridade, bruto.prioridade);
+      anterior.titulo ??= bruto.titulo;
+      continue;
+    }
     if (!opts.forcar && dentroDaJanela(url, estado.paginas.get(url), agora)) continue;
     novos.set(url, { ...bruto, url });
   }

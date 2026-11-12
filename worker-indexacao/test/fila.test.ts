@@ -14,6 +14,12 @@ describe('normalizarUrl', () => {
   it('canoniza host, fragmento e %xx', () => {
     expect(normalizarUrl('https://Coperse.furg.br/a/Homologa%c3%a7%c3%a3o.pdf#x')).toBe(normalizarUrl('https://coperse.furg.br/a/Homologação.pdf'));
   });
+  it('não codifica de novo escapes existentes e põe o hex em maiúsculas', () => {
+    expect(normalizarUrl('https://coperse.furg.br/a%2Cb')).toBe('https://coperse.furg.br/a%2Cb');
+    expect(normalizarUrl('https://coperse.furg.br/a%c3%a7')).toBe('https://coperse.furg.br/a%C3%A7');
+    expect(normalizarUrl('https://coperse.furg.br/Homologação')).toBe('https://coperse.furg.br/Homologa%C3%A7%C3%A3o');
+    expect(normalizarUrl('https://vestibular.furg.br/api/documentos/publico?arquivo=a%2Fb.pdf')).toBe('https://vestibular.furg.br/api/documentos/publico?arquivo=a%2Fb.pdf');
+  });
   it('devolve null para inválidas', () => {
     expect(normalizarUrl('não é url')).toBeNull();
     expect(normalizarUrl('/relativa')).toBeNull();
@@ -36,13 +42,14 @@ describe('deveIgnorar / ehPdf', () => {
 });
 
 describe('enfileirar', () => {
-  it('filtra em memória e grava em lotes', async () => {
+  it('filtra em memória, sem consulta por item, e grava as 150 linhas em uma só chamada', async () => {
     const { cf, fila } = criarCfFalso();
-    let chamadas = 0;
+    let consultas = 0;
+    const insercoes: number[] = [];
     const cfContado = {
       ...cf,
-      d1: (...a: Parameters<typeof cf.d1>) => (chamadas++, cf.d1(...a)),
-      inserirLinhas: (...a: Parameters<typeof cf.inserirLinhas>) => (chamadas++, cf.inserirLinhas(...a)),
+      d1: (...a: Parameters<typeof cf.d1>) => (consultas++, cf.d1(...a)),
+      inserirLinhas: (...a: Parameters<typeof cf.inserirLinhas>) => (insercoes.push(a[2].length), cf.inserirLinhas(...a)),
     };
     const estado = estadoVazio();
     for (let i = 0; i < 100; i++) estado.naFila.add(u(i));
@@ -51,7 +58,8 @@ describe('enfileirar', () => {
     const todos = Array.from({ length: 300 }, (_, i) => item(u(i)));
     const n = await enfileirar(cfContado, estado, todos, { agora: AGORA });
     expect(n).toBe(150);
-    expect(chamadas).toBeLessThanOrEqual(8);
+    expect(consultas).toBe(0);
+    expect(insercoes).toEqual([150]);
     expect(fila.size).toBe(150);
     expect(estado.naFila.size).toBe(250);
   });
@@ -80,6 +88,22 @@ describe('enfileirar', () => {
     const n = await enfileirar(cf, estado, [item('https://Coperse.furg.br/x#a'), item(u('x')), item('lixo')], { agora: AGORA });
     expect(n).toBe(1);
     expect([...fila.keys()]).toEqual([u('x')]);
+  });
+
+  it('página HTML do tipo lista usa a janela de 20 h', async () => {
+    const { cf, fila } = criarCfFalso();
+    const estado = estadoVazio();
+    estado.paginas.set(u('lista'), { dataVista: antes(21), status: 'ok', tipo: 'lista' });
+    expect(await enfileirar(cf, estado, [item(u('lista'))], { agora: AGORA })).toBe(1);
+    expect(fila.has(u('lista'))).toBe(true);
+  });
+
+  it('repetida no lote mantém a maior prioridade e o primeiro título', async () => {
+    const { cf, fila } = criarCfFalso();
+    const estado = estadoVazio();
+    const n = await enfileirar(cf, estado, [item(u('x'), { prioridade: 1 }), item(u('x'), { prioridade: 4, titulo: 'T' }), item(u('x'), { prioridade: 2, titulo: 'U' })], { agora: AGORA });
+    expect(n).toBe(1);
+    expect(fila.get(u('x'))).toMatchObject({ prioridade: 4, titulo: 'T' });
   });
 
   it('forcar eleva a prioridade de item já na fila', async () => {
