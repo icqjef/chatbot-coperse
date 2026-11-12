@@ -42,7 +42,9 @@ describe('deveIgnorar / ehPdf', () => {
 });
 
 describe('enfileirar', () => {
-  it('filtra em memória, sem consulta por item, e grava as 150 linhas em uma só chamada', async () => {
+  // O fake não divide em lotes: prova só que não há consulta por item e que as 150 linhas chegam juntas a
+  // inserirLinhas. O cliente real (cloudflare.ts) divide em INSERTs de no máximo 100 parâmetros.
+  it('filtra em memória, sem consulta d1 por item, e passa as 150 linhas novas a inserirLinhas', async () => {
     const { cf, fila } = criarCfFalso();
     let consultas = 0;
     const insercoes: number[] = [];
@@ -90,6 +92,18 @@ describe('enfileirar', () => {
     expect([...fila.keys()]).toEqual([u('x')]);
   });
 
+  it('erro permanente (falhas >= 5) usa a janela de 30 dias; erro com menos falhas sempre volta', async () => {
+    const { cf, fila } = criarCfFalso();
+    const estado = estadoVazio();
+    estado.paginas.set(u('perm-recente'), { dataVista: antes(2), status: 'erro', tipo: 'html', falhas: 5 });
+    estado.paginas.set(u('perm-10d'), { dataVista: antes(10 * 24), status: 'erro', tipo: 'html', falhas: 7 });
+    estado.paginas.set(u('perm-31d'), { dataVista: antes(31 * 24), status: 'erro', tipo: 'html', falhas: 5 });
+    estado.paginas.set(u('transitorio'), { dataVista: antes(1), status: 'erro', tipo: 'html', falhas: 2 });
+    const n = await enfileirar(cf, estado, ['perm-recente', 'perm-10d', 'perm-31d', 'transitorio'].map((s) => item(u(s))), { agora: AGORA });
+    expect(n).toBe(2);
+    expect([...fila.keys()].sort()).toEqual([u('perm-31d'), u('transitorio')].sort());
+  });
+
   it('página HTML do tipo lista usa a janela de 20 h', async () => {
     const { cf, fila } = criarCfFalso();
     const estado = estadoVazio();
@@ -122,7 +136,9 @@ describe('carregarEstado', () => {
     paginas.set('https://a/x', { url: 'https://a/x', data_vista: AGORA, status: 'ok', tipo: 'html' });
     await enfileirar(cf, estadoVazio(), [item(u('y'))], { agora: AGORA });
     const e = await carregarEstado(cf);
-    expect(e.paginas.get('https://a/x')).toEqual({ dataVista: AGORA, status: 'ok', tipo: 'html' });
+    paginas.set('https://a/e', { url: 'https://a/e', data_vista: AGORA, status: 'erro', tipo: 'pdf', falhas: 5 });
+    expect(e.paginas.get('https://a/x')).toEqual({ dataVista: AGORA, status: 'ok', tipo: 'html', falhas: 0 });
+    expect((await carregarEstado(cf)).paginas.get('https://a/e')).toEqual({ dataVista: AGORA, status: 'erro', tipo: 'pdf', falhas: 5 });
     expect(e.naFila.has(u('y'))).toBe(true);
   });
 });

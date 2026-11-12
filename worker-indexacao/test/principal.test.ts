@@ -41,12 +41,13 @@ const site = (extra: Partial<Site> = {}): Site => ({
   dominios_permitidos: ['vestibular.furg.br'], ...extra,
 });
 
-function montar(o: { paginas?: Record<string, Resposta | Error>; vetores?: number; agora?: string } = {}) {
+function montar(o: { paginas?: Record<string, Resposta | Error>; vetores?: number; agora?: string; cabecalhos?: Record<string, string | Error> } = {}) {
   const f = criarCfFalso({ vetores: o.vetores });
   const paginas = o.paginas ?? MINI;
   const embutidos: string[] = [];
   const embedder: Embedder = { async embed(t) { embutidos.push(...t); return t.map(() => new Array(768).fill(0.5)); } };
   const buscados: string[] = [];
+  const heads: string[] = [];
   const esperas: number[] = [];
   const relogio = { t: 0 };
   const estado = { agora: o.agora ?? '2026-11-12T00:00:00.000Z' };
@@ -61,12 +62,18 @@ function montar(o: { paginas?: Record<string, Resposta | Error>; vetores?: numbe
       return r;
     },
     async extrairPdf(b: Uint8Array) { return { texto: new TextDecoder().decode(b), paginas: 1 }; },
+    async cabecalho(url: string) {
+      heads.push(url);
+      const h = o.cabecalhos?.[url];
+      if (h instanceof Error) throw h;
+      return { ultimaModificacao: h };
+    },
   };
   const opcoes = (extra: Partial<OpcoesExecucao> = {}): OpcoesExecucao => ({
     maxItens: 400, prazoMs: 25 * 60_000, sites: [site()], regras, tetoVetores: 6000,
     esperar: async (ms) => { esperas.push(ms); }, relogio: () => relogio.t, ...extra,
   });
-  return { f, deps, buscados, esperas, embutidos, opcoes, estado, relogio };
+  return { f, deps, buscados, heads, esperas, embutidos, opcoes, estado, relogio };
 }
 
 describe('executar: rastreamento pela fila', () => {
@@ -85,8 +92,10 @@ describe('executar: rastreamento pela fila', () => {
     expect(m.buscados).toContain(`${V}/docs/anexo.pdf`);
     expect(m.embutidos.join(' ')).not.toMatch(/Fulano/);
     expect(m.f.paginas.get(`${V}/docs/edital.pdf`)?.tipo).toBe('pdf');
-    // uma espera de 1 s antes de cada requisição
-    expect(m.esperas).toHaveLength(m.buscados.length);
+    // a lista em PDF só recebe um HEAD (Last-Modified)
+    expect(m.heads).toEqual([`${V}/docs/resultado-final.pdf`]);
+    // uma espera de 1 s antes de cada requisição, HEAD incluído
+    expect(m.esperas).toHaveLength(m.buscados.length + m.heads.length);
     expect(m.esperas.every((ms) => ms === 1000)).toBe(true);
     expect(m.f.registro.execucoes).toHaveLength(1);
     expect(m.f.registro.execucoes[0]).toMatchObject({ paginas: 7, erros: 0 });
@@ -286,6 +295,101 @@ describe('executar: correções da revisão', () => {
     await enfileirar(m.f.cf, estado, [{ url: u, site: 'vestibular', profundidade: 1, origem: `${V}/`, prioridade: 2, titulo: 'Clique aqui', processo: null, ano: null, data: null }], { agora: m.estado.agora });
     await executar(m.opcoes({ sites: [site({ paginas_chave: [] })] }), m.deps);
     expect(m.f.paginas.get(u)).toMatchObject({ titulo: 'Edital Vestibular 2027', processo: 'vestibular', ano: 2027 });
+  });
+});
+
+const enc = (t: string) => new TextEncoder().encode(t);
+
+describe('executar: correções da revisão final', () => {
+  it('links de página lista entram na fila sem título: nenhum nome chega à fila, a paginas, aos trechos nem aos vetores', async () => {
+    const m = montar({ paginas: {
+      [`${V}/`]: { tipo: 'html', texto: '<html><head><title>Resultado final da homologação</title></head><body><main><ul>'
+        + '<li>Fulana de Tal – <a href="/x.pdf">clique aqui</a></li><li><a href="/p">Fulano de Tal</a></li></ul></main></body></html>' },
+      [`${V}/x.pdf`]: { tipo: 'pdf', bytes: enc('Documento sem nomes.') },
+      [`${V}/p`]: { tipo: 'html', texto: pagina('Página P') },
+    } });
+    await executar(m.opcoes({ maxItens: 1 }), m.deps);
+    expect(m.f.fila.size).toBe(2);
+    expect(JSON.stringify([...m.f.fila.values()])).not.toMatch(/Fulan/);
+    const r = await executar(m.opcoes(), m.deps);
+    expect(r).toMatchObject({ nova: 2, erro: 0, fila_restante: 0 });
+    expect(m.f.paginas.get(`${V}/x.pdf`)?.titulo).toBe('x');
+    expect(m.f.paginas.get(`${V}/p`)?.titulo).toBe('Página P');
+    expect(JSON.stringify([[...m.f.paginas.values()], m.f.trechos(), m.f.fts(), m.f.registro.upserts, m.embutidos])).not.toMatch(/Fulan/);
+  });
+
+  it('lista em PDF: data pelo Last-Modified de um HEAD, sem baixar o arquivo', async () => {
+    const u = `${V}/docs/resultado-final.pdf`;
+    const m = montar({ paginas: {}, cabecalhos: { [u]: '2026-10-01T13:00:00.000Z' } });
+    await executar(m.opcoes({ sites: [site({ paginas_chave: [u] })] }), m.deps);
+    expect(m.buscados).toEqual([]);
+    expect(m.heads).toEqual([u]);
+    expect(m.esperas).toEqual([1000]);
+    expect(m.f.paginas.get(u)).toMatchObject({ tipo: 'lista', status: 'ok', data_publicacao: '2026-10-01T13:00:00.000Z' });
+    expect(m.f.trechos()[0]!.texto).toContain('Documento publicado em 01/10/2026.');
+  });
+
+  it('lista em PDF sem Last-Modified: resumo sem data e revisita igual (o "agora" nunca entra no texto)', async () => {
+    const u = `${V}/docs/resultado-final.pdf`;
+    const m = montar({ paginas: {}, cabecalhos: { [u]: new Error('HTTP 405') }, agora: '2026-03-01T00:00:00.000Z' });
+    const o = m.opcoes({ sites: [site({ paginas_chave: [u] })] });
+    expect(await executar(o, m.deps)).toMatchObject({ nova: 1, erro: 0 });
+    expect(m.f.trechos()[0]!.texto).not.toMatch(/publicado em/);
+    expect(m.f.paginas.get(u)?.data_publicacao).toBe('2026-03-01T00:00:00.000Z');
+    m.estado.agora = '2026-04-15T00:00:00.000Z';
+    expect(await executar(o, m.deps)).toMatchObject({ igual: 1, nova: 0, alterada: 0 });
+    expect(m.buscados).toEqual([]);
+  });
+
+  it('erro permanente: depois da 5ª tentativa não volta à fila na mesma execução nem antes de 30 dias', async () => {
+    const q = `${V}/quebrado`;
+    const m = montar({ paginas: {
+      [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/quebrado', 'Página quebrada']]) },
+      [q]: new ErroHttp(500, q),
+    } });
+    const estado = await carregarEstado(m.f.cf);
+    await enfileirar(m.f.cf, estado, [{ url: q, site: 'vestibular', profundidade: 1, origem: `${V}/`, prioridade: 9, titulo: 'Página quebrada', processo: null, ano: null, data: null }], { agora: m.estado.agora });
+    m.f.fila.get(q)!.tentativas = 4;
+    m.f.paginas.set(q, { url: q, site: 'vestibular', titulo: 'Página quebrada', tipo: 'html', status: 'erro', falhas: 4, data_vista: '2026-11-11T00:00:00.000Z' });
+    await executar(m.opcoes(), m.deps);
+    expect(m.buscados.filter((x) => x === q)).toHaveLength(1);
+    expect(m.f.fila.has(q)).toBe(false);
+    expect(m.f.paginas.get(q)?.falhas).toBe(5);
+    m.estado.agora = '2026-11-13T00:00:00.000Z'; // +24 h: a página-chave é revisitada e linka de novo
+    await executar(m.opcoes(), m.deps);
+    expect(m.buscados.filter((x) => x === `${V}/`)).toHaveLength(2);
+    expect(m.buscados.filter((x) => x === q)).toHaveLength(1);
+    m.estado.agora = '2026-12-13T00:00:00.000Z'; // +31 d
+    await executar(m.opcoes(), m.deps);
+    expect(m.buscados.filter((x) => x === q)).toHaveLength(2);
+  });
+
+  it('item de feed sem título nem data não apaga título e data já na fila', async () => {
+    const C = 'https://coperse.furg.br';
+    const paginas: Record<string, Resposta> = {
+      [`${C}/feed`]: { tipo: 'html', texto: '<?xml version="1.0"?><rss version="2.0"><channel><title>x</title></channel></rss>' },
+      [`${C}/`]: { tipo: 'html', texto: pagina('Início', [['/n1', 'Link para n1']]) },
+    };
+    const m = montar({ paginas });
+    const coperse: Site = { id: 'coperse', nome: 'COPERSE', base: C, feed: `${C}/feed`, paginas_chave: [`${C}/`], profundidade: 1, dominios_permitidos: ['coperse.furg.br'] };
+    await executar(m.opcoes({ sites: [coperse], maxItens: 1 }), m.deps);
+    const antes = { ...m.f.fila.get(`${C}/n1`) };
+    expect(antes).toMatchObject({ titulo: 'Link para n1' });
+    expect(antes.data).toBeTruthy();
+    paginas[`${C}/feed`] = { tipo: 'html', texto: `<?xml version="1.0"?><rss version="2.0"><channel><title>x</title><item><title></title><link>${C}/n1</link></item></channel></rss>` };
+    await executar(m.opcoes({ sites: [coperse], maxItens: 0 }), m.deps);
+    expect(m.f.fila.get(`${C}/n1`)).toMatchObject({ titulo: 'Link para n1', data: antes.data, prioridade: 10 });
+  });
+
+  it('PDF do vestibular em /api/documentos/publico?arquivo=: nome do arquivo vem do parâmetro', async () => {
+    const u = 'https://vestibular.furg.br/api/documentos/publico?arquivo=docs.publicacoes%2FResultado_Final_2026.pdf';
+    const m = montar({ paginas: {} });
+    const estado = await carregarEstado(m.f.cf);
+    await enfileirar(m.f.cf, estado, [{ url: u, site: 'vestibular', profundidade: 1, origem: `${V}/`, prioridade: 2, titulo: 'Clique aqui', processo: null, ano: null, data: null }], { agora: m.estado.agora });
+    const r = await executar(m.opcoes({ sites: [site({ paginas_chave: [] })] }), m.deps);
+    expect(r).toMatchObject({ nova: 1, erro: 0 });
+    expect(m.buscados).toEqual([]);
+    expect(m.f.paginas.get(u)).toMatchObject({ tipo: 'lista', titulo: 'Resultado Final 2026', ano: 2026 });
   });
 });
 

@@ -80,14 +80,27 @@ export function inferirAno(titulo: string, url: string): number | null {
   return noCaminho ? Number(noCaminho[noCaminho.length - 1]) : null;
 }
 
-function nomeDoArquivo(url: string): string {
-  let caminho = url;
+const ultimoSegmento = (s: string) => s.split('/').filter(Boolean).pop() ?? '';
+
+/**
+ * Nome do arquivo de um link, decodificado. Se houver o parâmetro `arquivo` (vestibular:
+ * /api/documentos/publico?arquivo=pasta%2FNome.pdf), vale o último segmento do valor dele; senão o do caminho.
+ */
+export function nomeDoArquivo(url: string): string {
+  let u: URL;
   try {
-    caminho = new URL(url).pathname;
+    u = new URL(url);
   } catch {
-    // usa o texto inteiro
+    return ultimoSegmento(url);
   }
-  return caminho.split('/').pop() ?? '';
+  const arquivo = u.searchParams.get('arquivo');
+  if (arquivo) return ultimoSegmento(arquivo);
+  const nome = ultimoSegmento(u.pathname);
+  try {
+    return decodeURIComponent(nome);
+  } catch {
+    return nome;
+  }
 }
 
 export function ehListaDeCandidatos(titulo: string, url: string, regras: RegrasClassificacao): boolean {

@@ -1,12 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { carregarSites } from '@chatbot/comum';
-import { carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, type RegrasClassificacao } from '@chatbot/comum/classificar';
+import {
+  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, type RegrasClassificacao,
+} from '@chatbot/comum/classificar';
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import type { Site, TipoDocumento } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
-import { criarBuscar, ErroHttp, type Resposta } from './http.js';
+import { criarBuscar, criarCabecalho, ErroHttp, type Resposta } from './http.js';
 import { ehGenerico, extrairPagina } from './extrair.js';
 import { extrairPdf } from './pdf.js';
 import {
@@ -38,6 +40,8 @@ export interface OpcoesExecucao {
 export interface DepsExecucao extends DepsIndexacao {
   buscar: (url: string) => Promise<Resposta>;
   extrairPdf: (b: Uint8Array) => Promise<{ texto: string; paginas: number }>;
+  /** HEAD: Last-Modified sem baixar o corpo (listas em PDF) */
+  cabecalho: (url: string) => Promise<{ ultimaModificacao?: string }>;
 }
 
 /** itens de feed: prioridade mais alta */
@@ -63,19 +67,12 @@ export function codigoSaida(r: Contagem): 0 | 1 {
 
 const valida = (d: string | null | undefined): d is string => !!d && !Number.isNaN(Date.parse(d));
 
-function nomeDoArquivo(url: string): string {
-  const nome = new URL(url).pathname.split('/').filter(Boolean).pop() ?? url;
-  let dec = nome;
-  try {
-    dec = decodeURIComponent(nome);
-  } catch {
-    // mantém o nome cru
-  }
-  return dec.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim() || url;
+function tituloDoArquivo(url: string): string {
+  return nomeDoArquivo(url).replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim() || url;
 }
 
 /** título de PDF: o do link/feed, salvo se for genérico ("Clique aqui"); senão o nome do arquivo */
-const tituloPdf = (item: ItemFila) => (item.titulo && !ehGenerico(item.titulo) ? item.titulo : nomeDoArquivo(item.url));
+const tituloPdf = (item: ItemFila) => (item.titulo && !ehGenerico(item.titulo) ? item.titulo : tituloDoArquivo(item.url));
 
 /** Processo e ano: o próprio documento › herdado da fila › padrão. `herdavel` não inclui os padrões. */
 function classificar(titulo: string, url: string, data: string, item: ItemFila, site: Site, regras: RegrasClassificacao) {
@@ -116,11 +113,16 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
   let data = valida(item.data) ? item.data : agora;
 
   try {
-    // Lista nominal em PDF: nunca baixa; indexa só título, data e link.
+    // Lista nominal em PDF: nunca baixa; indexa só título, data e link. A data vem do feed ou de um HEAD
+    // (Last-Modified); sem nenhum dos dois é desconhecida: a herdada da página que linkou só serve para ordenar.
     if (pdfPelaUrl && ehListaDeCandidatos(titulo, item.url, regras)) {
+      const conhecida = (ctx.doFeed.has(item.url) && valida(item.data) ? item.data : undefined) ?? (await ultimaModificacao(item.url, ctx));
+      if (conhecida) data = conhecida;
       const c = classificar(titulo, item.url, data, item, site, regras);
       saida.tipo = 'lista';
-      return await indexarDocumento({ site, url: item.url, titulo, data, tipo: 'lista', processo: c.processo, ano: c.ano, texto: '' }, deps);
+      return await indexarDocumento(
+        { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo: 'lista', processo: c.processo, ano: c.ano, texto: '' }, deps,
+      );
     }
 
     await ctx.esperar(PAUSA_MS);
@@ -131,26 +133,30 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     if (resp.tipo === 'pdf') {
       tipo = 'pdf';
       titulo = tituloPdf(item);
-      data = resp.ultimaModificacao ?? (valida(item.data) ? item.data : agora);
+      const conhecida = (ctx.doFeed.has(item.url) && valida(item.data) ? item.data : undefined) ?? resp.ultimaModificacao;
+      data = conhecida ?? (valida(item.data) ? item.data : agora);
       const c = classificar(titulo, item.url, data, item, site, regras);
       // URL sem cara de PDF que devolveu PDF: a regra de lista ainda vale (não lê o conteúdo).
       const lista = ehListaDeCandidatos(titulo, item.url, regras);
       saida.tipo = lista ? 'lista' : 'pdf';
       const texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
       return await indexarDocumento(
-        { site, url: item.url, titulo, data, tipo: lista ? 'lista' : 'pdf', processo: c.processo, ano: c.ano, texto }, deps,
+        { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo: lista ? 'lista' : 'pdf', processo: c.processo, ano: c.ano, texto }, deps,
       );
     }
 
     const pagina = extrairPagina(resp.texto ?? '', item.url);
     const doFeed = ctx.doFeed.has(item.url);
     titulo = (doFeed && item.titulo) || pagina.titulo || item.titulo || '';
-    data = (doFeed && valida(item.data) ? item.data : undefined) ?? pagina.data ?? resp.ultimaModificacao ?? agora;
+    const conhecida = (doFeed && valida(item.data) ? item.data : undefined) ?? pagina.data ?? resp.ultimaModificacao;
+    data = conhecida ?? agora;
     const c = classificar(titulo, item.url, data, item, site, regras);
     const lista = ehListaDeCandidatos(titulo, item.url, regras);
     tipo = lista ? 'lista' : 'html';
     saida.tipo = tipo;
-    const r = await indexarDocumento({ site, url: item.url, titulo, data, tipo, processo: c.processo, ano: c.ano, texto: pagina.texto }, deps);
+    const r = await indexarDocumento(
+      { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo, processo: c.processo, ano: c.ano, texto: pagina.texto }, deps,
+    );
     if (r === 'teto') return r;
 
     // Links seguidos mesmo se a página não mudou ('igual') ou é lista.
@@ -161,7 +167,8 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
         if (!url || deveIgnorar(url) || !hostPermitido(url, site) || url === item.url) continue;
         novos.push({
           url, site: site.id, profundidade: item.profundidade + 1, origem: item.url, prioridade: ehPdf(url) ? 2 : 1,
-          titulo: l.titulo || null, processo: c.herdavel.processo, ano: c.herdavel.ano, data,
+          // Privacidade: o texto de um link numa lista costuma ser o nome de uma pessoa; o filho usa o próprio título.
+          titulo: lista ? null : l.titulo || null, processo: c.herdavel.processo, ano: c.herdavel.ano, data,
         });
       }
       await enfileirar(deps.cf, estado, novos, { agora });
@@ -182,6 +189,16 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       return 'removida';
     }
     return 'erro';
+  }
+}
+
+/** HEAD com a mesma pausa de cortesia; falha ou ausência do cabeçalho = data desconhecida. */
+async function ultimaModificacao(url: string, ctx: Contexto): Promise<string | undefined> {
+  try {
+    await ctx.esperar(PAUSA_MS);
+    return (await ctx.deps.cabecalho(url)).ultimaModificacao;
+  } catch {
+    return undefined;
   }
 }
 
@@ -222,7 +239,11 @@ async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void>
   for (const it of itens) {
     if (it.prioridade === PRIORIDADE_FEED) ctx.doFeed.add(it.url);
     if (it.prioridade === PRIORIDADE_FEED && estado.naFila.has(it.url)) {
-      await deps.cf.d1('UPDATE fila SET titulo = ?, data = ?, prioridade = MAX(prioridade, ?) WHERE url = ?', [it.titulo, it.data, it.prioridade, it.url]);
+      // Feed sem título ou data não apaga os que já estavam na fila.
+      await deps.cf.d1(
+        "UPDATE fila SET titulo = COALESCE(NULLIF(?, ''), titulo), data = COALESCE(NULLIF(?, ''), data), prioridade = MAX(prioridade, ?) WHERE url = ?",
+        [it.titulo, it.data, it.prioridade, it.url],
+      );
     } else {
       novos.push(it);
     }
@@ -273,6 +294,15 @@ export async function executar(
       }
       if (r === 'erro') {
         await adiar(deps.cf, estado, item, deps.agora());
+        // Marca o erro com as falhas atuais: se o item acabou de sair da fila (5ª tentativa), links de volta
+        // não o enfileiram de novo nesta execução (erro permanente usa a janela de 30 dias).
+        let falhas = item.tentativas + 1;
+        try {
+          falhas = Math.max(falhas, Number((await deps.cf.d1('SELECT falhas FROM paginas WHERE url = ?', [item.url]))[0]?.falhas ?? 0));
+        } catch {
+          // fica a contagem da fila
+        }
+        estado.paginas.set(item.url, { dataVista: deps.agora(), status: 'erro', tipo, falhas });
       } else {
         await concluir(deps.cf, estado, item.url);
         // Marca como visto agora: links de volta para esta URL não a enfileiram de novo nesta execução.
@@ -319,7 +349,9 @@ async function main(): Promise<void> {
     PROVEDOR_LLM: env.PROVEDOR_LLM || 'gemini', GEMINI_API_KEY: env.GEMINI_API_KEY!,
     MODELO_EMBEDDING: env.MODELO_EMBEDDING || undefined, DIMENSAO_EMBEDDING: env.DIMENSAO_EMBEDDING || undefined,
   } as Parameters<typeof criarEmbedder>[0]);
-  const deps: DepsExecucao = { cf, embedder, buscar: criarBuscar(), extrairPdf, agora: () => new Date().toISOString() };
+  const deps: DepsExecucao = {
+    cf, embedder, buscar: criarBuscar(), cabecalho: criarCabecalho(), extrairPdf, agora: () => new Date().toISOString(),
+  };
 
   const resumo = await executar({ maxItens: limite, prazoMs: prazoMinutos * 60_000, sites, regras, tetoVetores }, deps);
   const falhas = (await cf.d1("SELECT url, erro FROM paginas WHERE status = 'erro'")).map((r) => ({ url: r.url, erro: r.erro }));

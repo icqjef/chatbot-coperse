@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { criarBuscar, ErroHttp } from '../src/http.js';
+import { criarBuscar, criarCabecalho, ErroHttp } from '../src/http.js';
 
 const fx = (corpo: ConstructorParameters<typeof Response>[0], headers: Record<string, string> = {}, status = 200) =>
   (async () => new Response(corpo, { status, headers })) as typeof fetch;
@@ -72,5 +72,30 @@ describe('criarBuscar: tipo incerto', () => {
     let n = 0;
     const corpo = new ReadableStream<Uint8Array>({ pull(c) { if (n++ < 17) c.enqueue(pedaco); else c.close(); } });
     await expect(criarBuscar(fx(corpo, { 'content-type': 'application/octet-stream' }))('https://x.furg.br/a.pdf')).rejects.toThrow('maior que 15 MB');
+  });
+});
+
+describe('criarCabecalho (HEAD)', () => {
+  it('faz HEAD com o User-Agent e devolve Last-Modified em ISO, sem ler o corpo', async () => {
+    let metodo = '';
+    let ua = '';
+    let sinal: unknown;
+    const f = (async (_u: any, init: any) => {
+      metodo = init.method; ua = init.headers['User-Agent']; sinal = init.signal;
+      return { ok: true, status: 200, headers: new Headers({ 'last-modified': 'Wed, 01 Oct 2026 13:00:00 GMT' }), body: null,
+        arrayBuffer: async () => { throw new Error('leu o corpo'); } };
+    }) as unknown as typeof fetch;
+    const r = await criarCabecalho(f)('https://x.furg.br/a.pdf');
+    expect(r).toEqual({ ultimaModificacao: '2026-10-01T13:00:00.000Z' });
+    expect(metodo).toBe('HEAD');
+    expect(ua).toBe('ChatbotCOPERSE-Indexador/0.1');
+    expect(sinal).toBeInstanceOf(AbortSignal);
+  });
+  it('sem Last-Modified (ou inválido) devolve data indefinida', async () => {
+    expect((await criarCabecalho(fx(null))('https://x.furg.br/a.pdf')).ultimaModificacao).toBeUndefined();
+    expect((await criarCabecalho(fx(null, { 'last-modified': 'lixo' }))('https://x.furg.br/a.pdf')).ultimaModificacao).toBeUndefined();
+  });
+  it('HTTP de erro lança ErroHttp', async () => {
+    await expect(criarCabecalho(fx(null, {}, 405))('https://x.furg.br/a.pdf')).rejects.toMatchObject({ status: 405 });
   });
 });

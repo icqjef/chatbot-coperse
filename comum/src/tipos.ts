@@ -62,6 +62,11 @@ export interface Documento {
   titulo: string;
   /** ISO 8601 */
   data: string;
+  /**
+   * `data` é só herdada ou "agora" (lista em PDF sem Last-Modified): serve para ordenar, mas não entra
+   * no resumo da lista, que precisa ser igual de uma revisita para outra.
+   */
+  dataDesconhecida?: boolean;
   processo: string;
   ano: number;
   texto: string;

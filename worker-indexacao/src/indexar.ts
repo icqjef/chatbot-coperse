@@ -29,8 +29,9 @@ export function idTrecho(url: string, ordem: number): string {
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
-export function resumoDeLista(titulo: string, data: string, url: string): string {
-  const d = new Date(data);
+/** `data` null ou inválida: a frase da data é omitida (nunca "agora", senão o hash mudaria a cada revisita). */
+export function resumoDeLista(titulo: string, data: string | null, url: string): string {
+  const d = new Date(data ?? NaN);
   const dia = Number.isNaN(d.getTime())
     ? ''
     : ` Documento publicado em ${[String(d.getUTCDate()).padStart(2, '0'), String(d.getUTCMonth() + 1).padStart(2, '0'), d.getUTCFullYear()].join('/')}.`;
@@ -78,13 +79,15 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
       cf.d1(SQL_UPSERT_OK, [url, doc.site.id, titulo, doc.tipo, processo, ano, dataValida, agora, hash, status, null]);
 
     // Privacidade: lista nominal nunca é indexada; só o resumo, mesmo que o chamador passe o texto.
-    const texto = (doc.tipo === 'lista' ? resumoDeLista(titulo, dataValida, url) : doc.texto).trim();
+    const dataResumo = doc.dataDesconhecida || dataValida !== doc.data ? null : doc.data;
+    const texto = (doc.tipo === 'lista' ? resumoDeLista(titulo, dataResumo, url) : doc.texto).trim();
     if (!texto) {
       await gravar(null, 'vazia');
       return 'vazia';
     }
 
-    const hash = sha256(texto);
+    // Classificação e título entram no hash: mudar as regras ou o título força um novo embedding.
+    const hash = sha256(JSON.stringify([doc.tipo, processo, ano, titulo, texto]));
     const anterior = (await cf.d1('SELECT hash, status FROM paginas WHERE url = ?', [url]))[0];
     if (anterior && anterior.hash === hash && anterior.status === 'ok') {
       await cf.d1('UPDATE paginas SET data_vista = ? WHERE url = ?', [agora, url]);
@@ -97,7 +100,9 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
     const delta = trechos.length - antigos.length;
     if (teto && delta > teto.restante()) return 'teto';
 
-    const prefixados = trechos.map((t) => prefixarTrecho(t, { titulo, data: dataValida, processo, ano }));
+    // Lista com data desconhecida: o prefixo do embedding também fica sem data.
+    const dataPrefixo = doc.tipo === 'lista' ? (dataResumo ?? '') : dataValida;
+    const prefixados = trechos.map((t) => prefixarTrecho(t, { titulo, data: dataPrefixo, processo, ano }));
     const valores = await embedder.embed(prefixados, 'RETRIEVAL_DOCUMENT');
     if (valores.length !== trechos.length) throw new Error('Embedder devolveu quantidade de vetores diferente da de trechos');
 

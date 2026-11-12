@@ -90,6 +90,34 @@ describe('indexarDocumento', () => {
     );
   });
 
+  it('resumoDeLista com data null (desconhecida) omite a data', () => {
+    expect(resumoDeLista('Lista X', null, 'https://c/a.pdf')).toBe(
+      'Lista X. Disponível em: https://c/a.pdf. Este documento traz uma lista nominal; o assistente não reproduz o conteúdo, consulte o link.',
+    );
+  });
+
+  it('lista com data desconhecida: resumo sem data, data_publicacao guarda a herdada e a revisita é igual', async () => {
+    const { f, deps } = montar();
+    const lista = { ...doc, tipo: 'lista' as const, texto: '', dataDesconhecida: true };
+    expect(await indexarDocumento(lista, deps)).toBe('nova');
+    expect(f.trechos()[0]!.texto).not.toMatch(/publicado em/);
+    expect(f.paginas.get(doc.url)!.data_publicacao).toBe(doc.data);
+    // revisita: a data herdada mudou ("agora" de outra execução), o texto não
+    const r = await indexarDocumento({ ...lista, data: '2026-12-01T00:00:00Z' }, { ...deps, agora: () => '2026-12-01T00:00:00Z' });
+    expect(r).toBe('igual');
+  });
+
+  it('mudança de classificação ou título com o mesmo texto reindexa', async () => {
+    const { f, deps } = montar();
+    await indexarDocumento(doc, deps);
+    expect(await indexarDocumento({ ...doc, processo: 'vestibular' }, deps)).toBe('alterada');
+    expect(f.registro.upserts.at(-1)![0]!.metadata.processo).toBe('vestibular');
+    expect(await indexarDocumento({ ...doc, processo: 'vestibular', ano: 2027 }, deps)).toBe('alterada');
+    expect(await indexarDocumento({ ...doc, processo: 'vestibular', ano: 2027, titulo: 'Outro título' }, deps)).toBe('alterada');
+    expect(await indexarDocumento({ ...doc, processo: 'vestibular', ano: 2027, titulo: 'Outro título', tipo: 'pdf' }, deps)).toBe('alterada');
+    expect(await indexarDocumento({ ...doc, processo: 'vestibular', ano: 2027, titulo: 'Outro título', tipo: 'pdf' }, deps)).toBe('igual');
+  });
+
   it('mesmo documento de novo é igual e não escreve nada', async () => {
     const { f, deps } = montar();
     await indexarDocumento(doc, deps);

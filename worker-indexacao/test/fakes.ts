@@ -62,8 +62,12 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         if (p) p.status = 'removida';
         return [];
       }
-      if (/^SELECT url, data_vista, status, tipo FROM paginas$/i.test(s)) {
-        return [...paginas.values()].map((p) => ({ url: p.url, data_vista: p.data_vista, status: p.status, tipo: p.tipo }));
+      if (/^SELECT url, data_vista, status, tipo, falhas FROM paginas$/i.test(s)) {
+        return [...paginas.values()].map((p) => ({ url: p.url, data_vista: p.data_vista, status: p.status, tipo: p.tipo, falhas: p.falhas }));
+      }
+      if (/^SELECT falhas FROM paginas WHERE url = \?$/i.test(s)) {
+        const p = paginas.get(params[0] as string);
+        return p ? [{ falhas: p.falhas }] : [];
       }
       if (/^INSERT INTO execucoes \(inicio\) VALUES \(\?\) RETURNING id$/i.test(s)) {
         registro.execucoes.push({ id: registro.execucoes.length + 1, inicio: params[0] });
@@ -90,9 +94,10 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         if (l) l.prioridade = Math.max(l.prioridade as number, params[0] as number);
         return [];
       }
-      if (/^UPDATE fila SET titulo = \?, data = \?, prioridade = MAX\(prioridade, \?\) WHERE url = \?$/i.test(s)) {
+      if (/^UPDATE fila SET titulo = COALESCE\(NULLIF\(\?, ''\), titulo\), data = COALESCE\(NULLIF\(\?, ''\), data\), prioridade = MAX\(prioridade, \?\) WHERE url = \?$/i.test(s)) {
         const l = fila.get(params[3] as string);
-        if (l) Object.assign(l, { titulo: params[0], data: params[1], prioridade: Math.max(l.prioridade as number, params[2] as number) });
+        const vale = (v: unknown) => v != null && v !== '';
+        if (l) Object.assign(l, { titulo: vale(params[0]) ? params[0] : l.titulo, data: vale(params[1]) ? params[1] : l.data, prioridade: Math.max(l.prioridade as number, params[2] as number) });
         return [];
       }
       if (/^UPDATE fila SET tentativas = \?, proxima_tentativa = \? WHERE url = \?$/i.test(s)) {

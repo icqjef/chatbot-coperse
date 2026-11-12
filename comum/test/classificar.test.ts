@@ -1,13 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, normalizar,
+  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, normalizar,
 } from '../src/classificar';
 
 const lerJson = (c: string): unknown =>
   JSON.parse(readFileSync(new URL(`../../config/${c}`, import.meta.url), 'utf8'));
 const regras = carregarRegras(lerJson('processos.json'), lerJson('listas.json'));
 const X = 'https://coperse.furg.br/x';
+const VEST_RESULTADO = 'https://vestibular.furg.br/api/documentos/publico?arquivo=docs.publicacoes%2FResultado_Final_2026.pdf';
 
 describe('normalizar', () => {
   it('decodifica, remove acentos e separadores', () => {
@@ -30,6 +31,10 @@ describe('ehListaDeCandidatos', () => {
     ['Divulgação dos/as fiscais selecionados/as para atuar no Vestibular 2027', X],
     ['Homologação das inscrições dos Avaliadores das Questões Analítico-Discursivas de Língua Portuguesa do Vestibular FURG 2027', X],
     ['Lista de complementação documental deferidas e indeferidas', X],
+    ['Relação de inscritos no PS Indígenas 2026', X],
+    ['Relação nominal dos candidatos', X],
+    ['Ensalamento do Vestibular 2027', X],
+    ['Clique aqui', VEST_RESULTADO],
   ])('verdadeiro: %s', (t, u) => {
     expect(ehListaDeCandidatos(t, u, regras)).toBe(true);
   });
@@ -39,8 +44,19 @@ describe('ehListaDeCandidatos', () => {
     ['Gabarito Final', 'https://coperse.furg.br/images/000675.pdf'],
     ['Anexo I - Documento de Autodeclaração Quilombola', X],
     ['Prorrogação das inscrições do PS Específico para Estudantes Transgêneros', X],
+    ['Relação de cursos e vagas', X],
   ])('falso: %s', (t, u) => {
     expect(ehListaDeCandidatos(t, u, regras)).toBe(false);
+  });
+});
+
+describe('nomeDoArquivo', () => {
+  it('usa o parâmetro arquivo quando existe (último segmento do valor)', () => {
+    expect(nomeDoArquivo(VEST_RESULTADO)).toBe('Resultado_Final_2026.pdf');
+  });
+  it('senão, o último segmento do caminho, decodificado', () => {
+    expect(nomeDoArquivo('https://coperse.furg.br/images/Homologa%C3%A7%C3%A3o_2026.pdf')).toBe('Homologação_2026.pdf');
+    expect(nomeDoArquivo('https://coperse.furg.br/a/b/')).toBe('b');
   });
 });
 

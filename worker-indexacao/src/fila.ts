@@ -6,7 +6,7 @@ const PDF = /\.pdf(\?|$)|\/api\/documentos\/publico/i;
 const HORA = 3600_000;
 const JANELA_HTML_MS = 20 * HORA;
 const JANELA_PDF_MS = 30 * 24 * HORA;
-const MAX_TENTATIVAS = 5;
+export const MAX_TENTATIVAS = 5;
 
 export interface ItemFila {
   url: string;
@@ -23,8 +23,16 @@ export interface ItemFila {
 
 export type NovoItem = Omit<ItemFila, 'tentativas'>;
 
+export interface PaginaVista {
+  dataVista: string;
+  status: string;
+  tipo: string;
+  /** falhas seguidas (status 'erro'); ausente = 0 */
+  falhas?: number;
+}
+
 export interface EstadoRastreio {
-  paginas: Map<string, { dataVista: string; status: string; tipo: string }>;
+  paginas: Map<string, PaginaVista>;
   naFila: Set<string>;
 }
 
@@ -51,23 +59,28 @@ export function ehPdf(url: string): boolean {
 }
 
 export async function carregarEstado(cf: ClienteCloudflare): Promise<EstadoRastreio> {
-  const paginas = new Map<string, { dataVista: string; status: string; tipo: string }>();
-  for (const l of await cf.d1('SELECT url, data_vista, status, tipo FROM paginas')) {
-    paginas.set(String(l.url), { dataVista: String(l.data_vista ?? ''), status: String(l.status ?? ''), tipo: String(l.tipo ?? '') });
+  const paginas = new Map<string, PaginaVista>();
+  for (const l of await cf.d1('SELECT url, data_vista, status, tipo, falhas FROM paginas')) {
+    paginas.set(String(l.url), {
+      dataVista: String(l.data_vista ?? ''), status: String(l.status ?? ''), tipo: String(l.tipo ?? ''), falhas: Number(l.falhas ?? 0),
+    });
   }
   const naFila = new Set((await cf.d1('SELECT url FROM fila')).map((l) => String(l.url)));
   return { paginas, naFila };
 }
 
 /**
- * Já visto dentro da janela de revisita? Páginas com 'erro' ou 'indexando' (execução interrompida) sempre voltam;
- * 'ok', 'vazia' e 'removida' contam como vistas.
+ * Já visto dentro da janela de revisita? 'indexando' (execução interrompida) e 'erro' transitório sempre voltam;
+ * 'ok', 'vazia' e 'removida' contam como vistas. 'erro' permanente (MAX_TENTATIVAS falhas seguidas, já saiu
+ * da fila) usa a janela de 30 dias: tenta de novo uma vez por mês, não a cada revisita da página que o linka.
  */
-function dentroDaJanela(url: string, vista: { dataVista: string; status: string; tipo: string } | undefined, agora: number): boolean {
-  if (!vista || vista.status === 'erro' || vista.status === 'indexando') return false;
+function dentroDaJanela(url: string, vista: PaginaVista | undefined, agora: number): boolean {
+  if (!vista || vista.status === 'indexando') return false;
+  const permanente = vista.status === 'erro' && (vista.falhas ?? 0) >= MAX_TENTATIVAS;
+  if (vista.status === 'erro' && !permanente) return false;
   const t = Date.parse(vista.dataVista);
   if (Number.isNaN(t)) return false;
-  const pdf = ehPdf(url) || vista.tipo === 'pdf';
+  const pdf = permanente || ehPdf(url) || vista.tipo === 'pdf';
   return agora - t < (pdf ? JANELA_PDF_MS : JANELA_HTML_MS);
 }
 

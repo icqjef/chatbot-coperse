@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import type { PaginaExtraida, LinkEncontrado } from '@chatbot/comum/tipos';
-import { normalizar } from '@chatbot/comum/classificar';
+import { nomeDoArquivo, normalizar } from '@chatbot/comum/classificar';
 
 const BLOCOS = new Set(['p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'br', 'tr', 'table', 'section', 'article', 'ul', 'ol']);
 
@@ -32,14 +32,7 @@ export function ehGenerico(t: string): boolean {
 }
 
 function tituloDoArquivo(url: URL): string {
-  const nome = url.pathname.split('/').filter(Boolean).pop() ?? '';
-  let dec = nome;
-  try {
-    dec = decodeURIComponent(nome);
-  } catch {
-    // mantém o nome cru
-  }
-  return limpa(dec.replace(/\.[A-Za-z0-9]{1,5}$/, '').replace(/[_-]+/g, ' '));
+  return limpa(nomeDoArquivo(url.toString()).replace(/\.[A-Za-z0-9]{1,5}$/, '').replace(/[_-]+/g, ' '));
 }
 
 function coletarLinks($: cheerio.CheerioAPI, urlPagina: string): LinkEncontrado[] {
