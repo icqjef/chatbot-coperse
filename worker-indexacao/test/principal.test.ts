@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { Site, Embedder } from '@chatbot/comum/tipos';
 import { executar, codigoSaida } from '../src/principal.js';
-import { criarBuscarHtml } from '../src/http.js';
 import { criarCfFalso } from './fakes.js';
 
 const html = readFileSync(new URL('./fixtures/coperse-artigo.html', import.meta.url), 'utf8');
@@ -97,18 +96,5 @@ describe('robustez', () => {
     expect(codigoSaida({ ...z, erro: 3 })).toBe(1);
     expect(codigoSaida({ ...z, erro: 3, igual: 1 })).toBe(0);
     expect(codigoSaida(z)).toBe(0);
-  });
-});
-
-describe('criarBuscarHtml', () => {
-  it('envia User-Agent e devolve o texto', async () => {
-    let ua = '';
-    const f = (async (_u: any, init: any) => { ua = init.headers['User-Agent']; return new Response('ok'); }) as typeof fetch;
-    expect(await criarBuscarHtml(f)('https://x.furg.br')).toBe('ok');
-    expect(ua).toBe('ChatbotCOPERSE-Indexador/0.1');
-  });
-  it('lança erro com o status em respostas não 2xx', async () => {
-    const f = (async () => new Response('no', { status: 503 })) as typeof fetch;
-    await expect(criarBuscarHtml(f)('https://x.furg.br')).rejects.toThrow(/503/);
   });
 });

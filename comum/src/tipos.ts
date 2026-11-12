@@ -17,9 +17,17 @@ export interface ItemFeed {
   guid: string;
 }
 
+export interface LinkEncontrado {
+  url: string;
+  titulo: string;
+}
+
 export interface PaginaExtraida {
   titulo: string;
   texto: string;
+  /** ISO 8601, quando a página informa a data de publicação */
+  data?: string;
+  links: LinkEncontrado[];
 }
 
 export type TipoEmbedding = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';

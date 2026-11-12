@@ -40,7 +40,7 @@ export async function indexarPagina(
   let titulo = e.titulo;
 
   try {
-    const pagina = extrairPagina(await deps.buscarHtml(e.url));
+    const pagina = extrairPagina(await deps.buscarHtml(e.url), e.url);
     titulo = e.titulo || pagina.titulo;
     const gravar = (sql: string, hash: string | null, status: string, erro: string | null) =>
       cf.d1(sql, [e.url, e.site.id, titulo, dataValida, ano, agora, hash, status, erro]);

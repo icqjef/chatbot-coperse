@@ -5,7 +5,7 @@ import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import type { Site } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
-import { criarBuscarHtml } from './http.js';
+import { criarBuscar } from './http.js';
 import { indexarPagina, type DepsIndexacao } from './indexar.js';
 
 export interface Contagem { nova: number; alterada: number; igual: number; vazia: number; erro: number }
@@ -86,7 +86,9 @@ async function main(): Promise<void> {
     PROVEDOR_LLM: env.PROVEDOR_LLM || 'gemini', GEMINI_API_KEY: env.GEMINI_API_KEY!,
     MODELO_EMBEDDING: env.MODELO_EMBEDDING || undefined, DIMENSAO_EMBEDDING: env.DIMENSAO_EMBEDDING || undefined,
   } as Parameters<typeof criarEmbedder>[0]);
-  const deps: DepsIndexacao = { cf, embedder, buscarHtml: criarBuscarHtml(), agora: () => new Date().toISOString() };
+  const buscar = criarBuscar();
+  const buscarTexto = async (u: string) => (await buscar(u)).texto ?? '';
+  const deps: DepsIndexacao = { cf, embedder, buscarHtml: buscarTexto, agora: () => new Date().toISOString() };
 
   const resumo = await executar({ limite, sites }, deps);
   const falhas = (await cf.d1("SELECT url, erro FROM paginas WHERE status = 'erro'")).map((r) => ({ url: r.url, erro: r.erro }));
