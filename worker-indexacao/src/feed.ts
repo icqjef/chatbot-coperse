@@ -16,6 +16,8 @@ export function lerFeed(xml: string): ItemFeed[] {
   } catch (e) {
     throw new Error(`feed inválido: ${(e as Error).message}`);
   }
+  // Só RSS: Atom (e qualquer outra raiz) falha alto em vez de devolver vazio em silêncio.
+  if (!doc?.rss) throw new Error('Formato de feed não suportado (só RSS)');
   const bruto = doc?.rss?.channel?.item;
   const itens: any[] = bruto === undefined ? [] : Array.isArray(bruto) ? bruto : [bruto];
   const saida: ItemFeed[] = [];

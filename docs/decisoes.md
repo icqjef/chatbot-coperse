@@ -72,3 +72,40 @@ Workflow `indexar` disparado manualmente com `limite=5` (execução 43269595972)
 - Segunda execução com `limite=5`: `igual: 8`, nada regravado.
 
 A indexação agendada a cada 2 horas está ativa desde o merge.
+
+## 2026-11-12 — Leitura de PDF: unpdf
+
+PDFs dos editais são lidos com o `unpdf` (unjs/unpdf, licença MIT, cerca de 1,3 mil estrelas, mantido: último envio em 2026-11-11, versão 2.1.0). Motivo: roda em Node puro, sem dependências nativas, o que funciona no GitHub Actions sem instalar nada no sistema. PDF escaneado (sem camada de texto) fica com status `vazia`; não há OCR. Arquivos acima de 15 MB não são baixados e ficam como erro.
+
+## 2026-11-12 — Keepalive do agendamento: liskin/gh-workflow-keepalive
+
+O GitHub desliga workflows agendados de repositórios sem atividade por 60 dias. Usamos a ação `liskin/gh-workflow-keepalive@v1.2.1` (MIT) num job à parte do `indexar.yml`, só nas execuções agendadas. Ela reativa o workflow pela API, sem commits falsos no repositório; precisa apenas da permissão `actions: write` nesse job. Substitui a ideia de "commit mensal" da entrada sobre o GitHub Actions. O `gautamkrishnar/keepalive-workflow`, mais conhecido, foi descartado porque está bloqueado no GitHub.
+
+## 2026-11-12 — Rastreamento próprio pela tabela `fila`
+
+Os três sites são rastreados por código próprio: uma fila no D1 (`fila`), semeada pelos feeds RSS e pelas páginas-chave de `config/sites.json`, seguindo links do mesmo domínio até a profundidade configurada (10), com revisita de HTML após 20 horas e de PDF após 30 dias. Cada execução tem orçamento de itens (`LIMITE`, padrão 400) e de tempo (`PRAZO_MINUTOS`, padrão 25); o que sobra fica na fila para a próxima, a cada 2 horas. Motivo: crawlers prontos (crawlee e afins) exigem navegador ou são pesados para o Actions, e o censo dos sites mostrou que uma busca em largura simples sobre o HTML alcança todas as páginas e PDFs. Falhas são adiadas com espera crescente; uma página só é removida do índice depois de três respostas 404/410 seguidas.
+
+## 2026-11-12 — Listas de candidatos: só título, data e link
+
+Documentos com listas nominais (resultados, homologações, chamadas, notas, locais de prova etc., pelas regras de `config/listas.json`) não têm o conteúdo indexado: o bot guarda só título, data e link, num resumo que orienta o candidato a abrir o documento. PDF reconhecido como lista nem é baixado; página HTML reconhecida como lista é lida apenas para seguir os links. Exceção inevitável: um PDF servido por endereço que não parece PDF (sem `.pdf`) só é reconhecido depois de baixado; mesmo assim, se o título ou o nome do arquivo o marcarem como lista, o conteúdo nunca é lido nem indexado. Aprovado pelo Jeferson. Motivo: privacidade dos candidatos e o bot não deve opinar sobre situação individual.
+
+## 2026-11-12 — Todas as edições indexadas, com processo e ano
+
+Edições antigas dos processos seletivos também são indexadas, cada trecho marcado com `processo` e `ano` (decisão b do Jeferson). Processo e ano saem do título e do caminho da URL (nunca do domínio: `sisu3.furg.br` não deve marcar tudo como SiSU), pelas regras de `config/processos.json`; um PDF sem essa informação herda processo e ano da página que o linkou; na falta, vale o processo padrão do site e o ano da data. Motivo: a busca pode filtrar ou priorizar a edição em andamento sem perder o histórico.
+
+## 2026-11-12 — Teto de 6000 vetores
+
+A indexação para quando o índice chega a 6000 vetores (`TETO_VETORES`): a contagem é refeita no início de cada execução, o documento que estouraria o teto fica na fila e o resumo da execução mostra `teto_atingido: true` (a execução não falha). Motivo: manter o Vectorize dentro do plano gratuito com folga. Se o teto for atingido, a decisão é do Jeferson entre reduzir a dimensão dos vetores para 384 (exige recriar o índice e reindexar) ou aumentar o tamanho dos trechos (menos vetores por documento).
+
+Complemento (revisão final da etapa 4): ao atingir o teto a execução para por inteiro (`break`), não só o documento que estouraria. Com isso as revisitas e as retificações de páginas já indexadas também ficam paradas até o Jeferson decidir entre vetores de 384 dimensões, trechos maiores ou o plano pago do Vectorize. O aviso no log da execução (`teto_atingido: true`) é o sinal para essa decisão.
+
+## 2026-11-12 — Ajustes da revisão final da etapa 4
+
+- Links seguidos a partir de uma página classificada como lista entram na fila sem título: numa lista, o texto do link costuma ser o nome de uma pessoa. O PDF filho fica com o título tirado do nome do arquivo e a página filha com o próprio `<title>`. Motivo: nenhum nome pode chegar a `paginas.titulo`, aos trechos ou aos metadados do Vectorize.
+- Data das listas: PDF de lista não é baixado, então a data vem do feed ou de um pedido HEAD (`Last-Modified`), com a mesma pausa de 1 s e o mesmo User-Agent. Sem nenhum dos dois, a data é tratada como desconhecida: o resumo omite a frase "Documento publicado em ..." e `data_publicacao` guarda a data herdada só para ordenar. O "agora" nunca entra no texto do resumo, para o hash não mudar a cada revisita.
+- O hash de cada página passa a ser `JSON.stringify([tipo, processo, ano, titulo, texto])`, não só o texto. Assim uma mudança nas regras de `config/` ou no título reindexa a página uma vez. Efeito conhecido: a primeira execução depois desta mudança refaz uma vez os embeddings das 8 páginas indexadas na etapa 3 (custo desprezível).
+- Erro permanente: uma URL que falhou 5 vezes seguidas sai da fila e só volta depois de 30 dias (janela dos PDFs), em vez de voltar a cada revisita da página que a linka. Na mesma execução ela também não volta.
+- Endereços `/api/documentos/publico?arquivo=...` do vestibular: o nome do arquivo (para o título e para reconhecer listas) vem do parâmetro `arquivo`.
+- Novos padrões em `config/listas.json`: "inscritos", "nominal" e "ensalamento". "relacao" ficou de fora porque esconderia páginas úteis como "Relação de cursos e vagas".
+- PDF linkado por uma página lista também é tratado como lista (não é baixado e fica só o resumo), mesmo com título e nome de arquivo neutros. A marca vai na nova coluna `fila.lista` (migração 0003). Ela não podia sair da coluna `origem`, que guarda só a primeira página que linkou a URL. A marca vale também para item já na fila por outra página. Um PDF já indexado com conteúdo volta à fila para virar resumo assim que uma lista o linka. Páginas HTML linkadas por lista não são forçadas, porque costumam ser navegação.
+- Limite conhecido: um PDF linkado por uma página neutra e também por uma lista pode ser indexado com o conteúdo, se for processado antes da primeira visita à página lista. Quando a lista é visitada, o PDF volta à fila e passa a ficar só com o resumo (reabertura). Na mesma execução, a marca de lista também vale em memória para o item que já estava carregado no lote.

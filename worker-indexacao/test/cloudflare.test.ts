@@ -56,4 +56,63 @@ describe('cliente Cloudflare', () => {
     expect(erro.message).toContain('banco inexistente');
     expect(erro.message).not.toContain('SEGREDO');
   });
+
+  describe('inserirLinhas', () => {
+    const ok = { success: true, errors: [], result: [{ results: [] }] };
+    const cols = ['id', 'url', 'ordem', 'texto'];
+    const linhas = (n: number, texto = 'x') => Array.from({ length: n }, (_, i) => [`id${i}`, 'u', i, texto]);
+    const corpo = (c: Chamada) => JSON.parse(c.init.body as string) as { sql: string; params: unknown[] };
+
+    it('divide em lotes de até 20 linhas', async () => {
+      const chamadas: Chamada[] = [];
+      const cf = criarClienteCloudflare(cfg, fetchFalso(ok, chamadas));
+      await cf.inserirLinhas('trechos', cols, linhas(45));
+      expect(chamadas).toHaveLength(3);
+      expect(chamadas.every((c) => c.url.endsWith('/d1/database/DB/query'))).toBe(true);
+      expect(corpo(chamadas[0]!).sql).toBe('INSERT INTO trechos (id, url, ordem, texto) VALUES ' + Array(20).fill('(?, ?, ?, ?)').join(', '));
+      expect(chamadas.map((c) => corpo(c).params.length)).toEqual([80, 80, 20]);
+    });
+
+    it('fecha o lote ao passar de 60000 caracteres', async () => {
+      const chamadas: Chamada[] = [];
+      const cf = criarClienteCloudflare(cfg, fetchFalso(ok, chamadas));
+      await cf.inserirLinhas('trechos', cols, linhas(3, 'a'.repeat(25000)));
+      expect(chamadas.map((c) => corpo(c).params.length)).toEqual([8, 4]);
+    });
+
+    it('com ignorarRepetidas usa INSERT OR IGNORE', async () => {
+      const chamadas: Chamada[] = [];
+      const cf = criarClienteCloudflare(cfg, fetchFalso(ok, chamadas));
+      await cf.inserirLinhas('trechos', cols, linhas(1), { ignorarRepetidas: true });
+      expect(corpo(chamadas[0]!).sql).toMatch(/^INSERT OR IGNORE INTO trechos /);
+    });
+
+    it('recusa lote acima de 100 parâmetros', async () => {
+      const cf = criarClienteCloudflare(cfg, fetchFalso(ok, []));
+      const colunas = Array.from({ length: 101 }, (_, i) => `c${i}`.replace(/\d/g, 'x'));
+      await expect(cf.inserirLinhas('t', colunas, [Array(101).fill(1)])).rejects.toThrow(/100/);
+    });
+
+    it('sem linhas não chama a API', async () => {
+      const chamadas: Chamada[] = [];
+      const cf = criarClienteCloudflare(cfg, fetchFalso(ok, chamadas));
+      await cf.inserirLinhas('trechos', cols, []);
+      expect(chamadas).toHaveLength(0);
+    });
+
+    it('recusa nomes de tabela ou coluna inválidos', async () => {
+      const cf = criarClienteCloudflare(cfg, fetchFalso(ok, []));
+      await expect(cf.inserirLinhas('trechos; DROP', cols, linhas(1))).rejects.toThrow(/inválido/);
+      await expect(cf.inserirLinhas('trechos', ['id', 'a b'], [[1, 2]])).rejects.toThrow(/inválido/);
+    });
+  });
+
+  it('contarVetores lê vectorCount', async () => {
+    const chamadas: Chamada[] = [];
+    const cf = criarClienteCloudflare(cfg, fetchFalso({ success: true, errors: [], result: { vectorCount: 42, dimensions: 768 } }, chamadas));
+    expect(await cf.contarVetores()).toBe(42);
+    expect(chamadas[0]!.url).toBe('https://api.cloudflare.com/client/v4/accounts/ACC/vectorize/v2/indexes/idx/info');
+    expect(chamadas[0]!.init.method).toBe('GET');
+    expect(chamadas[0]!.init.body).toBeUndefined();
+  });
 });

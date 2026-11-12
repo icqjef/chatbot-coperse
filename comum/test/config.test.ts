@@ -31,6 +31,10 @@ describe('carregarSites', () => {
   it('rejeita entrada que não é lista', () => {
     expect(() => carregarSites({})).toThrow(/lista/);
   });
+  it('aceita processo_padrao texto e recusa não texto', () => {
+    expect(carregarSites([site({ processo_padrao: 'sisu' })])[0]?.processo_padrao).toBe('sisu');
+    expect(() => carregarSites([site({ processo_padrao: 3 })])).toThrow(/processo_padrao/);
+  });
 });
 
 describe('carregarOrigens', () => {
