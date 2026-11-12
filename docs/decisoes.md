@@ -33,3 +33,11 @@ Por informação do Jeferson, a COPERSE só publica editais de processos seletiv
 ## 2026-11-12 — Registro de perguntas desligado
 
 O registro de perguntas fica desligado até decisão da COPERSE. O código fica pronto atrás de `REGISTRAR_PERGUNTAS=false`: pergunta mascarada (CPF, e-mail, telefone), sem IP nem identificador, apagada após 90 dias.
+
+## 2026-11-12 — Recursos criados no Cloudflare
+
+Conta Cloudflare do Jeferson, Account ID `6d7caf21114ed3ab1289f93cf901a859` (identificador público, não é segredo).
+
+- Banco D1 `chatbot-coperse`, `database_id` `3cbc9b2c-dc1d-430b-95fe-edce33927d3d`.
+- Índice Vectorize `chatbot-coperse`, 768 dimensões, métrica cosseno.
+- Índices de metadado solicitados antes de qualquer inserção: `site` (string), `processo` (string), `ano` (number).
