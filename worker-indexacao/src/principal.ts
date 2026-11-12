@@ -17,6 +17,18 @@ export interface OpcoesExecucao {
   esperar?: (ms: number) => Promise<void>;
 }
 
+function hostPermitido(url: string, site: Site): boolean {
+  try {
+    return site.dominios_permitidos.includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function codigoSaida(r: Contagem): 0 | 1 {
+  return r.erro > 0 && r.nova + r.alterada + r.igual + r.vazia === 0 ? 1 : 0;
+}
+
 const dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export async function executar(opcoes: OpcoesExecucao, deps: DepsIndexacao): Promise<Contagem> {
@@ -30,11 +42,17 @@ export async function executar(opcoes: OpcoesExecucao, deps: DepsIndexacao): Pro
     let itens;
     try {
       itens = lerFeed(await deps.buscarHtml(site.feed)).slice(0, opcoes.limite);
-    } catch {
+    } catch (e) {
+      console.error(`feed ${site.id}: ${(e as Error).message}`);
       total.erro++;
       continue;
     }
     for (const item of itens) {
+      if (!hostPermitido(item.url, site)) {
+        console.error(`fora do domínio: ${item.url}`);
+        total.erro++;
+        continue;
+      }
       await esperar(1000);
       total[await indexarPagina({ site, url: item.url, titulo: item.titulo, data: item.data }, deps)]++;
     }
@@ -73,6 +91,7 @@ async function main(): Promise<void> {
   const resumo = await executar({ limite, sites }, deps);
   const falhas = (await cf.d1("SELECT url, erro FROM paginas WHERE status = 'erro'")).map((r) => ({ url: r.url, erro: r.erro }));
   console.log(JSON.stringify({ ...resumo, limite, urls_com_erro: falhas }));
+  process.exitCode = codigoSaida(resumo);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

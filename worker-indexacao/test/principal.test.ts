@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { Site, Embedder } from '@chatbot/comum/tipos';
-import { executar } from '../src/principal.js';
+import { executar, codigoSaida } from '../src/principal.js';
 import { criarBuscarHtml } from '../src/http.js';
 import { criarCfFalso } from './fakes.js';
 
@@ -67,6 +67,36 @@ describe('executar', () => {
     const sites = [mk('coperse', 'https://coperse.furg.br/feed.xml'), mk('sisu', 'https://sisu.furg.br/feed.xml')];
     const r = await executar({ limite: 2, sites, esperar: m.esperar }, m.deps);
     expect(r).toMatchObject({ nova: 2, erro: 1 });
+  });
+});
+
+describe('robustez', () => {
+  it('registra o motivo da falha do feed e segue', async () => {
+    const m = montar({ feedQuebrado: true });
+    const msgs: string[] = [];
+    const orig = console.error;
+    console.error = (s: string) => { msgs.push(String(s)); };
+    try {
+      const r = await executar({ limite: 1, sites: [mk('coperse', 'https://coperse.furg.br/feed.xml')], esperar: m.esperar }, m.deps);
+      expect(r.erro).toBe(1);
+    } finally { console.error = orig; }
+    expect(msgs).toEqual(['feed coperse: HTTP 500']);
+  });
+  it('item fora do domínio permitido conta como erro e não é buscado', async () => {
+    const m = montar();
+    const deps = { ...m.deps, async buscarHtml(u: string) { return u.endsWith('feed.xml') ? feedXml(2, 'outro') : (m.buscados.push(u), html); } };
+    const orig = console.error; console.error = () => {};
+    try {
+      const r = await executar({ limite: 2, sites: [mk('coperse', 'https://coperse.furg.br/feed.xml')], esperar: m.esperar }, deps);
+      expect(r).toMatchObject({ erro: 2, nova: 0 });
+    } finally { console.error = orig; }
+    expect(m.buscados).toEqual([]);
+  });
+  it('codigoSaida: 1 só se nada deu certo e houve erro', () => {
+    const z = { nova: 0, alterada: 0, igual: 0, vazia: 0, erro: 0 };
+    expect(codigoSaida({ ...z, erro: 3 })).toBe(1);
+    expect(codigoSaida({ ...z, erro: 3, igual: 1 })).toBe(0);
+    expect(codigoSaida(z)).toBe(0);
   });
 });
 

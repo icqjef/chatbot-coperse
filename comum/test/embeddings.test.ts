@@ -53,6 +53,16 @@ describe('criarEmbedder', () => {
     expect(String(e.message)).toContain('429');
     expect(String(e.message)).not.toContain(CHAVE);
   });
+  it('400 inclui a mensagem do Google', async () => {
+    const f = (async () => new Response(JSON.stringify({ error: { message: 'Invalid JSON payload' } }), { status: 400 })) as unknown as typeof fetch;
+    await expect(criarEmbedder(env, f).embed(['a'], 'RETRIEVAL_DOCUMENT')).rejects.toThrow(/400.*Invalid JSON payload/);
+  });
+  it('mensagem que contém a chave não vaza', async () => {
+    const f = (async () => new Response(JSON.stringify({ error: { message: `bad key ${CHAVE}` } }), { status: 400 })) as unknown as typeof fetch;
+    const e = await criarEmbedder(env, f).embed(['a'], 'RETRIEVAL_DOCUMENT').catch((x) => x as Error) as Error;
+    expect(e.message).not.toContain(CHAVE);
+    expect(e.message).toContain('[chave]');
+  });
   it('lista vazia não chama fetch', async () => {
     const { f, chamadas } = fake();
     expect(await criarEmbedder(env, f).embed([], 'RETRIEVAL_DOCUMENT')).toEqual([]);

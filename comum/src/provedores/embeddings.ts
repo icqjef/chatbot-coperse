@@ -40,7 +40,11 @@ export function criarEmbedder(env: EnvEmbeddings, fetchFn: typeof fetch = fetch)
             })),
           }),
         });
-        if (!resp.ok) throw new Error(`Falha nos embeddings do Gemini: HTTP ${resp.status}`);
+        if (!resp.ok) {
+          const bruto = ((await resp.json().catch(() => ({}))) as any)?.error?.message;
+          const msg = typeof bruto === 'string' ? bruto.split(env.GEMINI_API_KEY).join('[chave]').slice(0, 300) : '';
+          throw new Error(`Falha nos embeddings do Gemini: HTTP ${resp.status}${msg ? ' — ' + msg : ''}`);
+        }
         const dados = (await resp.json()) as { embeddings?: { values: number[] }[] };
         const recebidos = dados.embeddings;
         if (!recebidos || recebidos.length !== lote.length)
