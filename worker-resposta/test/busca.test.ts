@@ -45,6 +45,9 @@ describe('consultaFts', () => {
       '"qual" OR "prazo" OR "inscrição" OR "sisu"',
     );
   });
+  it('mantém palavras inteiras em entrada NFD', () => {
+    expect(consultaFts('inscrição'.normalize('NFD'))).toBe('"inscrição"');
+  });
   it('null sem termos úteis', () => {
     expect(consultaFts('a e o')).toBeNull();
   });
@@ -70,13 +73,38 @@ describe('fundir', () => {
     );
     expect(r[0]!.id).toBe('a');
   });
-  it('2027 vence 2026 empatado', () => {
+  it('recência decide entre ano igual e datas diferentes', () => {
     const m = new Map([
       ['x26', meta(2026)],
       ['x27', meta(2027, '2026-11-01T00:00:00Z')],
     ]);
-    const r = fundir([{ id: 'x26', similaridade: 0.9 }], [{ id: 'x27' }], m, agora);
+    const r = fundir(
+      [{ id: 'x26', similaridade: 0.9 }, { id: 'x27', similaridade: 0.9 }],
+      [{ id: 'x27' }, { id: 'x26' }],
+      m,
+      agora,
+    );
     expect(r[0]!.id).toBe('x27');
+  });
+  it('ano decide com a mesma data', () => {
+    const m = new Map([
+      ['y25', meta(2025, '2026-01-01T00:00:00Z')],
+      ['y27', meta(2027, '2026-01-01T00:00:00Z')],
+    ]);
+    const r = fundir(
+      [{ id: 'y25', similaridade: 0.9 }, { id: 'y27', similaridade: 0.9 }],
+      [{ id: 'y27' }, { id: 'y25' }],
+      m,
+      agora,
+    );
+    expect(r[0]!.id).toBe('y27');
+  });
+  it('data futura não passa do bônus máximo', () => {
+    const m = new Map([['f', meta(2020, '2030-01-01T00:00:00Z')]]);
+    const m2 = new Map([['f', meta(2020, '2026-11-12T12:00:00Z')]]);
+    const fut = fundir([{ id: 'f', similaridade: 1 }], [], m, agora)[0]!.pontuacao;
+    const hoje = fundir([{ id: 'f', similaridade: 1 }], [], m2, agora)[0]!.pontuacao;
+    expect(fut).toBeCloseTo(hoje, 10);
   });
 });
 
@@ -115,5 +143,13 @@ describe('buscarTrechos', () => {
     const r = await buscarTrechos('prazo', { embedder: embedderFalso().embedder, vectorize: v.indice, db: d.db, agora: () => agora }, { limiar: 0.5 });
     expect(r.trechos.map((t) => t.id)).toEqual(['a']);
     expect(r.trechos[0]!.similaridade).toBeCloseTo(0.9);
+  });
+  it('hits só do FTS não superam o vetorial forte; vetorial abaixo do limiar some', async () => {
+    const fts = Array.from({ length: 20 }, (_, i) => `f${i}`);
+    const v = vectorizeFalso([match('forte', 0.9), match('fraco', 0.3)]);
+    const d = d1Falso({ fts, linhas: [linha('forte'), linha('fraco'), ...fts.map((id) => linha(id))] });
+    const r = await buscarTrechos('prazo', { embedder: embedderFalso().embedder, vectorize: v.indice, db: d.db, agora: () => agora }, { limiar: 0.5 });
+    expect(r.trechos[0]!.id).toBe('forte');
+    expect(r.trechos.map((t) => t.id)).not.toContain('fraco');
   });
 });

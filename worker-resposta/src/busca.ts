@@ -23,12 +23,14 @@ const K_RRF = 60;
 const TOP_K = 20;
 const MAX_TERMOS = 12;
 const OPERADORES_FTS = new Set(['or', 'and', 'not', 'near']);
+const PESO_VETORIAL = 1;
+const PESO_TEXTUAL = 0.5;
 const MS_DIA = 86_400_000;
 
 /** Monta uma consulta FTS5 segura: termos entre aspas unidos por OR. */
 export function consultaFts(pergunta: string): string | null {
   const vistos = new Set<string>();
-  for (const t of pergunta.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+  for (const t of pergunta.normalize('NFC').toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
     if (t.length < 3 || OPERADORES_FTS.has(t)) continue;
     vistos.add(t);
     if (vistos.size >= MAX_TERMOS) break;
@@ -51,10 +53,10 @@ export function fundir(
   agora: Date,
 ): { id: string; pontuacao: number }[] {
   const pont = new Map<string, number>();
-  const somar = (lista: { id: string }[]) =>
-    lista.forEach((it, i) => pont.set(it.id, (pont.get(it.id) ?? 0) + 1 / (K_RRF + i + 1)));
-  somar(vetoriais);
-  somar(textuais);
+  const somar = (lista: { id: string }[], peso: number) =>
+    lista.forEach((it, i) => pont.set(it.id, (pont.get(it.id) ?? 0) + peso / (K_RRF + i + 1)));
+  somar(vetoriais, PESO_VETORIAL);
+  somar(textuais, PESO_TEXTUAL);
   const anoAtual = agora.getUTCFullYear();
   for (const [id, p] of pont) {
     const m = meta.get(id);
@@ -63,7 +65,7 @@ export function fundir(
       const t = Date.parse(m.data);
       if (!Number.isNaN(t)) {
         const dias = (agora.getTime() - t) / MS_DIA;
-        bonus += 0.01 * Math.max(0, 1 - dias / 365);
+        bonus += 0.01 * Math.min(1, Math.max(0, 1 - dias / 365));
       }
       if (m.ano >= anoAtual) bonus += 0.01;
     }
@@ -130,7 +132,7 @@ export async function buscarTrechos(
   const simPorId = new Map(vetoriais.map((v) => [v.id, v.similaridade]));
 
   const fundidos = fundir(
-    vetoriais.filter((v) => linhas.has(v.id)),
+    vetoriais.filter((v) => v.similaridade >= opcoes.limiar && linhas.has(v.id)),
     textuais.filter((t) => linhas.has(t.id)),
     meta,
     deps.agora(),
