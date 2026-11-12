@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "dist",
+    "rootDir": "..",
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": ["src", "test", "../config/origens.json"],
+  "references": [{ "path": "../comum" }]
+}
