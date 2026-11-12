@@ -100,3 +100,11 @@ describe('extrairPagina: ajustes de revisão', () => {
     expect(extrairPagina(h, U).data).toBe('2026-05-05T00:00:00.000Z');
   });
 });
+
+describe('texto genérico "Baixar"', () => {
+  it('troca "Baixar" pelo texto do bloco pai', () => {
+    const html = '<body><main><ul><li>Resultado final da 1ª chamada <a href="/api/documentos/publico?arquivo=x.pdf">Baixar</a></li></ul></main></body>';
+    const p = extrairPagina(html, 'https://vestibular.furg.br/');
+    expect(p.links[0]!.titulo).toContain('Resultado final da 1ª chamada');
+  });
+});

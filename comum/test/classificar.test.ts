@@ -61,8 +61,13 @@ describe('nomeDoArquivo', () => {
 });
 
 describe('ehListaDeCandidatos exceções', () => {
-  it('^edital vence o padrão homologa', () => {
-    expect(ehListaDeCandidatos('Edital de Homologação das Inscrições', 'https://coperse.furg.br/x/edital.pdf', regras)).toBe(false);
+  it('edital de homologação, convocação e locais de prova são listas', () => {
+    // Sem exceção para "Edital": edital de homologação ou de convocação traz nomes (achado na carga real de 2026-11-12).
+    expect(ehListaDeCandidatos('Edital de Homologação das Inscrições', 'https://coperse.furg.br/x/edital.pdf', regras)).toBe(true);
+    expect(ehListaDeCandidatos('Edital de Convocação dos Aprovados', 'https://coperse.furg.br/images/Edital_1_Convocacao_Quilombolas_2025.pdf', regras)).toBe(true);
+    expect(ehListaDeCandidatos('Santa Vitória do Palmar', 'https://coperse.furg.br/images/2026/Vestibular-2026/locais_prova_SVP.pdf', regras)).toBe(true);
+    expect(ehListaDeCandidatos('Local de prova', 'https://x/a.pdf', regras)).toBe(true);
+    expect(ehListaDeCandidatos('Gabarito da prova de Língua Portuguesa', 'https://x/gab.pdf', regras)).toBe(false);
   });
 });
 

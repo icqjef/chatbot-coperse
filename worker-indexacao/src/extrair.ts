@@ -24,7 +24,7 @@ function filhos(no: any): string {
   return (no.children ?? []).map(texto).join('');
 }
 
-const GENERICO = /^(clique|clicando|acesse|veja|aqui|visualizar|baixe|download)\b/;
+const GENERICO = /^(clique|clicando|acesse|veja|aqui|visualizar|baixe|baixar|download)\b/;
 
 export function ehGenerico(t: string): boolean {
   const n = normalizar(t);

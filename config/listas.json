@@ -1,7 +1,7 @@
 {
   "padroes": ["resultado", "homologa", "aprovad", "classifica", "convoca", "chamad", "chamamento",
-              "\\blista\\b", "listagem", "deferid", "\\bnotas?\\b", "locais de provas?", "local de provas?",
+              "\\blista\\b", "listagem", "deferid", "\\bnotas?\\b", "\\bloca(l|is) (de )?provas?\\b",
               "\\bsalas\\b", "selecionad", "suplente", "complementacao documental", "heteroidentifica",
               "inscritos", "nominal", "ensalamento"],
-  "excecoes": ["^edital\\b", "^retificacao\\b", "^extrato\\b", "^anexo\\b", "gabarito"]
+  "excecoes": ["gabarito"]
 }
