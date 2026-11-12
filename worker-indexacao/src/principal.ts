@@ -7,7 +7,7 @@ import type { Site, TipoDocumento } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
 import { criarBuscar, ErroHttp, type Resposta } from './http.js';
-import { extrairPagina } from './extrair.js';
+import { ehGenerico, extrairPagina } from './extrair.js';
 import { extrairPdf } from './pdf.js';
 import {
   indexarDocumento, registrarErro, removerPagina, type DepsIndexacao, type ResultadoIndexacao,
@@ -40,7 +40,7 @@ export interface DepsExecucao extends DepsIndexacao {
   extrairPdf: (b: Uint8Array) => Promise<{ texto: string; paginas: number }>;
 }
 
-/** itens de feed: prioridade mais alta; o título e a data do feed valem mais que os da página */
+/** itens de feed: prioridade mais alta */
 const PRIORIDADE_FEED = 10;
 const PRIORIDADE_CHAVE = 5;
 const LOTE = 50;
@@ -74,11 +74,14 @@ function nomeDoArquivo(url: string): string {
   return dec.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim() || url;
 }
 
+/** título de PDF: o do link/feed, salvo se for genérico ("Clique aqui"); senão o nome do arquivo */
+const tituloPdf = (item: ItemFila) => (item.titulo && !ehGenerico(item.titulo) ? item.titulo : nomeDoArquivo(item.url));
+
 /** Processo e ano: o próprio documento › herdado da fila › padrão. `herdavel` não inclui os padrões. */
 function classificar(titulo: string, url: string, data: string, item: ItemFila, site: Site, regras: RegrasClassificacao) {
   // Só o caminho da URL: o host sisu3.furg.br casaria com \bsisu\b.
   const processoProprio = inferirProcesso([titulo, new URL(url).pathname], regras) ?? item.processo;
-  const anoProprio = inferirAno(titulo, url) ?? item.ano;
+  const anoProprio = inferirAno(titulo, new URL(url).pathname) ?? item.ano;
   return {
     processo: processoProprio ?? site.processo_padrao ?? 'geral',
     ano: anoProprio ?? new Date(data).getUTCFullYear(),
@@ -91,23 +94,32 @@ interface Contexto {
   deps: DepsExecucao;
   estado: EstadoRastreio;
   esperar: (ms: number) => Promise<void>;
+  /** URLs presentes nos feeds lidos nesta execução: título e data do feed valem mais que os da página */
+  doFeed: Set<string>;
 }
 
 type Desfecho = ResultadoIndexacao | 'ignorada' | 'removida';
 
-async function processarItem(item: ItemFila, site: Site, ctx: Contexto): Promise<Desfecho> {
+async function processarItem(item: ItemFila, site: Site, ctx: Contexto): Promise<{ r: Desfecho; tipo: TipoDocumento }> {
+  const saida = { tipo: (ehPdf(item.url) ? 'pdf' : 'html') as TipoDocumento };
+  const r = await processar(item, site, ctx, saida);
+  return { r, tipo: saida.tipo };
+}
+
+async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tipo: TipoDocumento }): Promise<Desfecho> {
   const { opcoes, deps, estado } = ctx;
   const { regras } = opcoes;
   const agora = deps.agora();
   const pdfPelaUrl = ehPdf(item.url);
-  let titulo = item.titulo || (pdfPelaUrl ? nomeDoArquivo(item.url) : '');
-  let tipo: TipoDocumento = pdfPelaUrl ? 'pdf' : 'html';
+  let titulo = pdfPelaUrl ? tituloPdf(item) : (item.titulo ?? '');
+  let tipo: TipoDocumento = saida.tipo;
   let data = valida(item.data) ? item.data : agora;
 
   try {
     // Lista nominal em PDF: nunca baixa; indexa só título, data e link.
     if (pdfPelaUrl && ehListaDeCandidatos(titulo, item.url, regras)) {
       const c = classificar(titulo, item.url, data, item, site, regras);
+      saida.tipo = 'lista';
       return await indexarDocumento({ site, url: item.url, titulo, data, tipo: 'lista', processo: c.processo, ano: c.ano, texto: '' }, deps);
     }
 
@@ -118,11 +130,12 @@ async function processarItem(item: ItemFila, site: Site, ctx: Contexto): Promise
 
     if (resp.tipo === 'pdf') {
       tipo = 'pdf';
-      titulo = item.titulo || nomeDoArquivo(item.url);
+      titulo = tituloPdf(item);
       data = resp.ultimaModificacao ?? (valida(item.data) ? item.data : agora);
       const c = classificar(titulo, item.url, data, item, site, regras);
       // URL sem cara de PDF que devolveu PDF: a regra de lista ainda vale (não lê o conteúdo).
       const lista = ehListaDeCandidatos(titulo, item.url, regras);
+      saida.tipo = lista ? 'lista' : 'pdf';
       const texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
       return await indexarDocumento(
         { site, url: item.url, titulo, data, tipo: lista ? 'lista' : 'pdf', processo: c.processo, ano: c.ano, texto }, deps,
@@ -130,12 +143,13 @@ async function processarItem(item: ItemFila, site: Site, ctx: Contexto): Promise
     }
 
     const pagina = extrairPagina(resp.texto ?? '', item.url);
-    const doFeed = item.prioridade >= PRIORIDADE_FEED;
+    const doFeed = ctx.doFeed.has(item.url);
     titulo = (doFeed && item.titulo) || pagina.titulo || item.titulo || '';
     data = (doFeed && valida(item.data) ? item.data : undefined) ?? pagina.data ?? resp.ultimaModificacao ?? agora;
     const c = classificar(titulo, item.url, data, item, site, regras);
     const lista = ehListaDeCandidatos(titulo, item.url, regras);
     tipo = lista ? 'lista' : 'html';
+    saida.tipo = tipo;
     const r = await indexarDocumento({ site, url: item.url, titulo, data, tipo, processo: c.processo, ano: c.ano, texto: pagina.texto }, deps);
     if (r === 'teto') return r;
 
@@ -203,7 +217,17 @@ async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void>
     if (!url || deveIgnorar(url) || !hostPermitido(url, site)) continue;
     itens.push({ url, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_CHAVE, titulo: null, processo: null, ano: null, data: null });
   }
-  await enfileirar(deps.cf, estado, itens, { agora, forcar: true });
+  // Já na fila (achado por link): o feed passa a valer para título e data.
+  const novos: NovoItem[] = [];
+  for (const it of itens) {
+    if (it.prioridade === PRIORIDADE_FEED) ctx.doFeed.add(it.url);
+    if (it.prioridade === PRIORIDADE_FEED && estado.naFila.has(it.url)) {
+      await deps.cf.d1('UPDATE fila SET titulo = ?, data = ?, prioridade = MAX(prioridade, ?) WHERE url = ?', [it.titulo, it.data, it.prioridade, it.url]);
+    } else {
+      novos.push(it);
+    }
+  }
+  await enfileirar(deps.cf, estado, novos, { agora, forcar: true });
 }
 
 export async function executar(
@@ -221,7 +245,7 @@ export async function executar(
   // Orçamento de vetores recontado a cada execução; o contador em memória vale só para esta.
   let restante = opcoes.tetoVetores - (await depsBase.cf.contarVetores());
   const deps: DepsExecucao = { ...depsBase, teto: { restante: () => restante, consumir: (n) => { restante -= n; } } };
-  const ctx: Contexto = { opcoes, deps, estado, esperar };
+  const ctx: Contexto = { opcoes, deps, estado, esperar, doFeed: new Set() };
   const sites = new Map(opcoes.sites.map((s) => [s.id, s]));
 
   for (const site of opcoes.sites) await semear(site, ctx, total);
@@ -241,14 +265,20 @@ export async function executar(
         total.ignorada++;
         continue;
       }
-      const r = await processarItem(item, site, ctx);
+      const { r, tipo } = await processarItem(item, site, ctx);
       total[r]++;
       if (r === 'teto') {
         tetoAtingido = true;
         break laco; // o item fica na fila
       }
-      if (r === 'erro') await adiar(deps.cf, estado, item, deps.agora());
-      else await concluir(deps.cf, estado, item.url);
+      if (r === 'erro') {
+        await adiar(deps.cf, estado, item, deps.agora());
+      } else {
+        await concluir(deps.cf, estado, item.url);
+        // Marca como visto agora: links de volta para esta URL não a enfileiram de novo nesta execução.
+        const status = r === 'vazia' || r === 'removida' || r === 'ignorada' ? r : 'ok';
+        estado.paginas.set(item.url, { dataVista: deps.agora(), status, tipo });
+      }
     }
   }
 

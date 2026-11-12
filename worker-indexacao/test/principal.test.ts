@@ -5,6 +5,7 @@ import { carregarRegras } from '@chatbot/comum/classificar';
 import { executar, codigoSaida, type OpcoesExecucao } from '../src/principal.js';
 import { ErroHttp, type Resposta } from '../src/http.js';
 import { criarCfFalso } from './fakes.js';
+import { carregarEstado, enfileirar } from '../src/fila.js';
 
 const json = (p: string) => JSON.parse(readFileSync(new URL(`../../config/${p}`, import.meta.url), 'utf8'));
 const regras = carregarRegras(json('processos.json'), json('listas.json'));
@@ -244,6 +245,47 @@ describe('executar: feeds', () => {
     const sisu: Site = { id: 'sisu', nome: 'SiSU', base: S, paginas_chave: [`${S}/x`], profundidade: 0, dominios_permitidos: ['sisu3.furg.br'] };
     await executar(m.opcoes({ sites: [sisu] }), m.deps);
     expect(m.f.paginas.get(`${S}/x`)?.processo).toBe('geral');
+  });
+
+  it('URL achada por link e depois publicada no feed fica com título e data do feed', async () => {
+    const paginas: Record<string, Resposta> = {
+      [`${C}/feed`]: { tipo: 'html', texto: feedXml([]) },
+      [`${C}/`]: { tipo: 'html', texto: pagina('Início', [['/n1', 'Link para n1']]) },
+      [`${C}/n1`]: { tipo: 'html', texto: pagina('Título da página') },
+    };
+    const m = montar({ paginas });
+    const o = m.opcoes({ sites: [{ ...coperse(), paginas_chave: [`${C}/`], profundidade: 1 }], maxItens: 1 });
+    const r1 = await executar(o, m.deps);
+    expect(r1.fila_restante).toBe(1); // n1 descoberto por link, sem orçamento
+    paginas[`${C}/feed`] = { tipo: 'html', texto: feedXml([['Notícia do feed', `${C}/n1`]]) };
+    await executar(o, m.deps);
+    expect(m.f.paginas.get(`${C}/n1`)).toMatchObject({ titulo: 'Notícia do feed', data_publicacao: '2026-03-10T12:00:00.000Z' });
+  });
+});
+
+describe('executar: correções da revisão', () => {
+  it('cada URL é buscada uma única vez por execução, mesmo com links de volta', async () => {
+    const irmas: [string, string][] = [['/', 'Início do site'], ['/a', 'Página A'], ['/b', 'Página B'], ['/c', 'Página C']];
+    const m = montar({ paginas: Object.fromEntries(['/', '/a', '/b', '/c'].map((p) => [`${V}${p}`, { tipo: 'html', texto: pagina(`Página ${p}`, irmas) }])) });
+    const r = await executar(m.opcoes(), m.deps);
+    expect(r).toMatchObject({ nova: 4, igual: 0 });
+    expect([...m.buscados].sort()).toEqual([`${V}/`, `${V}/a`, `${V}/b`, `${V}/c`]);
+  });
+
+  it('ano não vem da query string', async () => {
+    const u = `${V}/pagina?id=2019`;
+    const m = montar({ paginas: { [u]: { tipo: 'html', texto: pagina('Calendário') } } });
+    await executar(m.opcoes({ sites: [site({ paginas_chave: [u] })] }), m.deps);
+    expect(m.f.paginas.get(u)?.ano).toBe(2026);
+  });
+
+  it('PDF com título genérico ("Clique aqui") usa o nome do arquivo', async () => {
+    const u = `${V}/docs/Edital_Vestibular_2027.pdf`;
+    const m = montar({ paginas: { [u]: { tipo: 'pdf', bytes: new TextEncoder().encode('Edital completo.') } } });
+    const estado = await carregarEstado(m.f.cf);
+    await enfileirar(m.f.cf, estado, [{ url: u, site: 'vestibular', profundidade: 1, origem: `${V}/`, prioridade: 2, titulo: 'Clique aqui', processo: null, ano: null, data: null }], { agora: m.estado.agora });
+    await executar(m.opcoes({ sites: [site({ paginas_chave: [] })] }), m.deps);
+    expect(m.f.paginas.get(u)).toMatchObject({ titulo: 'Edital Vestibular 2027', processo: 'vestibular', ano: 2027 });
   });
 });
 

@@ -87,7 +87,7 @@ Os três sites são rastreados por código próprio: uma fila no D1 (`fila`), se
 
 ## 2026-11-12 — Listas de candidatos: só título, data e link
 
-Documentos com listas nominais (resultados, homologações, chamadas, notas, locais de prova etc., pelas regras de `config/listas.json`) não têm o conteúdo indexado: o bot guarda só título, data e link, num resumo que orienta o candidato a abrir o documento. PDF reconhecido como lista nem é baixado; página HTML reconhecida como lista é lida apenas para seguir os links. Aprovado pelo Jeferson. Motivo: privacidade dos candidatos e o bot não deve opinar sobre situação individual.
+Documentos com listas nominais (resultados, homologações, chamadas, notas, locais de prova etc., pelas regras de `config/listas.json`) não têm o conteúdo indexado: o bot guarda só título, data e link, num resumo que orienta o candidato a abrir o documento. PDF reconhecido como lista nem é baixado; página HTML reconhecida como lista é lida apenas para seguir os links. Exceção inevitável: um PDF servido por endereço que não parece PDF (sem `.pdf`) só é reconhecido depois de baixado; mesmo assim, se o título ou o nome do arquivo o marcarem como lista, o conteúdo nunca é lido nem indexado. Aprovado pelo Jeferson. Motivo: privacidade dos candidatos e o bot não deve opinar sobre situação individual.
 
 ## 2026-11-12 — Todas as edições indexadas, com processo e ano
 

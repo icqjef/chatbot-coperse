@@ -26,7 +26,7 @@ function filhos(no: any): string {
 
 const GENERICO = /^(clique|clicando|acesse|veja|aqui|visualizar|baixe|download)\b/;
 
-function ehGenerico(t: string): boolean {
+export function ehGenerico(t: string): boolean {
   const n = normalizar(t);
   return GENERICO.test(n) || n.replace(/[^a-z]/g, '').length < 4;
 }

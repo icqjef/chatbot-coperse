@@ -90,6 +90,11 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         if (l) l.prioridade = Math.max(l.prioridade as number, params[0] as number);
         return [];
       }
+      if (/^UPDATE fila SET titulo = \?, data = \?, prioridade = MAX\(prioridade, \?\) WHERE url = \?$/i.test(s)) {
+        const l = fila.get(params[3] as string);
+        if (l) Object.assign(l, { titulo: params[0], data: params[1], prioridade: Math.max(l.prioridade as number, params[2] as number) });
+        return [];
+      }
       if (/^UPDATE fila SET tentativas = \?, proxima_tentativa = \? WHERE url = \?$/i.test(s)) {
         const l = fila.get(params[2] as string);
         if (l) {
