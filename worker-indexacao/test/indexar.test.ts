@@ -66,6 +66,24 @@ describe('indexarDocumento', () => {
     expect(f.paginas.get(doc.url)).toMatchObject({ tipo: 'lista' });
   });
 
+  it('lista nunca indexa o texto recebido, só o resumo (sem nomes)', async () => {
+    const { f, deps } = montar();
+    const entradas: string[] = [];
+    const embed = deps.embedder.embed;
+    deps.embedder.embed = async (t, tipo) => { entradas.push(...t); return embed(t, tipo); };
+    const longo = ('Fulano de Tal, CPF 000.000.000-00. ' + 'palavra '.repeat(300)).repeat(5);
+    await indexarDocumento({ ...doc, tipo: 'lista', texto: longo }, deps);
+    const resumo = resumoDeLista(doc.titulo, doc.data, doc.url);
+    expect(f.trechos().map((t) => t.texto)).toEqual([resumo]);
+    expect(JSON.stringify([f.trechos(), f.fts(), entradas])).not.toContain('Fulano');
+  });
+
+  it('resumoDeLista com data inválida omite a data, sem NaN', () => {
+    const r = resumoDeLista('Lista X', 'lixo', 'https://c/a.pdf');
+    expect(r).toBe('Lista X. Disponível em: https://c/a.pdf. Este documento traz uma lista nominal; o assistente não reproduz o conteúdo, consulte o link.');
+    expect(r).not.toContain('NaN');
+  });
+
   it('resumoDeLista usa a frase exata e a data dd/mm/aaaa', () => {
     expect(resumoDeLista('Lista dos Convocados', '2026-11-10T12:00:00Z', 'https://c/a.pdf')).toBe(
       'Lista dos Convocados. Documento publicado em 10/11/2026. Disponível em: https://c/a.pdf. Este documento traz uma lista nominal; o assistente não reproduz o conteúdo, consulte o link.',
@@ -156,10 +174,9 @@ describe('teto de vetores', () => {
   it('só o acréscimo conta: alterado com 1 trecho a mais cabe em restante 1 e consome 1', async () => {
     const t = { restante: 100 };
     const { f, deps, consumos } = montar({}, t);
-    const n = (k: number) => dividirEmTrechos(paragrafos(k)).length;
-    let k = 3;
-    while (n(k + 1) !== n(k) + 1) k++; // menor texto que ganha exatamente 1 trecho
-    await indexarDocumento({ ...doc, texto: paragrafos(k) }, deps);
+    expect(dividirEmTrechos(paragrafos(4))).toHaveLength(2);
+    expect(dividirEmTrechos(paragrafos(5))).toHaveLength(3);
+    await indexarDocumento({ ...doc, texto: paragrafos(4) }, deps);
     const antes = f.trechos().length;
     consumos.length = 0;
     t.restante = 1;

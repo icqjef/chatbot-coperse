@@ -31,8 +31,10 @@ const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
 export function resumoDeLista(titulo: string, data: string, url: string): string {
   const d = new Date(data);
-  const dia = [String(d.getUTCDate()).padStart(2, '0'), String(d.getUTCMonth() + 1).padStart(2, '0'), d.getUTCFullYear()].join('/');
-  return `${titulo}. Documento publicado em ${dia}. Disponível em: ${url}. Este documento traz uma lista nominal; o assistente não reproduz o conteúdo, consulte o link.`;
+  const dia = Number.isNaN(d.getTime())
+    ? ''
+    : ` Documento publicado em ${[String(d.getUTCDate()).padStart(2, '0'), String(d.getUTCMonth() + 1).padStart(2, '0'), d.getUTCFullYear()].join('/')}.`;
+  return `${titulo}.${dia} Disponível em: ${url}. Este documento traz uma lista nominal; o assistente não reproduz o conteúdo, consulte o link.`;
 }
 
 const SQL_UPSERT_OK = `INSERT INTO paginas (url, site, titulo, tipo, processo, ano, data_publicacao, data_vista, hash, status, falhas, erro)
@@ -75,7 +77,8 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
     const gravar = (hash: string | null, status: string) =>
       cf.d1(SQL_UPSERT_OK, [url, doc.site.id, titulo, doc.tipo, processo, ano, dataValida, agora, hash, status, null]);
 
-    const texto = doc.texto.trim();
+    // Privacidade: lista nominal nunca é indexada; só o resumo, mesmo que o chamador passe o texto.
+    const texto = (doc.tipo === 'lista' ? resumoDeLista(titulo, dataValida, url) : doc.texto).trim();
     if (!texto) {
       await gravar(null, 'vazia');
       return 'vazia';
