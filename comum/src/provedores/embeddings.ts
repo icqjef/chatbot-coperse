@@ -19,6 +19,8 @@ export function criarEmbedder(env: EnvEmbeddings, fetchFn: typeof fetch = fetch)
   if (env.PROVEDOR_LLM !== 'gemini') throw new Error(`PROVEDOR_LLM desconhecido: ${env.PROVEDOR_LLM}`);
   const modelo = env.MODELO_EMBEDDING || 'gemini-embedding-001';
   const dimensao = Number(env.DIMENSAO_EMBEDDING || 768);
+  if (!Number.isInteger(dimensao) || dimensao <= 0)
+    throw new Error(`DIMENSAO_EMBEDDING inválida: ${env.DIMENSAO_EMBEDDING}`);
   const url = `${BASE}/${modelo}:batchEmbedContents`;
 
   return {
@@ -40,9 +42,17 @@ export function criarEmbedder(env: EnvEmbeddings, fetchFn: typeof fetch = fetch)
         });
         if (!resp.ok) throw new Error(`Falha nos embeddings do Gemini: HTTP ${resp.status}`);
         const dados = (await resp.json()) as { embeddings?: { values: number[] }[] };
-        if (!dados.embeddings || dados.embeddings.length !== lote.length)
-          throw new Error('Resposta de embeddings inesperada');
-        for (const e of dados.embeddings) saida.push(normalizar(e.values));
+        const recebidos = dados.embeddings;
+        if (!recebidos || recebidos.length !== lote.length)
+          throw new Error(
+            `Resposta de embeddings inesperada: esperados ${lote.length} vetores, recebidos ${recebidos?.length ?? 0}`,
+          );
+        for (const e of recebidos) {
+          const n = e.values?.length ?? 0;
+          if (n !== dimensao)
+            throw new Error(`Dimensão de embedding inesperada: esperada ${dimensao}, recebida ${n}`);
+        }
+        for (const e of recebidos) saida.push(normalizar(e.values));
       }
       return saida;
     },
