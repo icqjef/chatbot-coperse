@@ -2,7 +2,7 @@
   "name": "chatbot-coperse",
   "private": true,
   "type": "module",
-  "workspaces": ["comum", "worker-resposta"],
+  "workspaces": ["comum", "worker-resposta", "worker-indexacao"],
   "scripts": {
     "test": "npm run test --workspaces --if-present",
     "typecheck": "tsc -b"
