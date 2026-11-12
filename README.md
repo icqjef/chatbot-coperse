@@ -24,6 +24,12 @@ npm test            # testes de todos os pacotes
 npm run typecheck   # tsc -b
 ```
 
+## Indexação
+
+O workflow `.github/workflows/indexar.yml` roda a cada 2 horas e lê o feed de cada site que tem `feed` em `config/sites.json`, indexando os primeiros itens (padrão 20). Páginas sem mudança são ignoradas. O resumo da execução (contagens e URLs com erro) aparece no log.
+
+Para rodar na hora: GitHub, aba Actions, workflow `indexar`, Run workflow, e informe `limite` se quiser outro número. Os segredos `CLOUDFLARE_API_TOKEN` e `GEMINI_API_KEY` e as variáveis `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID` e `VECTORIZE_INDICE` ficam nas configurações do repositório.
+
 ## Documentos
 
 - Projeto: [docs/superpowers/specs/2026-11-12-chatbot-coperse-design.md](docs/superpowers/specs/2026-11-12-chatbot-coperse-design.md)

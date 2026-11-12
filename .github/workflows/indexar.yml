@@ -1,0 +1,37 @@
+name: indexar
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+    inputs:
+      limite:
+        description: 'Quantos itens de cada feed indexar'
+        default: '20'
+
+concurrency:
+  group: indexacao
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  indexar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx tsx worker-indexacao/src/principal.ts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+          VECTORIZE_INDICE: ${{ vars.VECTORIZE_INDICE }}
+          LIMITE: ${{ inputs.limite || '20' }}
