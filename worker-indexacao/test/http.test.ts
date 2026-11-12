@@ -47,3 +47,30 @@ describe('criarBuscar', () => {
     await expect(criarBuscar(fx(corpo, { 'content-type': 'application/pdf' }))('https://x.furg.br/a.pdf')).rejects.toThrow('maior que 15 MB');
   });
 });
+
+describe('criarBuscar: tipo incerto', () => {
+  const pdf = new Uint8Array([37, 80, 68, 70, 45]);
+  it('octet-stream com URL de PDF vira pdf', async () => {
+    const r = await criarBuscar(fx(pdf, { 'content-type': 'application/octet-stream' }))('https://x.furg.br/a.PDF?x=1');
+    expect(r.tipo).toBe('pdf');
+  });
+  it('sem content-type em /api/documentos/publico vira pdf', async () => {
+    const r = await criarBuscar(fx(pdf))('https://v.furg.br/api/documentos/publico?arquivo=d.bin');
+    expect(r.tipo).toBe('pdf');
+  });
+  it('content-type "download" com bytes %PDF vira pdf mesmo sem pista na URL', async () => {
+    const r = await criarBuscar(fx(pdf, { 'content-type': 'application/download' }))('https://x.furg.br/baixar/1');
+    expect(r.tipo).toBe('pdf');
+  });
+  it('octet-stream que não é PDF vira outro', async () => {
+    const r = await criarBuscar(fx(new Uint8Array([1, 2, 3, 4]), { 'content-type': 'application/octet-stream' }))('https://x.furg.br/a.zip');
+    expect(r.tipo).toBe('outro');
+    expect(r.bytes).toBeUndefined();
+  });
+  it('tipo incerto respeita o limite de 15 MB', async () => {
+    const pedaco = new Uint8Array(1024 * 1024);
+    let n = 0;
+    const corpo = new ReadableStream<Uint8Array>({ pull(c) { if (n++ < 17) c.enqueue(pedaco); else c.close(); } });
+    await expect(criarBuscar(fx(corpo, { 'content-type': 'application/octet-stream' }))('https://x.furg.br/a.pdf')).rejects.toThrow('maior que 15 MB');
+  });
+});

@@ -51,11 +51,18 @@ export function criarBuscar(fetchFn: typeof fetch = fetch): (url: string) => Pro
     });
     if (!resp.ok) throw new ErroHttp(resp.status, url);
     const ct = (resp.headers.get('content-type') ?? '').toLowerCase();
-    const tipo = ct.includes('application/pdf') ? 'pdf' : ct.includes('html') || ct.includes('xml') || ct.startsWith('text/') ? 'html' : 'outro';
+    const incerto = !ct || ct.includes('octet-stream') || ct.includes('download');
+    let tipo: Resposta['tipo'] = ct.includes('application/pdf')
+      ? 'pdf'
+      : incerto
+        ? 'outro'
+        : ct.includes('html') || ct.includes('xml') || ct.startsWith('text/')
+          ? 'html'
+          : 'outro';
     const lm = resp.headers.get('last-modified');
     const t = lm ? Date.parse(lm) : NaN;
     const ultimaModificacao = Number.isNaN(t) ? undefined : new Date(t).toISOString();
-    if (tipo === 'outro') {
+    if (tipo === 'outro' && !incerto) {
       await resp.body?.cancel();
       return { tipo, ultimaModificacao };
     }
@@ -65,6 +72,14 @@ export function criarBuscar(fetchFn: typeof fetch = fetch): (url: string) => Pro
       throw new Error(ERRO_TAMANHO);
     }
     const bytes = await lerCorpo(resp);
+    if (incerto) {
+      const ehPdf =
+        /\.pdf(\?|$)/i.test(url) ||
+        url.includes('/api/documentos/publico') ||
+        (bytes.length >= 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46);
+      if (!ehPdf) return { tipo: 'outro', ultimaModificacao };
+      tipo = 'pdf';
+    }
     if (tipo === 'pdf') return { tipo, bytes, ultimaModificacao };
     return { tipo, texto: new TextDecoder().decode(bytes), ultimaModificacao };
   };

@@ -24,7 +24,7 @@ function filhos(no: any): string {
   return (no.children ?? []).map(texto).join('');
 }
 
-const GENERICO = /^(clique|clicando|acesse|veja|aqui|visualizar|baixe|download)/;
+const GENERICO = /^(clique|clicando|acesse|veja|aqui|visualizar|baixe|download)\b/;
 
 function ehGenerico(t: string): boolean {
   const n = normalizar(t);
@@ -43,8 +43,7 @@ function tituloDoArquivo(url: URL): string {
 }
 
 function coletarLinks($: cheerio.CheerioAPI, urlPagina: string): LinkEncontrado[] {
-  const vistos = new Set<string>();
-  const links: LinkEncontrado[] = [];
+  const achados = new Map<string, { titulo: string; bom: boolean }>();
   $('a[href]').each((_, el) => {
     const href = ($(el).attr('href') ?? '').trim();
     if (!href || /^(mailto|tel|javascript):/i.test(href)) return;
@@ -57,23 +56,23 @@ function coletarLinks($: cheerio.CheerioAPI, urlPagina: string): LinkEncontrado[
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
     url.hash = '';
     const chave = url.toString();
-    if (vistos.has(chave)) return;
-    vistos.add(chave);
     let titulo = limpa($(el).text());
-    if (ehGenerico(titulo)) {
+    const bom = !ehGenerico(titulo);
+    if (!bom) {
       const pai = limpa($(el).closest('li, p, td, div').text()).slice(0, 200);
       titulo = pai && !ehGenerico(pai) ? pai : tituloDoArquivo(url) || titulo;
     }
-    links.push({ url: chave, titulo });
+    const antes = achados.get(chave);
+    if (!antes || (!antes.bom && bom)) achados.set(chave, { titulo, bom });
   });
-  return links;
+  return [...achados].map(([url, { titulo }]) => ({ url, titulo }));
 }
 
-function dataPublicada($: cheerio.CheerioAPI): string | undefined {
+function dataPublicada(raiz: cheerio.Cheerio<any>): string | undefined {
   const cand = [
-    $('time[datetime]').first().attr('datetime'),
-    $('[itemprop="datePublished"]').first().attr('datetime'),
-    $('[itemprop="datePublished"]').first().attr('content'),
+    raiz.find('time[datetime]').first().attr('datetime'),
+    raiz.find('[itemprop="datePublished"]').first().attr('datetime'),
+    raiz.find('[itemprop="datePublished"]').first().attr('content'),
   ];
   for (const c of cand) {
     if (c && !Number.isNaN(Date.parse(c))) return new Date(c).toISOString();
@@ -83,17 +82,25 @@ function dataPublicada($: cheerio.CheerioAPI): string | undefined {
 
 export function extrairPagina(html: string, urlPagina: string): PaginaExtraida {
   const $ = cheerio.load(html);
-  // Links e data antes de remover nav/header/footer: os menus levam às páginas de processo.
+  $('script, style, noscript').remove();
+  // Links antes de remover nav/header/footer: os menus levam às páginas de processo.
   const links = coletarLinks($, urlPagina);
-  const data = dataPublicada($);
-  $('script, style, nav, header, footer, form, noscript').remove();
-  const corpo = [$('[itemprop="articleBody"]'), $('.item-page'), $('main'), $('body')].find((e) => e.length > 0);
-  let bruto = corpo ? corpo.toArray().map(texto).join('\n\n') : '';
+  const candidatos: [string, cheerio.Cheerio<any>][] = [
+    ['artigo', $('[itemprop="articleBody"]')],
+    ['artigo', $('.item-page')],
+    ['main', $('main')],
+    ['body', $('body')],
+  ];
+  const [origem, corpo] = candidatos.find(([, e]) => e.length > 0) ?? ['body', $('body')];
+  // Data do próprio artigo primeiro; depois a página inteira.
+  const data = dataPublicada(origem === 'artigo' ? corpo : $.root()) ?? dataPublicada($.root());
+  $('nav, header, footer, form').remove();
+  let bruto = corpo.toArray().map(texto).join('\n\n');
   // Páginas com streaming (Next.js) deixam em <main> só um "Carregando…"; o conteúdo vem fora dele.
-  if (bruto.trim().length < 200 && corpo && !corpo.is('body')) bruto = $('body').toArray().map(texto).join('\n\n');
+  if (origem === 'main' && bruto.trim().length < 200) bruto = $('body').toArray().map(texto).join('\n\n');
   const out = bruto
     .split('\n')
-    .map((l) => l.replace(/[ \t\u00a0]+/g, ' ').trim())
+    .map((l) => l.replace(/[ \t ]+/g, ' ').trim())
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

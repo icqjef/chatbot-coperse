@@ -74,3 +74,29 @@ describe('extrairPagina: data', () => {
     expect(extrairPagina('<body><p>x</p></body>', 'https://x.furg.br/').data).toBeUndefined();
   });
 });
+
+describe('extrairPagina: ajustes de revisão', () => {
+  const U = 'https://x.furg.br/';
+  it('artigo Joomla curto não puxa a barra lateral', () => {
+    const h = '<body><div class="sidebar"><p>Módulo lateral com bastante texto de outra coisa qualquer</p></div><div class="item-page"><p>Aviso curto.</p></div></body>';
+    const r = extrairPagina(h, U);
+    expect(r.texto).toBe('Aviso curto.');
+  });
+  it('"aqui" exige fronteira de palavra', () => {
+    const { links } = extrairPagina('<a href="/a">Aquicultura</a><a href="/b">Vejamos o edital</a>', U);
+    expect(links.map((l) => l.titulo)).toEqual(['Aquicultura', 'Vejamos o edital']);
+  });
+  it('script não entra no título vindo do bloco pai', () => {
+    const { links } = extrairPagina('<li>Resultado final <script>var x=1;</script><a href="/a.pdf">aqui</a></li>', U);
+    expect(links[0]!.titulo).toBe('Resultado final aqui');
+  });
+  it('duplicado mantém o melhor título', () => {
+    const h = '<nav><a href="/e.pdf">aqui</a></nav><p><a href="/e.pdf">Edital de abertura 2026</a></p>';
+    const { links } = extrairPagina(h, U);
+    expect(links).toEqual([{ url: 'https://x.furg.br/e.pdf', titulo: 'Edital de abertura 2026' }]);
+  });
+  it('data do artigo vence a de outros módulos', () => {
+    const h = '<body><time datetime="2020-01-01T00:00:00Z">x</time><div class="item-page"><time datetime="2026-05-05T00:00:00Z">y</time><p>t</p></div></body>';
+    expect(extrairPagina(h, U).data).toBe('2026-05-05T00:00:00.000Z');
+  });
+});
