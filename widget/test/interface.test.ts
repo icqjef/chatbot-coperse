@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ESTILOS } from '../src/estilos';
 import { montar, type Widget } from '../src/interface';
 
 const config = { api: 'https://w.example', cor: '#8b0000' };
@@ -46,6 +47,20 @@ describe('montar', () => {
     expect(q<HTMLTextAreaElement>('textarea').placeholder).toBe('Escreva sua pergunta…');
     expect(q<HTMLElement>('.botao').hidden).toBe(true);
     expect(w.raiz.activeElement).toBe(q('textarea'));
+  });
+
+  it('host tem isolamento inline (position fixed e z-index)', () => {
+    const estilo = w.host.getAttribute('style') ?? '';
+    expect(estilo).toContain('position: fixed');
+    expect(estilo).toContain('z-index: 2147483000');
+    expect(estilo).toContain('all: initial');
+  });
+
+  it('CSS móvel não dimensiona o host nem usa opacity no subtítulo', () => {
+    const movel = ESTILOS.slice(ESTILOS.indexOf('@media (max-width: 600px)'));
+    const bloco = movel.slice(0, movel.indexOf('@media (prefers'));
+    expect(bloco).not.toContain(':host');
+    expect(ESTILOS).not.toContain('opacity');
   });
 
   it('textarea limita a 500 caracteres', () => {

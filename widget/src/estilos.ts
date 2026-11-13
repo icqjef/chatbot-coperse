@@ -3,13 +3,13 @@ export const ESTILOS = `
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 button, textarea { font: inherit; }
-button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid #1d232a; outline-offset: 2px; }
+button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid #fff; outline-offset: 0; box-shadow: 0 0 0 4px #1d232a; }
 .botao { display: flex; align-items: center; gap: 10px; background: var(--cor); color: #fff; border: 0; border-radius: 999px; padding: 12px 18px 12px 14px; font: 600 15px/1 system-ui, sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,.22); cursor: pointer; }
 .botao svg { width: 22px; height: 22px; }
 .painel { width: 380px; height: 560px; max-height: calc(100vh - 40px); background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.25); display: flex; flex-direction: column; overflow: hidden; }
 .cab { background: var(--cor); color: #fff; padding: 14px 14px 12px 16px; display: flex; align-items: flex-start; gap: 10px; }
 .cab h2 { font-size: 16px; line-height: 1.3; margin: 0; }
-.cab p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.4; opacity: .9; }
+.cab p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.4; }
 .fechar { margin-left: auto; background: transparent; border: 0; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1; }
 .fechar:hover { background: rgba(255,255,255,.15); }
 .aviso { background: #fff7e0; color: #5c4400; font-size: 13px; padding: 8px 16px; border-bottom: 1px solid #f0e2b6; display: flex; gap: 8px; align-items: center; }
@@ -25,7 +25,6 @@ button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px sol
 .enviar { width: 42px; height: 42px; border: 0; border-radius: 10px; background: var(--cor); color: #fff; cursor: pointer; }
 .nota { font-size: 12.5px; color: #5d6670; margin: 6px 2px 0; }
 @media (max-width: 600px) {
-  :host { inset: 0; right: 0; bottom: 0; }
   .painel { position: fixed; inset: 0; width: auto; height: auto; max-height: none; border-radius: 0; box-shadow: none; }
   .botao { position: fixed; right: 20px; bottom: 20px; }
 }
