@@ -37,6 +37,16 @@ describe('criarEnviar', () => {
   });
 });
 
+describe('fontes do servidor', () => {
+  it('descarta elementos inválidos', async () => {
+    const ok = { titulo: 't', url: 'https://a', site: 's', data: '2026-01-01' };
+    const f = vi
+      .fn()
+      .mockResolvedValue(resp(200, { resposta: 'r', fontes: [null, 3, { titulo: 1 }, ok] }));
+    expect((await criarEnviar('https://w', f)('x', [])).fontes).toEqual([ok]);
+  });
+});
+
 describe('historicoParaEnvio', () => {
   it('12 mensagens devolvem as 8 últimas começando por usuario', () => {
     const t: Mensagem[] = Array.from({ length: 12 }, (_, i) => ({

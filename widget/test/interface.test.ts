@@ -237,7 +237,7 @@ describe('conversa', () => {
     }
   });
 
-  it('Tab inclui links de fonte no ciclo', async () => {
+  it('Tab e Shift+Tab passam pelos links das fontes', async () => {
     montarCom(vi.fn().mockResolvedValue(ok));
     digitar('A');
     clicarEnviar();
@@ -245,10 +245,87 @@ describe('conversa', () => {
     const link = q<HTMLElement>('.msgs a');
     link.focus();
     tecla(link, 'Tab');
-    expect(w.raiz.activeElement).toBe(link);
-    q<HTMLElement>('.enviar').focus();
-    tecla(q('.enviar'), 'Tab');
+    expect(w.raiz.activeElement).toBe(q('textarea'));
+    link.focus();
+    tecla(link, 'Tab', true);
     expect(w.raiz.activeElement).toBe(q('.fechar'));
+    q<HTMLElement>('textarea').focus();
+    tecla(q('textarea'), 'Tab', true);
+    expect(w.raiz.activeElement).toBe(link);
+  });
+
+  it('erro remove a bolha da pergunta que falhou', async () => {
+    montarCom(vi.fn().mockRejectedValue({ mensagem: 'Falhou' }));
+    digitar('A');
+    clicarEnviar();
+    await pronto();
+    expect(w.raiz.querySelector('.msg.usu')).toBeNull();
+    expect(q('.msgs').textContent).toContain('Falhou');
+    expect(q<HTMLTextAreaElement>('textarea').value).toBe('A');
+  });
+
+  it('formas corrompidas no sessionStorage não impedem a montagem', () => {
+    const formas = [
+      { aberto: true, itens: [{ papel: 'modelo', texto: 'x', fontes: [null] }] },
+      { aberto: true, itens: [{ papel: 'modelo', texto: 'x', fontes: { length: 1 } }] },
+      [1, 2],
+      'texto',
+      { aberto: true, itens: [{ papel: 'outro', texto: 'x' }, null, 5] },
+      { aberto: true, itens: [{ papel: 'modelo', texto: 'x', fontes: [{ titulo: 1 }] }] },
+    ];
+    for (const f of formas) {
+      sessionStorage.setItem('chatbot-coperse', JSON.stringify(f));
+      document.body.replaceChildren();
+      expect(() => (w = montar(config, { enviar: vi.fn() }))).not.toThrow();
+      expect(q('.msgs a')).toBeNull();
+    }
+  });
+
+  it('guarda e restaura só as últimas 20 mensagens', async () => {
+    const itens = Array.from({ length: 30 }, (_, i) => ({
+      papel: i % 2 ? 'modelo' : 'usuario',
+      texto: `m${i}`,
+    }));
+    sessionStorage.setItem('chatbot-coperse', JSON.stringify({ aberto: true, itens }));
+    montarCom(vi.fn().mockResolvedValue(ok));
+    expect(w.raiz.querySelectorAll('.msgs .msg:not(:first-child)')).toHaveLength(20);
+    digitar('N');
+    clicarEnviar();
+    await pronto();
+    const salvo = JSON.parse(sessionStorage.getItem('chatbot-coperse')!);
+    expect(salvo.itens).toHaveLength(20);
+    expect(salvo.itens[19].papel).toBe('modelo');
+  });
+
+  it('restaurado aberto rola até a mensagem mais recente após montar', () => {
+    const itens = [
+      { papel: 'usuario', texto: 'A' },
+      { papel: 'modelo', texto: 'B' },
+    ];
+    sessionStorage.setItem('chatbot-coperse', JSON.stringify({ aberto: true, itens }));
+    const spy = vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockReturnValue(777);
+    try {
+      document.body.replaceChildren();
+      w = montar(config, { enviar: vi.fn() });
+      expect(q<HTMLElement>('.msgs').scrollTop).toBe(777);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('falha ao desenhar a resposta não grava nada no estado', async () => {
+    const env = montarCom(
+      vi.fn().mockResolvedValueOnce({ resposta: 'R', fontes: [null, fonte] }).mockResolvedValue(ok),
+    );
+    digitar('A');
+    clicarEnviar();
+    await pronto();
+    expect(q('.msgs').textContent).toContain('Não consegui falar');
+    expect(sessionStorage.getItem('chatbot-coperse') ?? '').not.toContain('"R"');
+    digitar('B');
+    clicarEnviar();
+    await pronto();
+    expect(env).toHaveBeenLastCalledWith('B', []);
   });
 });
 

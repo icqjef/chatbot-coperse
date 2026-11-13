@@ -1,11 +1,12 @@
 import type { Config } from './config';
 import { ESTILOS } from './estilos';
-import { historicoParaEnvio } from './conversa';
+import { filtrarFontes, historicoParaEnvio } from './conversa';
 import { renderResposta } from './render';
 import type { Enviar, Fonte, Mensagem } from './tipos';
 
 export type Widget = { host: HTMLElement; abrir(): void; fechar(): void; raiz: ShadowRoot };
 
+const MAX_ITENS = 20;
 const CHAVE = 'chatbot-coperse';
 const MSG_ERRO = 'Não consegui falar com o assistente. Verifique sua conexão e tente de novo.';
 type Item = Mensagem & { fontes?: Fonte[] };
@@ -15,10 +16,16 @@ function lerEstado(): Estado {
   try {
     const bruto = JSON.parse(sessionStorage.getItem(CHAVE) ?? 'null');
     if (bruto && Array.isArray(bruto.itens)) {
-      const itens = (bruto.itens as Item[]).filter(
-        (i) => i && (i.papel === 'usuario' || i.papel === 'modelo') && typeof i.texto === 'string',
-      );
-      return { aberto: bruto.aberto === true, itens };
+      const itens: Item[] = [];
+      for (const i of bruto.itens) {
+        if (!i || (i.papel !== 'usuario' && i.papel !== 'modelo') || typeof i.texto !== 'string') {
+          continue;
+        }
+        const item: Item = { papel: i.papel, texto: i.texto };
+        if (i.papel === 'modelo' && Array.isArray(i.fontes)) item.fontes = filtrarFontes(i.fontes);
+        itens.push(item);
+      }
+      return { aberto: bruto.aberto === true, itens: itens.slice(-MAX_ITENS) };
     }
   } catch {
     // sessionStorage indisponível ou conteúdo inválido: começa vazio.
@@ -125,10 +132,11 @@ export function montar(config: Config, deps: { enviar?: Enviar } = {}): Widget {
   painel.append(cab, aviso, msgs, rodape);
   raiz.append(estilo, botao, painel);
 
-  const estado = lerEstado();
+  let estado = lerEstado();
   let enviando = false;
 
   function salvar(): void {
+    if (estado.itens.length > MAX_ITENS) estado.itens = estado.itens.slice(-MAX_ITENS);
     try {
       sessionStorage.setItem(CHAVE, JSON.stringify(estado));
     } catch {
@@ -151,7 +159,8 @@ export function montar(config: Config, deps: { enviar?: Enviar } = {}): Widget {
     campo.value = '';
     campo.disabled = true;
     enviar.disabled = true;
-    msgs.append(el('div', 'msg usu', pergunta));
+    const bolha = el('div', 'msg usu', pergunta);
+    msgs.append(bolha);
     const pensando = el('div', 'msg bot', 'Pensando…');
     pensando.setAttribute('role', 'status');
     msgs.append(pensando);
@@ -159,13 +168,13 @@ export function montar(config: Config, deps: { enviar?: Enviar } = {}): Widget {
     try {
       const r = await deps.enviar(pergunta, historicoParaEnvio(estado.itens));
       pensando.remove();
-      estado.itens.push({ papel: 'usuario', texto: pergunta });
       const modelo: Item = { papel: 'modelo', texto: r.resposta, fontes: r.fontes };
-      estado.itens.push(modelo);
       mostrar(modelo);
+      estado.itens.push({ papel: 'usuario', texto: pergunta }, modelo);
       salvar();
     } catch (e) {
       pensando.remove();
+      bolha.remove();
       const m = (e as { mensagem?: unknown } | null)?.mensagem;
       msgs.append(el('div', 'msg bot erro', typeof m === 'string' && m ? m : MSG_ERRO));
       campo.value = pergunta;
@@ -191,7 +200,14 @@ export function montar(config: Config, deps: { enviar?: Enviar } = {}): Widget {
 
   if (estado.itens.length) {
     sugestoes.remove();
-    estado.itens.forEach(mostrar);
+    try {
+      estado.itens.forEach(mostrar);
+    } catch {
+      // Estado restaurado inválido: descarta e começa vazio.
+      for (const m of msgs.querySelectorAll('.msg:not(:first-child)')) m.remove();
+      estado = { aberto: false, itens: [] };
+      boasVindas.append(sugestoes);
+    }
   }
 
   function abrir(): void {
@@ -219,25 +235,21 @@ export function montar(config: Config, deps: { enviar?: Enviar } = {}): Widget {
       fecharPainel();
     } else if (e.key === 'Tab') {
       const focaveis = [...painel.querySelectorAll<HTMLElement>('button:not([disabled]), textarea:not([disabled]), a[href]')];
-      const primeiro = focaveis[0];
-      const ultimo = focaveis[focaveis.length - 1];
-      const atual = raiz.activeElement;
-      if (e.shiftKey && atual === primeiro) {
-        e.preventDefault();
-        ultimo?.focus();
-      } else if (!e.shiftKey && atual === ultimo) {
-        e.preventDefault();
-        primeiro?.focus();
-      }
+      // Circula manualmente para que os links das fontes entrem no ciclo.
+      const i = focaveis.indexOf(raiz.activeElement as HTMLElement);
+      const n = focaveis.length;
+      const prox = focaveis[i < 0 ? (e.shiftKey ? n - 1 : 0) : (i + (e.shiftKey ? n - 1 : 1)) % n];
+      e.preventDefault();
+      prox?.focus();
     }
   });
 
   if (estado.aberto) {
     painel.hidden = false;
     botao.hidden = true;
-    rolar();
   }
 
   document.body.append(host);
+  if (estado.aberto) rolar();
   return { host, abrir, fechar: fecharPainel, raiz };
 }
