@@ -137,3 +137,12 @@ A primeira carga indexou com nomes de candidatos dois PDFs de locais de prova (`
 - A conversa fica só no `sessionStorage` (últimas 20 mensagens) e some ao fechar a aba. Nada é enviado além de `POST /perguntar`. O widget nunca usa `innerHTML`; um teste confere isso.
 - `/demo` é servida pelo próprio Worker, e a origem `https://chatbot-coperse.coperse-furg.workers.dev` entrou em `config/origens.json` para a página poder perguntar.
 - `/widget.js` é gerado por `widget/build.mjs` (esbuild) em `worker-resposta/src/widget-gerado.ts`; o CI falha se o gerado estiver desatualizado. Tamanho final do bundle: 12.055 bytes (limite 15.360).
+- Aceite da etapa 6 em 2026-11-13: o Jeferson colou o script num módulo do coperse.furg.br e o widget funcionou (o `<script>` não foi removido ao salvar).
+
+## 2026-11-13 — Conferência do índice antes da etapa 7
+
+- A indexação agendada de 2026-11-13 marcou 287 páginas como `erro` com "API key not valid": o segredo `GEMINI_API_KEY` do GitHub ainda tem a chave antiga, trocada depois do vazamento. O workflow terminou "com sucesso" e ninguém foi avisado. Os 369 trechos que já estavam no índice continuam valendo; só 3 ficaram escondidos (páginas que viraram `erro`). Correção na etapa 7: chave recusada interrompe a execução sem gastar tentativas da fila e faz o workflow falhar.
+- Metade do índice (198 de 372 trechos) é de edições de 2013 a 2025, vindas de `/anos-anteriores/` e `/images/Editais/20xx/`. Decisão: essas URLs deixam de ser indexadas e saem do índice. O bot deixa de responder sobre edições antigas, o que também reduz o risco R5 (resposta de edição errada).
+- O edital do Vestibular 2027 ainda não está no índice (falhou pela chave); o PDF indexado de vestibular.furg.br é o programa de prova. O edital 2027 dos indígenas também falta.
+- PDFs do Vestibular 2027 guardados na pasta `Vestibular-2026` recebem ano 2026 quando o título não tem ano. Correção na etapa 7: o ano vem do texto do documento antes da pasta.
+- Sem duplicatas `?Itemid=`, http/https nem sisu3/sisu.
