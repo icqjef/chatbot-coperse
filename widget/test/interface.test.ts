@@ -89,6 +89,169 @@ describe('montar', () => {
   });
 });
 
+describe('conversa', () => {
+  const fonte = {
+    titulo: 'Edital',
+    url: 'https://coperse.furg.br/e',
+    site: 'coperse.furg.br',
+    data: '2026-11-12T00:00:00Z',
+  };
+  const ok = { resposta: 'Resp [1]', fontes: [fonte] };
+  const pronto = () => new Promise((r) => setTimeout(r, 0));
+  const montarCom = (enviar: ReturnType<typeof vi.fn>) => {
+    document.body.replaceChildren();
+    w = montar(config, { enviar });
+    w.abrir();
+    return enviar;
+  };
+  const digitar = (t: string) => {
+    q<HTMLTextAreaElement>('textarea').value = t;
+  };
+  const enter = (shift = false) =>
+    q('textarea').dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        shiftKey: shift,
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+      }),
+    );
+  const clicarEnviar = () => q<HTMLButtonElement>('.enviar').click();
+
+  beforeEach(() => sessionStorage.clear());
+
+  it('Enter envia, Shift+Enter não', async () => {
+    const env = montarCom(vi.fn().mockResolvedValue(ok));
+    digitar('Oi');
+    enter(true);
+    expect(env).not.toHaveBeenCalled();
+    enter();
+    await pronto();
+    expect(env).toHaveBeenCalledWith('Oi', []);
+    expect(q('.msg.usu').textContent).toBe('Oi');
+    expect(q('.msgs').textContent).toContain('Resp');
+    expect(q('.msgs sup').textContent).toBe('1');
+    expect(q<HTMLTextAreaElement>('textarea').value).toBe('');
+  });
+
+  it('durante o envio desativa campo e botão e mostra Pensando…', async () => {
+    let fim!: (v: unknown) => void;
+    montarCom(vi.fn().mockReturnValue(new Promise((r) => (fim = r))));
+    digitar('Oi');
+    clicarEnviar();
+    expect(q<HTMLTextAreaElement>('textarea').disabled).toBe(true);
+    expect(q<HTMLButtonElement>('.enviar').disabled).toBe(true);
+    expect(q('[role="status"]').textContent).toBe('Pensando…');
+    fim(ok);
+    await pronto();
+    expect(w.raiz.querySelector('[role="status"]')).toBeNull();
+    expect(q<HTMLTextAreaElement>('textarea').disabled).toBe(false);
+  });
+
+  it('a resposta fica dentro da região aria-live polite', async () => {
+    montarCom(vi.fn().mockResolvedValue(ok));
+    digitar('Oi');
+    clicarEnviar();
+    await pronto();
+    expect(q('[aria-live="polite"]').textContent).toContain('Resp');
+  });
+
+  it('clique numa sugestão envia o texto dela', async () => {
+    const env = montarCom(vi.fn().mockResolvedValue(ok));
+    q<HTMLButtonElement>('.sugestoes button').click();
+    await pronto();
+    expect(env).toHaveBeenCalledWith('Quando são as inscrições?', []);
+  });
+
+  it('pergunta só com espaços não é enviada', () => {
+    const env = montarCom(vi.fn().mockResolvedValue(ok));
+    digitar('   ');
+    clicarEnviar();
+    expect(env).not.toHaveBeenCalled();
+  });
+
+  it('erro mostra a mensagem, libera o campo e não entra no histórico', async () => {
+    const env = montarCom(
+      vi.fn().mockRejectedValueOnce({ mensagem: 'Muitas perguntas' }).mockResolvedValue(ok),
+    );
+    digitar('A');
+    clicarEnviar();
+    await pronto();
+    expect(q('.msgs').textContent).toContain('Muitas perguntas');
+    expect(q<HTMLTextAreaElement>('textarea').disabled).toBe(false);
+    digitar('B');
+    clicarEnviar();
+    await pronto();
+    expect(env).toHaveBeenLastCalledWith('B', []);
+  });
+
+  it('a segunda pergunta envia o histórico da primeira troca', async () => {
+    const env = montarCom(vi.fn().mockResolvedValue(ok));
+    digitar('A');
+    clicarEnviar();
+    await pronto();
+    digitar('B');
+    clicarEnviar();
+    await pronto();
+    expect(env).toHaveBeenLastCalledWith('B', [
+      { papel: 'usuario', texto: 'A' },
+      { papel: 'modelo', texto: 'Resp [1]' },
+    ]);
+  });
+
+  it('salva e restaura conversa e estado aberto no sessionStorage', async () => {
+    montarCom(vi.fn().mockResolvedValue(ok));
+    digitar('A');
+    clicarEnviar();
+    await pronto();
+    expect(sessionStorage.getItem('chatbot-coperse')).toContain('Resp');
+    document.body.replaceChildren();
+    w = montar(config, { enviar: vi.fn() });
+    expect(q<HTMLElement>('.painel').hidden).toBe(false);
+    expect(q('.msg.usu').textContent).toBe('A');
+    expect(q('.msgs a').getAttribute('href')).toBe(fonte.url);
+    w.fechar();
+    document.body.replaceChildren();
+    w = montar(config, { enviar: vi.fn() });
+    expect(q<HTMLElement>('.painel').hidden).toBe(true);
+  });
+
+  it('sessionStorage que lança não quebra o widget', async () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('x');
+    });
+    const spy2 = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('x');
+    });
+    try {
+      const env = montarCom(vi.fn().mockResolvedValue(ok));
+      digitar('A');
+      clicarEnviar();
+      await pronto();
+      expect(env).toHaveBeenCalled();
+      expect(q('.msgs').textContent).toContain('Resp');
+    } finally {
+      spy.mockRestore();
+      spy2.mockRestore();
+    }
+  });
+
+  it('Tab inclui links de fonte no ciclo', async () => {
+    montarCom(vi.fn().mockResolvedValue(ok));
+    digitar('A');
+    clicarEnviar();
+    await pronto();
+    const link = q<HTMLElement>('.msgs a');
+    link.focus();
+    tecla(link, 'Tab');
+    expect(w.raiz.activeElement).toBe(link);
+    q<HTMLElement>('.enviar').focus();
+    tecla(q('.enviar'), 'Tab');
+    expect(w.raiz.activeElement).toBe(q('.fechar'));
+  });
+});
+
 describe('index', () => {
   const carregar = async (src: string | null) => {
     vi.resetModules();

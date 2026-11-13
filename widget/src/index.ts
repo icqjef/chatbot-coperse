@@ -1,4 +1,5 @@
 import { lerConfig } from './config';
+import { criarEnviar } from './conversa';
 import { montar } from './interface';
 
 declare global {
@@ -14,7 +15,8 @@ if (!window.__chatbotCoperse) {
   const config = lerConfig(script);
   if (config.api) {
     window.__chatbotCoperse = true;
-    if (document.body) montar(config);
-    else document.addEventListener('DOMContentLoaded', () => montar(config), { once: true });
+    const enviar = criarEnviar(config.api);
+    if (document.body) montar(config, { enviar });
+    else document.addEventListener('DOMContentLoaded', () => montar(config, { enviar }), { once: true });
   }
 }

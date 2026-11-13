@@ -17,6 +17,12 @@ button:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px sol
 .msg { max-width: 88%; padding: 10px 12px; border-radius: 12px; font-size: 14.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bot { background: #fff; border: 1px solid #e1e5ea; align-self: flex-start; border-bottom-left-radius: 4px; }
 .usu { background: var(--cor); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.erro { border-color: #b3261e; color: #8c1d18; }
+.texto { white-space: pre-wrap; overflow-wrap: anywhere; }
+sup { font-weight: 700; color: var(--cor-escura); margin-left: 1px; }
+.fontes { white-space: normal; margin: 8px 0 0; padding: 8px 0 0 20px; border-top: 1px solid #e1e5ea; font-size: 13px; }
+.fontes a { color: var(--cor-escura); overflow-wrap: anywhere; }
+.meta { font-size: 12.5px; color: #5d6670; }
 .sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .sugestoes button { font-size: 13px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--cor); color: var(--cor-escura); background: #fff; cursor: pointer; text-align: left; }
 .rodape { border-top: 1px solid #e1e5ea; padding: 10px 12px 8px; background: #fff; }
