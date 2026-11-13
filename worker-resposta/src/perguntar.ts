@@ -12,6 +12,7 @@ export interface EnvPerguntar {
   DB: D1Database;
   VECTORIZE: VectorizeIndex;
   LIMITADOR: RateLimit;
+  COTA?: { consumir(): Promise<boolean> };
   PROVEDOR_LLM: string;
   MODELO_RESPOSTA?: string;
   MODELO_EMBEDDING?: string;
@@ -25,9 +26,12 @@ const MAX_HISTORICO = 8;
 const MAX_MENSAGEM = 2000;
 const MAX_CORPO_BYTES = 48 * 1024;
 const LIMIAR_PADRAO = 0.5;
+const MAX_RECUSA = 400;
 
 const MSG_GRANDE = 'Pergunta grande demais.';
 const MSG_LIMITE = 'Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo.';
+const MSG_COTA =
+  'O assistente atingiu o limite de perguntas de hoje. Tente de novo amanhã ou escreva para coperse@furg.br.';
 const MSG_INDISPONIVEL =
   'O assistente está indisponível no momento. Tente de novo em instantes ou escreva para coperse@furg.br.';
 
@@ -58,8 +62,15 @@ export async function responderPergunta(
     if (e instanceof RespostaBloqueada) return { resposta: SEM_BASE, fontes: [] };
     throw e;
   }
-  const { resposta, fontes } = extrairFontes(bruta, trechos);
-  if (fontes.length === 0) return { resposta: SEM_BASE, fontes: [] };
+  const { resposta, fontes, citou } = extrairFontes(bruta, trechos);
+  if (fontes.length === 0) {
+    // Recusa ou encaminhamento (regras 3 a 5): curta, sem citar número algum e apontando para a COPERSE.
+    // Qualquer outra resposta sem citação vira SEM_BASE, para não passar conteúdo sem fonte.
+    if (!citou && resposta.length <= MAX_RECUSA && resposta.includes('coperse@furg.br')) {
+      return { resposta, fontes: [] };
+    }
+    return { resposta: SEM_BASE, fontes: [] };
+  }
   return { resposta, fontes };
 }
 
@@ -166,6 +177,16 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   const agora = () => new Date();
   const negado = await aplicarLimite(req, env.LIMITADOR, cors);
   if (negado) return negado;
+  if (env.COTA) {
+    let liberada = false;
+    try {
+      liberada = await env.COTA.consumir();
+    } catch {
+      console.error('Falha na cota diária');
+      return json({ erro: MSG_INDISPONIVEL }, 503, cors);
+    }
+    if (!liberada) return json({ erro: MSG_COTA }, 429, cors);
+  }
   try {
     const embedder = criarEmbedder(env);
     const gerador = criarGerador(env);

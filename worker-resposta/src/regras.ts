@@ -6,10 +6,10 @@ export const SEM_BASE =
 const REGRAS = `Você é o assistente virtual da COPERSE (Comissão Permanente do Processo Seletivo) da FURG. Responde a candidatos sobre os processos seletivos de ingresso da FURG (Vestibular, SiSU e processos específicos).
 Regras:
 1. Responda somente com base nos trechos numerados abaixo. Não use conhecimento próprio.
-2. Cite a fonte de cada informação com o número do trecho entre colchetes, por exemplo [2]. Não escreva endereços de páginas.
-3. Se os trechos não trazem a resposta, diga que não encontrou a informação e oriente consultar o edital oficial ou escrever para coperse@furg.br.
-4. Não opine sobre a situação individual do candidato (homologação, recurso, nota, classificação). Oriente a consultar o sistema de inscrição ou a COPERSE.
-5. Recuse com educação perguntas que não sejam sobre os processos seletivos da FURG.
+2. Cite a fonte de cada informação com o número do trecho entre colchetes, por exemplo [2]. Não escreva endereços de páginas nem uma lista de fontes no fim: as fontes aparecem automaticamente.
+3. Se os trechos não trazem a resposta, diga que não encontrou a informação e oriente consultar o edital oficial ou escrever para coperse@furg.br. Nesse caso não cite trechos.
+4. Não opine sobre a situação individual do candidato (homologação, recurso, nota, classificação). Oriente a consultar o sistema de inscrição ou escrever para coperse@furg.br, sem citar trechos.
+5. Recuse com educação perguntas que não sejam sobre os processos seletivos da FURG, sem citar trechos.
 6. Não peça nem repita dados pessoais (CPF, nome, e-mail, telefone).
 7. Se trechos se contradizem, prevalece o mais recente; informe a data dele.
 8. Responda sobre a edição mais recente do processo perguntado e diga qual é (por exemplo, "No Vestibular 2027"). Se só houver informação de edição passada, diga isso e não a apresente como atual.
@@ -63,13 +63,20 @@ export interface Fonte {
 const REMOVIDO = '\u0000';
 
 /** Fontes só a partir dos números [n] citados (renumerados pela posição em fontes); links e números inexistentes saem da resposta. */
-export function extrairFontes(resposta: string, trechos: Trecho[]): { resposta: string; fontes: Fonte[] } {
+export function extrairFontes(
+  resposta: string,
+  trechos: Trecho[],
+): { resposta: string; fontes: Fonte[]; citou: boolean } {
   const fontes: Fonte[] = [];
+  let citou = false;
   const numeros = new Map<string, number>();
   let r = resposta.replace(/\u0000/g, '');
   r = r.replace(/\[([^\]]+)\]\([^)\s]*\)/g, '$1');
   r = r.replace(/(?:https?:\/\/|www\.)[^\s)\]>]*[^\s)\]>.,;:!?]/gi, REMOVIDO);
+  // Linha "Fontes: [1], [2]" que o modelo às vezes escreve: as fontes já vão em `fontes`.
+  r = r.replace(/^[ \t]*[*_]*Fontes?[*_]*:?[*_]*[ \t]*(?:\[\d{1,3}\][ \t,;e]*)*$/gim, '');
   r = r.replace(/\[\s*(\d{1,3}(?:\s*[,;]\s*\d{1,3})*)\s*\]/g, (_m, lista: string) => {
+    citou = true;
     const validos: number[] = [];
     for (const parte of lista.split(/[,;]/)) {
       const n = Number(parte.trim());
@@ -89,6 +96,8 @@ export function extrairFontes(resposta: string, trechos: Trecho[]): { resposta: 
   r = r
     .replace(/^[ \t]*\u0000[ \t]*/gm, '')
     .replace(/[ \t]*\u0000[ \t]*(?=[.,;:!?)]|\n|$)/g, '')
-    .replace(/[ \t]*\u0000[ \t]*/g, ' ');
-  return { resposta: r, fontes };
+    .replace(/[ \t]*\u0000[ \t]*/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return { resposta: r, fontes, citou };
 }
