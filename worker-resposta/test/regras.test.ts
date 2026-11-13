@@ -97,13 +97,29 @@ describe('montarSistema', () => {
   });
 });
 
+describe('montarSistema com ano nulo e e-mails institucionais', () => {
+  it('omite o atributo ano quando nulo', () => {
+    const s = montarSistema([trecho(1, { ano: null })], new Date('2026-11-12T12:00:00Z'));
+    expect(s).not.toContain('ano=');
+    expect(s).not.toContain('null');
+    expect(s).toContain('processo="vestibular" data="01/10/2026"');
+  });
+  it('mantém e-mails @furg.br e mascara os demais', () => {
+    const r = mascararDadosPessoais('escreva a coperse@furg.br ou a x.y@sub.furg.br; não a fulano@gmail.com nem a a@notfurg.br');
+    expect(r).toContain('coperse@furg.br');
+    expect(r).toContain('x.y@sub.furg.br');
+    expect(r).not.toContain('fulano@gmail.com');
+    expect(r).not.toContain('notfurg.br');
+  });
+});
+
 describe('extrairFontes', () => {
   const ts = [1, 2, 3, 4, 5].map((n) => trecho(n));
   it('remove números inexistentes e monta fontes na ordem de citação', () => {
     const r = extrairFontes('Prazo até 10/12 [2]. Veja [7] e https://malicioso.example [2][3].', ts);
     expect(r.resposta).not.toContain('[7]');
+    expect(r.resposta).toContain('[1]');
     expect(r.resposta).toContain('[2]');
-    expect(r.resposta).toContain('[3]');
     expect(r.fontes.map((f) => f.url)).toEqual([ts[1]!.url, ts[2]!.url]);
     expect(JSON.stringify(r.fontes)).not.toContain('malicioso');
     expect(r.fontes[0]).toEqual({ titulo: 'Página 2', url: ts[1]!.url, site: 'vestibular', data: ts[1]!.data });
@@ -121,7 +137,7 @@ describe('extrairFontes', () => {
   it('aceita listas de citações', () => {
     for (const m of ['[2, 3]', '[2,3]', '[ 2 ,3 ]', '[2; 3]']) {
       const r = extrairFontes(`x ${m}.`, ts);
-      expect(r.resposta).toBe('x [2][3].');
+      expect(r.resposta).toBe('x [1][2].');
       expect(r.fontes).toHaveLength(2);
     }
     expect(extrairFontes('x [2]', ts).fontes).toHaveLength(1);
@@ -129,7 +145,7 @@ describe('extrairFontes', () => {
   it('descarta inválidos nas listas', () => {
     expect(extrairFontes('a [0] b', ts).resposta).toBe('a b');
     const r = extrairFontes('a [7, 9] b [4, 8].', ts);
-    expect(r.resposta).toBe('a b [4].');
+    expect(r.resposta).toBe('a b [1].');
     expect(r.fontes.map((f) => f.titulo)).toEqual(['Página 4']);
   });
   it('preserva quebras de linha e espaços fora das remoções', () => {
@@ -140,6 +156,17 @@ describe('extrairFontes', () => {
   it('junta trechos da mesma URL', () => {
     const dup = [trecho(1), trecho(2, { url: trecho(1).url })];
     expect(extrairFontes('a [1] b [2]', dup).fontes).toHaveLength(1);
+  });
+  it('renumera as citações pela posição em fontes', () => {
+    const r = extrairFontes('Fim [3]. Início [1].', ts);
+    expect(r.resposta).toBe('Fim [1]. Início [2].');
+    expect(r.fontes.map((f) => f.titulo)).toEqual(['Página 3', 'Página 1']);
+  });
+  it('trechos da mesma URL compartilham número e duplicatas adjacentes colapsam', () => {
+    const dup = [trecho(1), trecho(2), trecho(3, { url: trecho(1).url })];
+    const r = extrairFontes('a [1][3] b [2] c [3]', dup);
+    expect(r.resposta).toBe('a [1] b [2] c [1]');
+    expect(r.fontes.map((f) => f.titulo)).toEqual(['Página 1', 'Página 2']);
   });
   it('sem citação válida, sem fontes', () => {
     expect(extrairFontes('nada [9]', ts).fontes).toEqual([]);

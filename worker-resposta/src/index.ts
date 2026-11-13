@@ -29,7 +29,7 @@ export default {
     const url = new URL(req.url);
 
     if (req.method === 'GET' && url.pathname === '/saude') {
-      return tratarSaude(env);
+      return tratarSaude(req, env);
     }
     if (url.pathname === '/reindexar') {
       if (req.method === 'POST') return tratarReindexar(req, env);

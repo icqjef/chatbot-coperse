@@ -7,7 +7,7 @@ export interface Trecho {
   site: string;
   data: string;
   processo: string;
-  ano: number;
+  ano: number | null;
   texto: string;
   similaridade: number;
 }
@@ -41,7 +41,7 @@ export function consultaFts(pergunta: string): string | null {
 
 export interface MetaFusao {
   data: string;
-  ano: number;
+  ano: number | null;
   processo: string;
 }
 
@@ -67,7 +67,7 @@ export function fundir(
         const dias = (agora.getTime() - t) / MS_DIA;
         bonus += 0.01 * Math.min(1, Math.max(0, 1 - dias / 365));
       }
-      if (m.ano >= anoAtual) bonus += 0.01;
+      if (m.ano !== null && m.ano >= anoAtual) bonus += 0.01;
     }
     pont.set(id, p + bonus);
   }
@@ -82,7 +82,7 @@ interface LinhaTrecho {
   site: string;
   data_publicacao: string;
   processo: string;
-  ano: number;
+  ano: number | null;
 }
 
 async function buscarFts(db: D1Database, pergunta: string): Promise<{ id: string }[]> {

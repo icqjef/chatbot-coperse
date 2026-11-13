@@ -15,6 +15,10 @@ index_name = "chatbot-coperse"
 [observability]
 enabled = true
 
+# Mantém console.log/error, mas descarta o log automático de cada requisição (pode trazer o IP do visitante).
+[observability.logs]
+invocation_logs = false
+
 [vars]
 AMBIENTE = "producao"
 PROVEDOR_LLM = "gemini"

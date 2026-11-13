@@ -7,6 +7,14 @@ export interface Gerador {
   gerar(sistema: string, mensagens: Mensagem[]): Promise<string>;
 }
 
+/** O provedor recusou a resposta (RECITATION/SAFETY): não é falha de serviço. */
+export class RespostaBloqueada extends Error {
+  constructor(motivo: string) {
+    super(`Resposta bloqueada pelo provedor: ${motivo}`);
+    this.name = 'RespostaBloqueada';
+  }
+}
+
 export interface EnvGeracao {
   PROVEDOR_LLM: string;
   GEMINI_API_KEY: string;
@@ -35,6 +43,7 @@ export function criarGerador(env: EnvGeracao, fetchFn: typeof fetch = fetch): Ge
             role: m.papel === 'usuario' ? 'user' : 'model',
             parts: [{ text: m.texto }],
           })),
+          generationConfig: { maxOutputTokens: 1024 },
         }),
       });
       if (!resp.ok) {
@@ -49,7 +58,10 @@ export function criarGerador(env: EnvGeracao, fetchFn: typeof fetch = fetch): Ge
         .filter((p) => !p.thought && typeof p.text === 'string')
         .map((p) => p.text)
         .join('');
-      if (!cand || cand.finishReason === 'SAFETY' || !texto) throw new Error('Gemini não devolveu texto');
+      if (cand?.finishReason === 'SAFETY' || cand?.finishReason === 'RECITATION')
+        throw new RespostaBloqueada(cand.finishReason);
+      // MAX_TOKENS com texto: aceita o trecho parcial.
+      if (!cand || !texto) throw new Error('Gemini não devolveu texto');
       return texto;
     },
   };

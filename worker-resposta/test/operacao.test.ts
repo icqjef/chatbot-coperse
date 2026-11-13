@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import worker, { type Env } from '../src/index';
 import { iguaisEmTempoConstante } from '../src/operacao';
+import { chaveLimite } from '../src/perguntar';
 
 const base = 'https://chatbot.example';
 const SENHA = 'senha-de-reindexacao-bem-longa-123';
@@ -52,6 +53,26 @@ describe('GET /saude', () => {
   it('sem execuções -> ultima_indexacao null', async () => {
     const r = await worker.fetch(new Request(`${base}/saude`), montarEnv({ DB: d1Saude({}) }));
     expect(await r.json()).toEqual({ ok: true, ultima_indexacao: null, fila: 0, paginas_ok: 0 });
+  });
+  it('limite excedido -> 429 sem consultar o D1', async () => {
+    let consultou = false;
+    const db = { prepare: () => { consultou = true; return { first: async () => ({ n: 0 }) }; } } as unknown as D1Database;
+    const r = await worker.fetch(new Request(`${base}/saude`), montarEnv({ DB: db }, false));
+    expect(r.status).toBe(429);
+    expect(consultou).toBe(false);
+  });
+  it('limitador que lança -> 503', async () => {
+    const env = montarEnv({ LIMITADOR: { limit: async () => { throw new Error('x'); } } });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r = await worker.fetch(new Request(`${base}/saude`), env);
+    expect(r.status).toBe(503);
+  });
+  it('usa a mesma chave diária do /perguntar', async () => {
+    const chaves: string[] = [];
+    const env = montarEnv({ LIMITADOR: { limit: async ({ key }: { key: string }) => (chaves.push(key), { success: true }) } });
+    await worker.fetch(new Request(`${base}/saude`, { headers: { 'CF-Connecting-IP': '203.0.113.7' } }), env);
+    expect(chaves[0]).toMatch(/^[0-9a-f]{64}$/);
+    expect(chaves[0]).toBe(await chaveLimite('203.0.113.7', new Date()));
   });
   it('falha no D1 -> 503 { ok: false }', async () => {
     const r = await worker.fetch(new Request(`${base}/saude`), montarEnv({ DB: d1Saude({ falha: true }) }));

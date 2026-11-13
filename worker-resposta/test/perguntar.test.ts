@@ -32,7 +32,7 @@ interface Ctx {
 }
 
 /** Gemini falso: batchEmbedContents devolve vetor; generateContent devolve `texto` ou falha com `status`. */
-function montar(opcoes: { score?: number; texto?: string; status?: number; permitir?: boolean; chave?: string }): Ctx {
+function montar(opcoes: { score?: number; texto?: string; status?: number; permitir?: boolean; chave?: string; fim?: string }): Ctx {
   const chamadas: Ctx['chamadas'] = [];
   const limites: string[] = [];
   const score = opcoes.score ?? 0.9;
@@ -60,7 +60,7 @@ function montar(opcoes: { score?: number; texto?: string; status?: number; permi
       return Response.json({ embeddings: Array.from({ length: n }, () => ({ values: Array.from({ length: 768 }, (_, i) => (i === 0 ? 1 : 0)) })) });
     }
     if (opcoes.status) return Response.json({ error: { message: 'cota' } }, { status: opcoes.status });
-    return Response.json({ candidates: [{ content: { parts: [{ text: opcoes.texto ?? 'O prazo é 10/12 [1].' }] } }] });
+    return Response.json({ candidates: [{ content: { parts: [{ text: opcoes.texto ?? 'O prazo é 10/12 [1].' }] }, finishReason: opcoes.fim }] });
   });
   const env = {
     DB: db,
@@ -226,9 +226,9 @@ describe('POST /perguntar', () => {
 });
 
 describe('endurecimento', () => {
-  const LIMITE = 32 * 1024;
+  const LIMITE = 48 * 1024;
 
-  it('Content-Length declarado acima de 32 KiB -> 413 com CORS', async () => {
+  it('Content-Length declarado acima de 48 KiB -> 413 com CORS', async () => {
     const { env, chamadas } = montar({});
     const r = await pedir(env, { pergunta: 'oi' }, { 'Content-Length': String(LIMITE + 1) });
     expect(r.status).toBe(413);
@@ -274,6 +274,23 @@ describe('endurecimento', () => {
     expect(r.headers.get('Vary')).toBe('Origin');
     expect(await r.json()).toEqual({ erro: INDISPONIVEL });
     expect(JSON.stringify(erro.mock.calls)).not.toContain('203.0.113.7');
+  });
+
+  it('resposta bloqueada (RECITATION/SAFETY) -> 200 com SEM_BASE', async () => {
+    for (const fim of ['RECITATION', 'SAFETY']) {
+      const { env } = montar({ fim });
+      const r = await pedir(env, { pergunta: 'qual o prazo?' });
+      expect(r.status).toBe(200);
+      expect(await r.json()).toEqual({ resposta: SEM_BASE, fontes: [] });
+    }
+  });
+
+  it('corpo legítimo máximo com acentos (8x2000 + 500) cabe no limite', async () => {
+    const { env } = montar({});
+    const historico = Array.from({ length: 8 }, (_, i) => ({ papel: i % 2 ? 'modelo' : 'usuario', texto: 'ã'.repeat(2000) }));
+    const r = await pedir(env, { pergunta: 'é'.repeat(500), historico });
+    expect(r.status).not.toBe(413);
+    expect(r.status).toBe(200);
   });
 
   it('outros métodos em /perguntar -> 405 com Allow e Vary', async () => {

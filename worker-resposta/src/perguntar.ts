@@ -1,5 +1,5 @@
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
-import { criarGerador, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
+import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type Trecho } from './busca';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, type Fonte } from './regras';
@@ -23,7 +23,7 @@ export interface EnvPerguntar {
 const MAX_PERGUNTA = 500;
 const MAX_HISTORICO = 8;
 const MAX_MENSAGEM = 2000;
-const MAX_CORPO_BYTES = 32 * 1024;
+const MAX_CORPO_BYTES = 48 * 1024;
 const LIMIAR_PADRAO = 0.5;
 
 const MSG_GRANDE = 'Pergunta grande demais.';
@@ -48,10 +48,16 @@ export async function responderPergunta(
 ): Promise<{ resposta: string; fontes: Fonte[] }> {
   const { trechos } = await deps.buscar(entrada.pergunta);
   if (trechos.length === 0) return { resposta: SEM_BASE, fontes: [] };
-  const bruta = await deps.gerador.gerar(montarSistema(trechos, deps.agora()), [
-    ...entrada.historico,
-    { papel: 'usuario', texto: entrada.pergunta },
-  ]);
+  let bruta: string;
+  try {
+    bruta = await deps.gerador.gerar(montarSistema(trechos, deps.agora()), [
+      ...entrada.historico,
+      { papel: 'usuario', texto: entrada.pergunta },
+    ]);
+  } catch (e) {
+    if (e instanceof RespostaBloqueada) return { resposta: SEM_BASE, fontes: [] };
+    throw e;
+  }
   const { resposta, fontes } = extrairFontes(bruta, trechos);
   if (fontes.length === 0) return { resposta: SEM_BASE, fontes: [] };
   return { resposta, fontes };
@@ -62,6 +68,24 @@ export async function chaveLimite(ip: string, agora: Date): Promise<string> {
   const dia = agora.toISOString().slice(0, 10);
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip + dia));
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Aplica o limite por visitante. Devolve a resposta a enviar (429/503) ou null se liberado. */
+export async function aplicarLimite(
+  req: Request,
+  limitador: RateLimit,
+  cors: Record<string, string>,
+): Promise<Response | null> {
+  // A Cloudflare sempre define CF-Connecting-IP em produção; sem ele (teste local) todos
+  // os visitantes dividem a chave 'sem-ip' + dia.
+  const ip = req.headers.get('CF-Connecting-IP') || 'sem-ip';
+  try {
+    const { success } = await limitador.limit({ key: await chaveLimite(ip, new Date()) });
+    return success ? null : json({ erro: MSG_LIMITE }, 429, cors);
+  } catch {
+    console.error('Falha no limitador');
+    return json({ erro: MSG_INDISPONIVEL }, 503, cors);
+  }
 }
 
 function validar(corpo: unknown): EntradaPergunta | null {
@@ -140,13 +164,9 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   }
 
   const agora = () => new Date();
-  // A Cloudflare sempre define CF-Connecting-IP em produção; sem ele (teste local) todos
-  // os visitantes dividem a chave 'sem-ip' + dia.
-  const ip = req.headers.get('CF-Connecting-IP') || 'sem-ip';
+  const negado = await aplicarLimite(req, env.LIMITADOR, cors);
+  if (negado) return negado;
   try {
-    const { success } = await env.LIMITADOR.limit({ key: await chaveLimite(ip, agora()) });
-    if (!success) return json({ erro: MSG_LIMITE }, 429, cors);
-
     const embedder = criarEmbedder(env);
     const gerador = criarGerador(env);
     const limiar = Number(env.LIMIAR_SIMILARIDADE);

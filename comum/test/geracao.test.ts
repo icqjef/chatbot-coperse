@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { criarGerador } from '../src/provedores/geracao';
+import { criarGerador, RespostaBloqueada } from '../src/provedores/geracao';
 
 const env = { PROVEDOR_LLM: 'gemini', GEMINI_API_KEY: 'SEGREDO123' };
 const ok = (corpo: unknown) => new Response(JSON.stringify(corpo), { status: 200 });
@@ -68,7 +68,25 @@ describe('criarGerador (Gemini)', () => {
       'Gemini não devolveu texto',
     );
     const seg = async () => ok({ candidates: [{ finishReason: 'SAFETY' }] });
-    await expect(criarGerador(env, seg as any).gerar('s', msgs)).rejects.toThrow('Gemini não devolveu texto');
+    await expect(criarGerador(env, seg as any).gerar('s', msgs)).rejects.toBeInstanceOf(RespostaBloqueada);
+  });
+
+  it('limita a saída a 1024 tokens', async () => {
+    const f = vi.fn(async () => texto('ok'));
+    await criarGerador(env, f as any).gerar('s', msgs);
+    expect(JSON.parse((f.mock.calls[0] as any)[1].body).generationConfig).toEqual({ maxOutputTokens: 1024 });
+  });
+
+  it('MAX_TOKENS com texto aceita o texto parcial', async () => {
+    const f = async () => ok({ candidates: [{ content: { parts: [{ text: 'parcial [1]' }] }, finishReason: 'MAX_TOKENS' }] });
+    expect(await criarGerador(env, f as any).gerar('s', msgs)).toBe('parcial [1]');
+  });
+
+  it('RECITATION e SAFETY lançam RespostaBloqueada', async () => {
+    for (const finishReason of ['RECITATION', 'SAFETY']) {
+      const f = async () => ok({ candidates: [{ content: { parts: [{ text: 'x' }] }, finishReason }] });
+      await expect(criarGerador(env, f as any).gerar('s', msgs)).rejects.toBeInstanceOf(RespostaBloqueada);
+    }
   });
 
   it('provedor desconhecido lança erro', () => {

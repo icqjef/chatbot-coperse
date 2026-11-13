@@ -1,4 +1,4 @@
-import { chaveLimite, json } from './perguntar';
+import { aplicarLimite, chaveLimite, json } from './perguntar';
 import type { Env } from './index';
 
 const MIN_SENHA = 32;
@@ -25,7 +25,10 @@ async function contar(db: D1Database, sql: string): Promise<number> {
   return linha?.n ?? 0;
 }
 
-export async function tratarSaude(env: Pick<Env, 'DB'>): Promise<Response> {
+export async function tratarSaude(req: Request, env: Pick<Env, 'DB' | 'LIMITADOR'>): Promise<Response> {
+  // Contagens de tabela inteira custam leituras do D1: mesmo limite por visitante do /perguntar.
+  const negado = await aplicarLimite(req, env.LIMITADOR, {});
+  if (negado) return negado;
   try {
     const ultima = await env.DB.prepare(
       'SELECT inicio, fim, paginas, erros FROM execucoes ORDER BY id DESC LIMIT 1',
