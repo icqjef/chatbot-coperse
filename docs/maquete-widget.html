@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquete do widget</title>
+<style>
+  :root { --cor: #1f5fbf; --cor-escura: #174a96; }
+  body[data-opcao="vermelho"] { --cor: #8b0000; --cor-escura: #6a0000; }
+  body[data-opcao="grafite"] { --cor: #2f3a45; --cor-escura: #1e262e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1d232a; background: #eef0f3; }
+  header.topo { padding: 20px 24px 8px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #56606b; margin: 0 0 14px; }
+  .opcoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .opcoes button { font: inherit; padding: 8px 14px; border-radius: 999px; border: 1px solid #c5ccd4; background: #fff; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .opcoes button[aria-pressed="true"] { border-color: #1d232a; box-shadow: 0 0 0 1px #1d232a; }
+  .amostra { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+  main { max-width: 1200px; margin: 0 auto; padding: 12px 24px 40px; display: grid; grid-template-columns: 1fr 380px; gap: 28px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .rotulo { font-size: 13px; font-weight: 600; color: #56606b; text-transform: uppercase; letter-spacing: .04em; margin: 0 0 8px; }
+
+  /* página falsa */
+  .site { position: relative; height: 640px; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #d5dae0; }
+  .site .barra { height: 64px; background: #e6e9ed; }
+  .site .bloco { margin: 18px 28px; height: 14px; background: #eceff2; border-radius: 4px; }
+  .site .bloco.curto { width: 40%; height: 22px; }
+  .site .bloco.m { width: 75%; }
+
+  /* widget */
+  .botao { position: absolute; right: 20px; bottom: 20px; display: flex; align-items: center; gap: 10px; background: var(--cor); color: #fff; border: 0; border-radius: 999px; padding: 12px 18px 12px 14px; font: 600 15px/1 system-ui, sans-serif; box-shadow: 0 6px 18px rgba(0,0,0,.22); cursor: pointer; }
+  .botao svg { width: 22px; height: 22px; }
+  .painel { position: absolute; right: 20px; bottom: 20px; width: 380px; height: 560px; background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.25); display: flex; flex-direction: column; overflow: hidden; }
+  .painel[hidden], .botao[hidden] { display: none; }
+  .cab { background: var(--cor); color: #fff; padding: 14px 14px 12px 16px; display: flex; align-items: flex-start; gap: 10px; }
+  .cab h2 { font-size: 16px; margin: 0; }
+  .cab p { margin: 2px 0 0; font-size: 12.5px; opacity: .9; }
+  .cab .fechar { margin-left: auto; background: transparent; border: 0; color: #fff; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 20px; line-height: 1; }
+  .cab .fechar:hover { background: rgba(255,255,255,.15); }
+  .aviso { background: #fff7e0; color: #5c4400; font-size: 13px; padding: 8px 16px; border-bottom: 1px solid #f0e2b6; display: flex; gap: 8px; align-items: center; }
+  .msgs { flex: 1; overflow-y: auto; padding: 14px 14px 6px; display: flex; flex-direction: column; gap: 10px; background: #f7f8fa; }
+  .msg { max-width: 88%; padding: 10px 12px; border-radius: 12px; font-size: 14.5px; }
+  .bot { background: #fff; border: 1px solid #e1e5ea; align-self: flex-start; border-bottom-left-radius: 4px; }
+  .usu { background: var(--cor); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+  .cit { font-size: 12.5px; font-weight: 700; vertical-align: super; color: var(--cor); }
+  .fontes { margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid #eceff2; list-style: none; font-size: 12.5px; }
+  .fontes li { display: flex; gap: 6px; }
+  .fontes a { color: var(--cor-escura); font-weight: 600; }
+  .fontes span { color: #5d6670; }
+  .sugestoes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sugestoes button { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--cor); color: var(--cor-escura); background: #fff; cursor: pointer; }
+  .rodape { border-top: 1px solid #e1e5ea; padding: 10px 12px 8px; background: #fff; }
+  .entrada { display: flex; gap: 8px; }
+  .entrada textarea { flex: 1; resize: none; font: inherit; font-size: 14.5px; padding: 9px 11px; border: 1px solid #b9c1ca; border-radius: 10px; height: 42px; }
+  .entrada button { width: 42px; height: 42px; border: 0; border-radius: 10px; background: var(--cor); color: #fff; cursor: pointer; }
+  .nota { font-size: 12.5px; color: #5d6670; margin: 6px 2px 0; }
+
+  /* celular */
+  .celular { width: 360px; height: 700px; border: 10px solid #1d232a; border-radius: 34px; overflow: hidden; position: relative; background: #fff; margin: 0 auto; }
+  .celular .painel { position: absolute; inset: 0; width: auto; height: auto; border-radius: 0; box-shadow: none; }
+  .fechado { position: relative; height: 140px; background: #fff; border: 1px solid #d5dae0; border-radius: 10px; margin-top: 22px; overflow: hidden; }
+  .fechado .bloco { margin: 18px 28px; height: 14px; background: #eceff2; border-radius: 4px; }
+  .notas-maquete { max-width: 1200px; margin: 0 auto 40px; padding: 0 24px; color: #3a434c; }
+  .notas-maquete li { margin-bottom: 4px; }
+</style>
+</head>
+<body data-opcao="azul">
+<header class="topo">
+  <h1>Maquete do widget do chatbot COPERSE</h1>
+  <p class="sub">Clique nas cores para comparar. No exemplo de computador, o X fecha o painel e o botão abre de novo.</p>
+  <div class="opcoes" role="group" aria-label="Cor">
+    <button data-op="azul" aria-pressed="true"><span class="amostra" style="background:#1f5fbf"></span>A · Azul</button>
+    <button data-op="vermelho" aria-pressed="false"><span class="amostra" style="background:#8b0000"></span>B · Vermelho COPERSE</button>
+    <button data-op="grafite" aria-pressed="false"><span class="amostra" style="background:#2f3a45"></span>C · Grafite</button>
+  </div>
+</header>
+
+<template id="conteudo">
+  <div class="cab">
+    <div>
+      <h2>Assistente COPERSE</h2>
+      <p>Respostas com base nas páginas oficiais da FURG</p>
+    </div>
+    <button class="fechar" aria-label="Fechar">✕</button>
+  </div>
+  <div class="aviso"><span aria-hidden="true">⚠</span> Não digite CPF, nome ou outros dados pessoais.</div>
+  <div class="msgs">
+    <div class="msg bot">Olá! Tire dúvidas sobre o Vestibular, o SiSU e os processos seletivos específicos da FURG. Eu respondo com base nas páginas oficiais e mostro de onde veio cada informação.
+      <div class="sugestoes" style="margin-top:8px">
+        <button>Quando são as inscrições?</button><button>Como funciona o SiSU?</button><button>Quem pode participar do PS Transgênero?</button>
+      </div>
+    </div>
+    <div class="msg usu">Quando são as inscrições do Vestibular?</div>
+    <div class="msg bot">No Vestibular 2027, o período de inscrições foi de 13/08/2026 a 07/10/2026 e já está encerrado.<span class="cit">1</span>
+      <ul class="fontes">
+        <li>1. <div><a href="#">Vestibular FURG 2027: inscrições, cursos, vagas e edital</a><br><span>vestibular.furg.br · atualizado em 12/11/2026</span></div></li>
+      </ul>
+    </div>
+  </div>
+  <div class="rodape">
+    <div class="entrada"><textarea aria-label="Sua pergunta" placeholder="Escreva sua pergunta…"></textarea><button aria-label="Enviar">➤</button></div>
+    <p class="nota">Pode conter erros. Confira sempre o edital oficial.</p>
+  </div>
+</template>
+
+<main>
+  <section>
+    <p class="rotulo">Computador · painel aberto</p>
+    <div class="site" id="site">
+      <div class="barra"></div>
+      <div class="bloco curto"></div><div class="bloco m"></div><div class="bloco"></div><div class="bloco m"></div><div class="bloco"></div><div class="bloco m"></div>
+      <button class="botao" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Dúvidas? Pergunte aqui</button>
+      <div class="painel" role="dialog" aria-label="Assistente COPERSE"></div>
+    </div>
+    <p class="rotulo" style="margin-top:22px">Computador · fechado</p>
+    <div class="fechado">
+      <div class="bloco"></div><div class="bloco" style="width:60%"></div>
+      <button class="botao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Dúvidas? Pergunte aqui</button>
+    </div>
+  </section>
+  <section>
+    <p class="rotulo">Celular · tela cheia</p>
+    <div class="celular"><div class="painel" role="dialog" aria-label="Assistente COPERSE"></div></div>
+  </section>
+</main>
+
+<div class="notas-maquete">
+  <p><strong>O que já está decidido (projeto aprovado):</strong></p>
+  <ul>
+    <li>Botão no canto inferior direito; no celular o painel ocupa a tela inteira.</li>
+    <li>Aviso fixo sobre dados pessoais; fontes como links com a data.</li>
+    <li>Funciona só com teclado, com leitor de tela e com contraste adequado.</li>
+  </ul>
+</div>
+
+<script>
+  const tpl = document.getElementById('conteudo');
+  document.querySelectorAll('.painel').forEach((p) => p.appendChild(tpl.content.cloneNode(true)));
+  document.querySelectorAll('.opcoes button').forEach((b) => b.addEventListener('click', () => {
+    document.body.dataset.opcao = b.dataset.op;
+    document.querySelectorAll('.opcoes button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+  const site = document.getElementById('site');
+  site.querySelector('.fechar').addEventListener('click', () => { site.querySelector('.painel').hidden = true; site.querySelector('.botao').hidden = false; });
+  site.querySelector('.botao').addEventListener('click', () => { site.querySelector('.painel').hidden = false; site.querySelector('.botao').hidden = true; });
+</script>
+</body>
+</html>
