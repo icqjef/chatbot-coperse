@@ -1,6 +1,7 @@
 import { carregarOrigens } from '@chatbot/comum';
 import origensJson from '../../config/origens.json';
 import { cabecalhosCors, origemPermitida } from './cors';
+import { tratarReindexar, tratarSaude } from './operacao';
 import { tratarPerguntar, type RateLimit } from './perguntar';
 import { WIDGET_TESTE } from './widget-teste';
 
@@ -28,7 +29,11 @@ export default {
     const url = new URL(req.url);
 
     if (req.method === 'GET' && url.pathname === '/saude') {
-      return Response.json({ ok: true });
+      return tratarSaude(env);
+    }
+    if (url.pathname === '/reindexar') {
+      if (req.method === 'POST') return tratarReindexar(req, env);
+      return new Response(null, { status: 405, headers: { Allow: 'POST' } });
     }
     if (req.method === 'GET' && url.pathname === '/widget.js') {
       return new Response(WIDGET_TESTE, {

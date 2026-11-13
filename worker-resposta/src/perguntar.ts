@@ -85,7 +85,7 @@ function validar(corpo: unknown): EntradaPergunta | null {
   return { pergunta: mascararDadosPessoais(p), historico: msgs };
 }
 
-function json(corpo: unknown, status: number, cors: Record<string, string>): Response {
+export function json(corpo: unknown, status: number, cors: Record<string, string>): Response {
   return new Response(JSON.stringify(corpo), {
     status,
     headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8' },

@@ -5,10 +5,13 @@ const env = { DB: {}, VECTORIZE: {}, AMBIENTE: 'teste' } as unknown as Env;
 const base = 'https://chatbot.example';
 
 describe('rotas', () => {
-  it('GET /saude', async () => {
-    const r = await worker.fetch(new Request(`${base}/saude`), env);
+  it('GET /saude responde pelo D1', async () => {
+    const db = {
+      prepare: () => ({ first: async () => ({ n: 0 }) }),
+    } as unknown as D1Database;
+    const r = await worker.fetch(new Request(`${base}/saude`), { ...env, DB: db });
     expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ ok: true });
+    expect(await r.json()).toMatchObject({ ok: true, fila: 0 });
   });
   it('GET /widget.js', async () => {
     const r = await worker.fetch(new Request(`${base}/widget.js`), env);
