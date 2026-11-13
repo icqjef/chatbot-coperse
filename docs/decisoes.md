@@ -113,3 +113,11 @@ Complemento (revisão final da etapa 4): ao atingir o teto a execução para por
 ## 2026-11-12 — Correção das regras de listas após a primeira carga real
 
 A primeira carga indexou com nomes de candidatos dois PDFs de locais de prova (`locais_prova_SVP.pdf`, `locais_prova_SLS.pdf`): o padrão exigia "locais de prova". Também passou o "Edital de Convocação dos Aprovados", porque a exceção "começa com Edital" vencia "aprovados". Correção: padrão `loca(l|is) (de )?provas?`; exceções reduzidas a "gabarito" (edital de homologação ou de convocação traz nomes); texto de link "Baixar" passa a ser genérico (vale o texto do bloco ou o nome do arquivo). Os documentos afetados são removidos do índice e voltam como resumo. O bot ainda não respondia perguntas, então nada foi exposto.
+
+## 2026-11-12 — Worker de resposta: modelo, limite e limiar
+
+- Modelo de resposta `gemini-3.5-flash-lite`, trocável pela variável `MODELO_RESPOSTA`. Preço: US$ 0,30 por 1 milhão de tokens de entrada e US$ 2,50 por 1 milhão de saída (ai.google.dev/gemini-api/docs/pricing, conferido em 2026-11-12). Estimativa por pergunta: cerca de 5 mil tokens de entrada e 600 de saída, ou seja, cerca de US$ 0,003; US$ 10 pagam cerca de 3 mil perguntas.
+- Limite de perguntas por visitante com o binding de Rate Limiting do Cloudflare. É aproximado e vale por local (data center) do Cloudflare. A disponibilidade no plano gratuito fica a confirmar na publicação. A chave é o hash de IP mais data, sem guardar o IP; `/reindexar` usa a mesma chave.
+- Limiar de similaridade inicial 0,5, a calibrar na etapa 7 com as perguntas de referência.
+- `/reindexar` dispara o workflow do GitHub (`indexar.yml`, ramo `main`) com um token de escopo mínimo; a senha é comparada por SHA-256 em tempo constante e o limite de uso vale antes da senha.
+- Aproveitado do rootsongjc/rag-chatbot: apenas o desenho geral (embedding, consulta ao Vectorize, prompt com contexto numerado, Gemini). O código de provedores e o prompt foram reescritos para as regras de citação e privacidade deste projeto.

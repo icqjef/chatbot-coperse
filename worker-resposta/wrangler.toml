@@ -14,3 +14,24 @@ index_name = "chatbot-coperse"
 
 [observability]
 enabled = true
+
+# Mantém console.log/error, mas descarta o log automático de cada requisição (pode trazer o IP do visitante).
+[observability.logs]
+invocation_logs = false
+
+[vars]
+AMBIENTE = "producao"
+PROVEDOR_LLM = "gemini"
+MODELO_RESPOSTA = "gemini-3.5-flash-lite"
+MODELO_EMBEDDING = "gemini-embedding-001"
+DIMENSAO_EMBEDDING = "768"
+LIMIAR_SIMILARIDADE = "0.5"
+GITHUB_REPO = "icqjef/chatbot-coperse"
+GITHUB_WORKFLOW = "indexar.yml"
+
+[[ratelimits]]
+name = "LIMITADOR"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 6
+  period = 60

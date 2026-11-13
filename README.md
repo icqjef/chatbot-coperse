@@ -47,6 +47,23 @@ Em JSON a barra invertida é escrita dobrada (`"\\bsisu\\b"`). Os testes (`npm t
 
 Para rodar na hora: GitHub, aba Actions, workflow `indexar`, Run workflow, e informe `limite` (itens) e `minutos` se quiser outros valores. Os segredos `CLOUDFLARE_API_TOKEN` e `GEMINI_API_KEY` e as variáveis `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID` e `VECTORIZE_INDICE` ficam nas configurações do repositório. Um segundo job (`workflow-keepalive`) evita que o GitHub desligue o agendamento por inatividade.
 
+## Worker de resposta
+
+`worker-resposta/` é o Worker Cloudflare que responde às perguntas (busca nos trechos indexados, Gemini e citação da fonte).
+
+Rotas:
+
+- `POST /perguntar`: recebe `{ pergunta, historico }` do widget; só aceita as origens de `config/origens.json` e limita as perguntas por visitante.
+- `GET /saude`: `{ ok, ultima_indexacao: { inicio, fim, paginas, erros } | null, fila, paginas_ok }`; responde 503 `{ ok: false }` se o D1 falhar.
+- `POST /reindexar`: com `Authorization: Bearer <REINDEX_TOKEN>`, dispara o workflow de indexação no GitHub (resposta 202). Exemplo: `curl -X POST -H "Authorization: Bearer $SENHA" https://<worker>/reindexar`.
+- `GET /widget.js`: o script do widget.
+
+Variáveis (em `worker-resposta/wrangler.toml`): `PROVEDOR_LLM`, `MODELO_RESPOSTA`, `MODELO_EMBEDDING`, `DIMENSAO_EMBEDDING`, `LIMIAR_SIMILARIDADE`, `GITHUB_REPO`, `GITHUB_WORKFLOW`.
+
+Segredos: `GEMINI_API_KEY`, `REINDEX_TOKEN` (senha longa, no mínimo 32 caracteres; se faltar ou for menor, a rota `/reindexar` fica desativada e responde 503) e `GITHUB_TOKEN`. Cadastre-os no painel do Cloudflare: Workers & Pages, chatbot-coperse, Settings, Variables and Secrets, tipo Secret. Nunca coloque segredos no código nem no chat.
+
+Token do GitHub de escopo mínimo: em GitHub, Settings, Developer settings, Personal access tokens, Fine-grained tokens; escolha apenas este repositório e a permissão Repository permissions, Actions: Read and write.
+
 ## Documentos
 
 - Projeto: [docs/superpowers/specs/2026-11-12-chatbot-coperse-design.md](docs/superpowers/specs/2026-11-12-chatbot-coperse-design.md)
