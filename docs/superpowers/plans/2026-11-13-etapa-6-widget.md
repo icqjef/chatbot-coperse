@@ -38,7 +38,7 @@
 
 ---
 
-### Tarefa 1: workspace, montagem, botão e painel
+### Task 1: workspace, montagem, botão e painel
 
 **Arquivos:**
 - Criar: `widget/package.json` (nome `widget`; scripts `test: vitest run`, `build: node build.mjs`; devDependencies `esbuild`, `happy-dom`, `vitest`, `typescript`), `widget/tsconfig.json` (DOM lib, strict, `noEmit`), `widget/vitest.config.ts` (`environment: 'happy-dom'`), `widget/src/config.ts`, `widget/src/estilos.ts`, `widget/src/interface.ts`, `widget/src/index.ts`
@@ -65,7 +65,7 @@
 - [ ] **Passo 4:** `npm test -w widget` e `npm run typecheck`. Esperado: PASSA.
 - [ ] **Passo 5:** commit `feat(widget): montagem, botão e painel acessível`.
 
-### Tarefa 2: conversa
+### Task 2: conversa
 
 **Arquivos:**
 - Criar: `widget/src/conversa.ts`, `widget/src/render.ts`
@@ -105,7 +105,7 @@
 - [ ] **Passo 4:** `npm test -w widget` e `npm run typecheck`. Esperado: PASSA.
 - [ ] **Passo 5:** commit `feat(widget): conversa, fontes e histórico`.
 
-### Tarefa 3: build, entrega pelo Worker, página de demonstração e documentação
+### Task 3: build, entrega pelo Worker, página de demonstração e documentação
 
 **Arquivos:**
 - Criar: `widget/build.mjs`; `worker-resposta/src/widget-gerado.ts` (gerado); `worker-resposta/src/demo.ts`
@@ -124,7 +124,7 @@
 - [ ] **Passo 4:** `npm run build -w widget && npm run typecheck && npm test`. Esperado: PASSA, e o tamanho do bundle é registrado no relatório.
 - [ ] **Passo 5:** commit `feat(widget): build, /widget.js, /demo e documentação`.
 
-### Tarefa 4 (controlador, depois do merge): prova real
+### Task 4 (controlador, depois do merge): prova real
 
 - [ ] Publicar com o merge (o workflow `publicar` faz o deploy).
 - [ ] Abrir `https://chatbot-coperse.coperse-furg.workers.dev/demo` no navegador. Conferir a pergunta com resposta e fonte, o aviso, Esc, a navegação só por teclado e a largura de celular (devtools, 375 px).
