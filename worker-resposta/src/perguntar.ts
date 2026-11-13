@@ -23,9 +23,10 @@ export interface EnvPerguntar {
 const MAX_PERGUNTA = 500;
 const MAX_HISTORICO = 8;
 const MAX_MENSAGEM = 2000;
-const MAX_CORPO = 30_000;
+const MAX_CORPO_BYTES = 32 * 1024;
 const LIMIAR_PADRAO = 0.5;
 
+const MSG_GRANDE = 'Pergunta grande demais.';
 const MSG_LIMITE = 'Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo.';
 const MSG_INDISPONIVEL =
   'O assistente está indisponível no momento. Tente de novo em instantes ou escreva para coperse@furg.br.';
@@ -70,13 +71,16 @@ function validar(corpo: unknown): EntradaPergunta | null {
   const p = pergunta.trim();
   if (p.length === 0 || pergunta.length > MAX_PERGUNTA) return null;
   if (!Array.isArray(historico) || historico.length > MAX_HISTORICO) return null;
+  // Alternância estrita: começa em "usuario" e termina em "modelo" (a pergunta nova fecha como "usuario").
+  if (historico.length % 2 !== 0) return null;
   const msgs: Mensagem[] = [];
-  for (const m of historico) {
+  for (const [i, m] of historico.entries()) {
     if (typeof m !== 'object' || m === null) return null;
     const { papel, texto } = m as Record<string, unknown>;
-    if ((papel !== 'usuario' && papel !== 'modelo') || typeof texto !== 'string') return null;
+    const esperado = i % 2 === 0 ? 'usuario' : 'modelo';
+    if (papel !== esperado || typeof texto !== 'string') return null;
     if (texto.length > MAX_MENSAGEM) return null;
-    msgs.push({ papel, texto: mascararDadosPessoais(texto) });
+    msgs.push({ papel: esperado, texto: mascararDadosPessoais(texto) });
   }
   return { pergunta: mascararDadosPessoais(p), historico: msgs };
 }
@@ -88,6 +92,28 @@ function json(corpo: unknown, status: number, cors: Record<string, string>): Res
   });
 }
 
+/** Lê o corpo contando bytes; devolve null se passar do limite (aborta a leitura). */
+async function lerCorpoLimitado(req: Request): Promise<string | null> {
+  const declarado = Number(req.headers.get('Content-Length'));
+  if (Number.isFinite(declarado) && declarado > MAX_CORPO_BYTES) return null;
+  if (!req.body) return '';
+  const leitor = req.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let texto = '';
+  for (;;) {
+    const { done, value } = await leitor.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_CORPO_BYTES) {
+      await leitor.cancel().catch(() => {});
+      return null;
+    }
+    texto += decoder.decode(value, { stream: true });
+  }
+  return texto + decoder.decode();
+}
+
 let avisouSemChave = false;
 
 export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: string[]): Promise<Response> {
@@ -95,14 +121,13 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   const cors = cabecalhosCors(origem, origens);
   if (!origemPermitida(origem, origens)) return json({ erro: 'Origem não permitida.' }, 403, cors);
 
-  const texto = await req.text();
+  const texto = await lerCorpoLimitado(req);
+  if (texto === null) return json({ erro: MSG_GRANDE }, 413, cors);
   let entrada: EntradaPergunta | null = null;
-  if (texto.length <= MAX_CORPO) {
-    try {
-      entrada = validar(JSON.parse(texto));
-    } catch {
-      entrada = null;
-    }
+  try {
+    entrada = validar(JSON.parse(texto));
+  } catch {
+    entrada = null;
   }
   if (!entrada) return json({ erro: 'Pergunta inválida.' }, 400, cors);
 
@@ -115,11 +140,13 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   }
 
   const agora = () => new Date();
-  const ip = req.headers.get('CF-Connecting-IP') || 'desconhecido';
-  const { success } = await env.LIMITADOR.limit({ key: await chaveLimite(ip, agora()) });
-  if (!success) return json({ erro: MSG_LIMITE }, 429, cors);
-
+  // A Cloudflare sempre define CF-Connecting-IP em produção; sem ele (teste local) todos
+  // os visitantes dividem a chave 'sem-ip' + dia.
+  const ip = req.headers.get('CF-Connecting-IP') || 'sem-ip';
   try {
+    const { success } = await env.LIMITADOR.limit({ key: await chaveLimite(ip, agora()) });
+    if (!success) return json({ erro: MSG_LIMITE }, 429, cors);
+
     const embedder = criarEmbedder(env);
     const gerador = criarGerador(env);
     const limiar = Number(env.LIMIAR_SIMILARIDADE);
@@ -135,8 +162,9 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
     });
     return json(resultado, 200, cors);
   } catch (e) {
+    // Só a parte inicial ("... HTTP 429"); o texto do provedor (depois do travessão) não vai ao log.
     const msg = String(e instanceof Error ? e.message : e).split(env.GEMINI_API_KEY).join('[chave]');
-    console.error('Falha ao responder:', msg.slice(0, 300));
+    console.error('Falha ao responder:', msg.split(' — ')[0]!.slice(0, 120));
     return json({ erro: MSG_INDISPONIVEL }, 503, cors);
   }
 }

@@ -46,6 +46,7 @@ export default {
         if (!origemPermitida(origem, ORIGENS)) return new Response(null, { status: 403, headers: cors });
         return new Response(null, { status: 204, headers: cors });
       }
+      return new Response(null, { status: 405, headers: { ...cabecalhosCors(req.headers.get('Origin'), ORIGENS), Allow: 'POST, OPTIONS' } });
     }
     return new Response('Não encontrado', { status: 404 });
   },

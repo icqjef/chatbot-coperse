@@ -120,14 +120,19 @@ describe('POST /perguntar', () => {
 
   it('entradas inválidas -> 400 com CORS', async () => {
     const { env } = montar({});
-    const msg = (t: string) => ({ papel: 'usuario', texto: t });
+    const u = (t: string) => ({ papel: 'usuario', texto: t });
+    const m = (t: string) => ({ papel: 'modelo', texto: t });
+    const alternado = (n: number) => Array.from({ length: n }, (_, i) => (i % 2 === 0 ? u('x') : m('x')));
     const casos: unknown[] = [
       { pergunta: '' },
       { pergunta: '   ' },
       { pergunta: 'a'.repeat(501) },
       { pergunta: 5 },
-      { pergunta: 'oi', historico: Array.from({ length: 9 }, () => msg('x')) },
-      { pergunta: 'oi', historico: [msg('a'.repeat(2001))] },
+      { pergunta: 'oi', historico: alternado(10) },
+      { pergunta: 'oi', historico: [u('a'.repeat(2001)), m('x')] },
+      { pergunta: 'oi', historico: [m('x'), u('x')] },
+      { pergunta: 'oi', historico: [u('x')] },
+      { pergunta: 'oi', historico: [u('x'), u('y'), m('z'), m('w')] },
       { pergunta: 'oi', historico: [{ papel: 'sistema', texto: 'x' }] },
       { pergunta: 'oi', historico: 'x' },
     ];
@@ -217,6 +222,81 @@ describe('POST /perguntar', () => {
     expect(r.status).toBe(503);
     expect(r.headers.get('Access-Control-Allow-Origin')).toBe(ORIGEM);
     expect(chamadas).toHaveLength(0);
+  });
+});
+
+describe('endurecimento', () => {
+  const LIMITE = 32 * 1024;
+
+  it('Content-Length declarado acima de 32 KiB -> 413 com CORS', async () => {
+    const { env, chamadas } = montar({});
+    const r = await pedir(env, { pergunta: 'oi' }, { 'Content-Length': String(LIMITE + 1) });
+    expect(r.status).toBe(413);
+    expect(r.headers.get('Access-Control-Allow-Origin')).toBe(ORIGEM);
+    expect(r.headers.get('Vary')).toBe('Origin');
+    expect(chamadas).toHaveLength(0);
+  });
+
+  it('corpo grande sem Content-Length (stream) -> 413 abortando a leitura', async () => {
+    const { env } = montar({});
+    let lidos = 0;
+    const bloco = new Uint8Array(8 * 1024).fill(97);
+    const corpo = new ReadableStream<Uint8Array>({
+      pull(c) {
+        lidos++;
+        if (lidos > 100) c.close();
+        else c.enqueue(bloco);
+      },
+    });
+    const req = new Request(`${base}/perguntar`, {
+      method: 'POST',
+      headers: { Origin: ORIGEM, 'Content-Type': 'application/json' },
+      body: corpo,
+      duplex: 'half',
+    } as RequestInit);
+    const r = await worker.fetch(req, env);
+    expect(r.status).toBe(413);
+    expect(r.headers.get('Access-Control-Allow-Origin')).toBe(ORIGEM);
+    expect(lidos).toBeLessThan(20);
+  });
+
+  it('limitador que lança -> 503 amigável com CORS, log sem IP', async () => {
+    const { env } = montar({});
+    env.LIMITADOR = {
+      async limit() {
+        throw new Error('binding indisponível');
+      },
+    };
+    const erro = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r = await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(r.status).toBe(503);
+    expect(r.headers.get('Access-Control-Allow-Origin')).toBe(ORIGEM);
+    expect(r.headers.get('Vary')).toBe('Origin');
+    expect(await r.json()).toEqual({ erro: INDISPONIVEL });
+    expect(JSON.stringify(erro.mock.calls)).not.toContain('203.0.113.7');
+  });
+
+  it('outros métodos em /perguntar -> 405 com Allow e Vary', async () => {
+    const { env } = montar({});
+    const r = await worker.fetch(new Request(`${base}/perguntar`, { method: 'GET', headers: { Origin: ORIGEM } }), env);
+    expect(r.status).toBe(405);
+    expect(r.headers.get('Allow')).toBe('POST, OPTIONS');
+    expect(r.headers.get('Vary')).toBe('Origin');
+    expect(r.headers.get('Access-Control-Allow-Origin')).toBe(ORIGEM);
+    const r2 = await worker.fetch(new Request(`${base}/perguntar`, { method: 'PUT' }), env);
+    expect(r2.status).toBe(405);
+    expect(r2.headers.get('Allow')).toBe('POST, OPTIONS');
+    expect(r2.headers.get('Vary')).toBe('Origin');
+    expect(r2.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('log do erro do provedor só traz a classe/HTTP, sem o texto do provedor', async () => {
+    const { env } = montar({ status: 429 });
+    const erro = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await pedir(env, { pergunta: 'qual o prazo?' });
+    const logado = JSON.stringify(erro.mock.calls);
+    expect(logado).toContain('HTTP 429');
+    expect(logado).not.toContain('cota');
   });
 });
 

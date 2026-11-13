@@ -32,6 +32,7 @@ describe('rotas', () => {
     );
     expect(r.status).toBe(204);
     expect(r.headers.get('Access-Control-Allow-Origin')).toBe('https://coperse.furg.br');
+    expect(r.headers.get('Access-Control-Max-Age')).toBe('86400');
   });
   it('rota desconhecida -> 404', async () => {
     const r = await worker.fetch(new Request(`${base}/nada`), env);
