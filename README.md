@@ -53,12 +53,12 @@ Para rodar na hora: GitHub, aba Actions, workflow `indexar`, Run workflow, e inf
 
 Rotas:
 
-- `POST /perguntar`: recebe `{ pergunta, historico }` do widget; só aceita as origens de `config/origens.json` e limita as perguntas por visitante.
+- `POST /perguntar`: recebe `{ pergunta, historico }` do widget; só aceita as origens de `config/origens.json`. Responde 429 acima de `LIMITE_POR_MINUTO` perguntas por minuto do mesmo visitante ou acima de `COTA_DIARIA` perguntas no dia (todos os visitantes somados, zera à meia-noite de Brasília). Os dois contadores ficam no Durable Object `Limites`.
 - `GET /saude`: `{ ok, ultima_indexacao: { inicio, fim, paginas, erros } | null, fila, paginas_ok }`; responde 503 `{ ok: false }` se o D1 falhar.
 - `POST /reindexar`: com `Authorization: Bearer <REINDEX_TOKEN>`, dispara o workflow de indexação no GitHub (resposta 202). Exemplo: `curl -X POST -H "Authorization: Bearer $SENHA" https://<worker>/reindexar`.
 - `GET /widget.js`: o script do widget.
 
-Variáveis (em `worker-resposta/wrangler.toml`): `PROVEDOR_LLM`, `MODELO_RESPOSTA`, `MODELO_EMBEDDING`, `DIMENSAO_EMBEDDING`, `LIMIAR_SIMILARIDADE`, `GITHUB_REPO`, `GITHUB_WORKFLOW`.
+Variáveis (em `worker-resposta/wrangler.toml`): `PROVEDOR_LLM`, `MODELO_RESPOSTA`, `MODELO_EMBEDDING`, `DIMENSAO_EMBEDDING`, `LIMIAR_SIMILARIDADE`, `GITHUB_REPO`, `GITHUB_WORKFLOW`, `LIMITE_POR_MINUTO` (padrão 6), `COTA_DIARIA` (padrão 1000).
 
 Segredos: `GEMINI_API_KEY`, `REINDEX_TOKEN` (senha longa, no mínimo 32 caracteres; se faltar ou for menor, a rota `/reindexar` fica desativada e responde 503) e `GITHUB_TOKEN`. Cadastre-os no painel do Cloudflare: Workers & Pages, chatbot-coperse, Settings, Variables and Secrets, tipo Secret. Nunca coloque segredos no código nem no chat.
 

@@ -173,3 +173,25 @@ describe('extrairFontes', () => {
     expect(extrairFontes('nada', ts).fontes).toEqual([]);
   });
 });
+
+describe('extrairFontes: linha de fontes do modelo', () => {
+  const ts = [1, 2].map((n) => ({
+    id: `t${n}`, url: `https://coperse.furg.br/p${n}`, titulo: `P${n}`, site: 'coperse',
+    data: '2026-10-01T00:00:00Z', processo: 'vestibular', ano: 2027, texto: 'x', similaridade: 0.9,
+  }));
+  it('remove "Fontes: [1], [2]" e mantém as fontes citadas', () => {
+    for (const linha of ['Fontes: [1], [2]', '**Fontes:** [1] e [2]', 'Fonte: [1]']) {
+      const r = extrairFontes(`Requisito a [1].\nRequisito b [2].\n\n${linha}`, ts);
+      expect(r.resposta).toBe('Requisito a [1].\nRequisito b [2].');
+      expect(r.fontes).toHaveLength(2);
+      expect(r.citou).toBe(true);
+    }
+  });
+  it('não mexe em frase comum que começa com "Fontes"', () => {
+    const r = extrairFontes('Fontes de renda contam na cota [1].', ts);
+    expect(r.resposta).toBe('Fontes de renda contam na cota [1].');
+  });
+  it('sem citação: citou = false', () => {
+    expect(extrairFontes('Escreva para coperse@furg.br.', ts).citou).toBe(false);
+  });
+});

@@ -365,3 +365,65 @@ describe('responderPergunta', () => {
     expect(r.fontes).toHaveLength(1);
   });
 });
+
+describe('cota diária', () => {
+  it('cota esgotada -> 429 sem chamar o Gemini', async () => {
+    const { env, chamadas } = montar({});
+    env.COTA = { consumir: async () => false };
+    const r = await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(r.status).toBe(429);
+    expect(((await r.json()) as { erro: string }).erro).toContain('limite de perguntas de hoje');
+    expect(chamadas).toHaveLength(0);
+  });
+  it('falha na cota -> 503 sem chamar o Gemini', async () => {
+    const { env, chamadas } = montar({});
+    env.COTA = { consumir: async () => { throw new Error('x'); } };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const r = await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(r.status).toBe(503);
+    expect(chamadas).toHaveLength(0);
+  });
+  it('visitante barrado não gasta cota', async () => {
+    const { env } = montar({ permitir: false });
+    let consumiu = 0;
+    env.COTA = { consumir: async () => (consumiu++, true) };
+    const r = await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(r.status).toBe(429);
+    expect(consumiu).toBe(0);
+  });
+  it('em produção (LIMITES) o 7º pedido do mesmo visitante é barrado', async () => {
+    const { Limites } = await import('../src/limites');
+    const mapa = new Map<string, unknown>();
+    const obj = new Limites({
+      storage: { get: async (k: string) => mapa.get(k), put: async (k: string, v: unknown) => void mapa.set(k, v) },
+    } as unknown as DurableObjectState);
+    const { env } = montar({});
+    env.LIMITES = {
+      idFromName: (n: string) => n,
+      get: () => ({ fetch: (url: string, init: RequestInit) => obj.fetch(new Request(url, init)) }),
+    } as unknown as DurableObjectNamespace;
+    const status: number[] = [];
+    for (let i = 0; i < 7; i++) status.push((await pedir(env, { pergunta: 'qual o prazo?' })).status);
+    expect(status).toEqual([200, 200, 200, 200, 200, 200, 429]);
+    expect(mapa.get('cota')).toMatchObject({ n: 6 });
+  });
+});
+
+describe('recusas sem fontes', () => {
+  it('encaminhamento curto, sem citação e com coperse@furg.br passa sem fontes', async () => {
+    const texto = 'Não posso verificar a sua situação individual. Consulte o sistema de inscrição ou escreva para coperse@furg.br.';
+    const { env } = montar({ texto });
+    const r = await pedir(env, { pergunta: 'fui homologado?' });
+    expect(await r.json()).toEqual({ resposta: texto, fontes: [] });
+  });
+  it('resposta longa sem citação, mesmo com o e-mail -> SEM_BASE', async () => {
+    const { env } = montar({ texto: 'O prazo é 10/12. '.repeat(30) + 'coperse@furg.br' });
+    const r = await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(await r.json()).toEqual({ resposta: SEM_BASE, fontes: [] });
+  });
+  it('citação de número inexistente não vale como recusa -> SEM_BASE', async () => {
+    const { env } = montar({ texto: 'O prazo é 10/12 [7]. Dúvidas: coperse@furg.br.' });
+    const r = await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(await r.json()).toEqual({ resposta: SEM_BASE, fontes: [] });
+  });
+});

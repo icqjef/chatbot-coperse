@@ -28,10 +28,14 @@ DIMENSAO_EMBEDDING = "768"
 LIMIAR_SIMILARIDADE = "0.5"
 GITHUB_REPO = "icqjef/chatbot-coperse"
 GITHUB_WORKFLOW = "indexar.yml"
+LIMITE_POR_MINUTO = "6"
+COTA_DIARIA = "1000"
 
-[[ratelimits]]
-name = "LIMITADOR"
-namespace_id = "1001"
-  [ratelimits.simple]
-  limit = 6
-  period = 60
+# Limites exatos (o limitador nativo da Cloudflare é aproximado). SQLite: único tipo no plano gratuito.
+[[durable_objects.bindings]]
+name = "LIMITES"
+class_name = "Limites"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Limites"]

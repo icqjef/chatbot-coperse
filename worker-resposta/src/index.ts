@@ -2,13 +2,19 @@ import { carregarOrigens } from '@chatbot/comum';
 import origensJson from '../../config/origens.json';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { tratarReindexar, tratarSaude } from './operacao';
+import { criarLimites, type CotaDiaria } from './limites';
 import { tratarPerguntar, type RateLimit } from './perguntar';
 import { WIDGET_TESTE } from './widget-teste';
 
 export interface Env {
   DB: D1Database;
   VECTORIZE: VectorizeIndex;
+  /** Durable Object dos limites (produção). Sem ele (testes), valem LIMITADOR e COTA do próprio env. */
+  LIMITES?: DurableObjectNamespace;
   LIMITADOR: RateLimit;
+  COTA?: CotaDiaria;
+  LIMITE_POR_MINUTO?: string;
+  COTA_DIARIA?: string;
   AMBIENTE: string;
   PROVEDOR_LLM: string;
   MODELO_RESPOSTA: string;
@@ -22,10 +28,17 @@ export interface Env {
   GITHUB_WORKFLOW: string;
 }
 
+export { Limites } from './limites';
+
 const ORIGENS = carregarOrigens(origensJson);
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, envBruto: Env): Promise<Response> {
+    let env = envBruto;
+    if (envBruto.LIMITES) {
+      const { limitador, cota } = criarLimites(envBruto.LIMITES, envBruto);
+      env = { ...envBruto, LIMITADOR: limitador, COTA: cota };
+    }
     const url = new URL(req.url);
 
     if (req.method === 'GET' && url.pathname === '/saude') {
