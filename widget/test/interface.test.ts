@@ -54,6 +54,8 @@ describe('montar', () => {
     expect(estilo).toContain('position: fixed');
     expect(estilo).toContain('z-index: 2147483000');
     expect(estilo).toContain('all: initial');
+    expect(estilo).toContain('system-ui');
+    expect(estilo).toContain('color: #1d232a');
   });
 
   it('CSS móvel não dimensiona o host nem usa opacity no subtítulo', () => {

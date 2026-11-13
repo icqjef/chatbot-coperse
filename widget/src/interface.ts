@@ -41,7 +41,7 @@ export function montar(config: Config, _deps: { enviar?: Enviar } = {}): Widget 
   host.id = 'chatbot-coperse';
   // Inline para vencer regras da página (div { ... }, * { ... }) que superam :host.
   host.style.cssText =
-    'all: initial !important; position: fixed !important; z-index: 2147483000 !important; right: 20px !important; bottom: 20px !important;';
+    'all: initial !important; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important; color: #1d232a !important; position: fixed !important; z-index: 2147483000 !important; right: 20px !important; bottom: 20px !important;';
   host.style.setProperty('--cor', config.cor);
   host.style.setProperty('--cor-escura', `color-mix(in srgb, ${config.cor} 80%, #000)`);
   const raiz = host.attachShadow({ mode: 'open' });
