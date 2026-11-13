@@ -64,6 +64,34 @@ Segredos: `GEMINI_API_KEY`, `REINDEX_TOKEN` (senha longa, no mínimo 32 caracter
 
 Token do GitHub de escopo mínimo: em GitHub, Settings, Developer settings, Personal access tokens, Fine-grained tokens; escolha apenas este repositório e a permissão Repository permissions, Actions: Read and write.
 
+## Widget
+
+O assistente é um único script, que o Worker entrega em `/widget.js`. O código fica em `widget/src`; `npm run build -w widget` gera `worker-resposta/src/widget-gerado.ts` (não editar à mão; o GitHub confere que está atualizado).
+
+### Colar no Joomla (coperse e sisu)
+
+1. No painel do Joomla, vá em Extensões, Módulos, Novo, e escolha o tipo "Personalizado" (Custom).
+2. No editor do módulo, escolha "Nenhum" (ou CodeMirror). Com o editor visual (TinyMCE) o Joomla apaga o `<script>`.
+3. Cole este código, sem mudar nada:
+
+```html
+<script src="https://chatbot-coperse.coperse-furg.workers.dev/widget.js" data-cor="#8b0000" defer></script>
+```
+
+4. Em "Posição", escolha uma posição que apareça em todas as páginas do modelo (rodapé, por exemplo). Em "Atribuição de menu", marque "Em todas as páginas". Deixe "Mostrar título" em "Ocultar" e salve.
+
+### Cor (`data-cor`)
+
+`data-cor` é opcional e define a cor do botão e do cabeçalho. No coperse use `#8b0000` (vinho). No SiSU, omita o atributo: o padrão é o azul `#1f5fbf`. Se a cor for inválida ou clara demais (o texto branco ficaria difícil de ler), o widget usa o azul padrão.
+
+### Vestibular
+
+O vestibular.furg.br é administrado por outra pessoa. Envie a ela o mesmo código acima (com o `data-cor` que combine com o site, ou sem ele) e peça para colar em um módulo ou bloco de HTML que apareça em todas as páginas, antes do `</body>` se houver essa opção.
+
+### Testar
+
+Abra `https://chatbot-coperse.coperse-furg.workers.dev/demo`: é uma página só com o assistente, para testar sem mexer em nenhum site. O widget não coleta dados pessoais; a conversa fica só na aba do navegador e some ao fechá-la.
+
 ## Documentos
 
 - Projeto: [docs/superpowers/specs/2026-11-12-chatbot-coperse-design.md](docs/superpowers/specs/2026-11-12-chatbot-coperse-design.md)
