@@ -101,7 +101,7 @@ describe('POST /reindexar', () => {
     expect(r.status).toBe(401);
   });
   it('REINDEX_TOKEN ausente ou curto -> 503', async () => {
-    for (const t of [undefined, 'curto']) {
+    for (const t of [undefined, 'curto', 'a'.repeat(31)]) {
       const r = await worker.fetch(reindexar(t ?? 'qualquer'), montarEnv({ REINDEX_TOKEN: t }));
       expect(r.status).toBe(503);
     }

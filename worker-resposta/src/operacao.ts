@@ -1,7 +1,7 @@
 import { chaveLimite, json } from './perguntar';
 import type { Env } from './index';
 
-const MIN_SENHA = 16;
+const MIN_SENHA = 32;
 const MSG_INDISPONIVEL = 'Operação indisponível.';
 
 async function sha256(texto: string): Promise<Uint8Array> {
@@ -44,8 +44,14 @@ export async function tratarReindexar(req: Request, env: Env): Promise<Response>
   }
   // O limite vem antes da senha, para também frear tentativas de adivinhá-la.
   const ip = req.headers.get('CF-Connecting-IP') || 'sem-ip';
-  const { success } = await env.LIMITADOR.limit({ key: await chaveLimite(ip, new Date()) });
-  if (!success) return json({ erro: 'Muitas chamadas. Aguarde um minuto.' }, 429, {});
+  let liberado = false;
+  try {
+    liberado = (await env.LIMITADOR.limit({ key: await chaveLimite(ip, new Date()) })).success;
+  } catch {
+    console.error('Falha no limitador da reindexação');
+    return json({ erro: MSG_INDISPONIVEL }, 503, {});
+  }
+  if (!liberado) return json({ erro: 'Muitas chamadas. Aguarde um minuto.' }, 429, {});
 
   const enviado = /^Bearer (.+)$/.exec(req.headers.get('Authorization') ?? '')?.[1] ?? '';
   if (!(await iguaisEmTempoConstante(enviado, env.REINDEX_TOKEN))) {
