@@ -71,7 +71,7 @@ O assistente é um único script, que o Worker entrega em `/widget.js`. O códig
 ### Colar no Joomla (coperse e sisu)
 
 1. No painel do Joomla, vá em Extensões, Módulos, Novo, e escolha o tipo "Personalizado" (Custom).
-2. No editor do módulo, escolha "Nenhum" (ou CodeMirror). Com o editor visual (TinyMCE) o Joomla apaga o `<script>`.
+2. No módulo, use o botão "Alternar editor" (Toggle Editor) para ver o código em texto puro. O editor padrão de cada usuário é escolhido em "Editar conta", "Configurações básicas", Editor; "Nenhum" ou CodeMirror são os mais seguros, porque o editor visual (TinyMCE) pode alterar o `<script>`.
 3. Cole este código, sem mudar nada:
 
 ```html
@@ -79,6 +79,8 @@ O assistente é um único script, que o Worker entrega em `/widget.js`. O códig
 ```
 
 4. Em "Posição", escolha uma posição que apareça em todas as páginas do modelo (rodapé, por exemplo). Em "Atribuição de menu", marque "Em todas as páginas". Deixe "Mostrar título" em "Ocultar" e salve.
+5. Confira depois de salvar: abra o módulo de novo e veja se a linha `<script ...>` continua lá. Também dá para abrir uma página do site e apertar Ctrl+U (código-fonte) e procurar por `widget.js`.
+6. Se a linha sumiu, foi o filtro de texto do Joomla para o seu grupo de usuário. Peça a um Super Usuário do site para salvar o módulo com o script, ou para marcar "Sem filtragem" para o seu grupo em Configuração Global, Filtros de texto (só um Super Usuário consegue fazer isso).
 
 ### Cor (`data-cor`)
 

@@ -19,6 +19,7 @@ describe('rotas', () => {
     expect(r.status).toBe(200);
     expect(r.headers.get('content-type')).toBe('application/javascript; charset=utf-8');
     expect(r.headers.get('cache-control')).toBe('public, max-age=300');
+    expect(r.headers.get('x-content-type-options')).toBe('nosniff');
     const corpo = await r.text();
     expect(corpo).toBe(WIDGET);
     expect(corpo).not.toContain('teste');
@@ -28,6 +29,7 @@ describe('rotas', () => {
     expect(r.status).toBe(200);
     expect(r.headers.get('content-type')).toContain('text/html');
     expect(r.headers.get('cache-control')).toBe('no-store');
+    expect(r.headers.get('x-content-type-options')).toBe('nosniff');
     expect(await r.text()).toContain('<script src="/widget.js" defer></script>');
   });
   it('POST /perguntar da própria origem do Worker não dá 403', async () => {

@@ -54,12 +54,13 @@ export default {
         headers: {
           'Content-Type': 'application/javascript; charset=utf-8',
           'Cache-Control': 'public, max-age=300',
+          'X-Content-Type-Options': 'nosniff',
         },
       });
     }
     if (req.method === 'GET' && url.pathname === '/demo') {
       return new Response(DEMO_HTML, {
-        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
       });
     }
     if (url.pathname === '/perguntar') {

@@ -18,6 +18,7 @@ describe('build do widget', () => {
     const texto = construir();
     expect(texto.startsWith('// Gerado por widget/build.mjs. Não editar.\n')).toBe(true);
     expect(texto).not.toContain('\r');
+    // Lê a linha 2 em vez de importar: importar o módulo quebra o rootDir do typecheck entre projetos.
     const linha = texto.split(String.fromCharCode(10))[1]!;
     const WIDGET = JSON.parse(linha.slice(linha.indexOf('= ') + 2, -1)) as string;
     expect(typeof WIDGET).toBe('string');
