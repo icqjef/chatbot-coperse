@@ -157,8 +157,11 @@ export function montar(config: Config, deps: { enviar?: Enviar } = {}): Widget {
     enviando = true;
     sugestoes.remove();
     campo.value = '';
-    campo.disabled = true;
+    // readOnly (e não disabled) mantém o foco no campo.
+    campo.readOnly = true;
+    campo.setAttribute('aria-busy', 'true');
     enviar.disabled = true;
+    msgs.querySelector('.erro')?.remove();
     const bolha = el('div', 'msg usu', pergunta);
     msgs.append(bolha);
     const pensando = el('div', 'msg bot', 'Pensando…');
@@ -180,7 +183,8 @@ export function montar(config: Config, deps: { enviar?: Enviar } = {}): Widget {
       campo.value = pergunta;
     } finally {
       enviando = false;
-      campo.disabled = false;
+      campo.readOnly = false;
+      campo.removeAttribute('aria-busy');
       enviar.disabled = false;
       rolar();
       if (!painel.hidden) campo.focus();

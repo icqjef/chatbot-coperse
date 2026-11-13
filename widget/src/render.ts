@@ -25,6 +25,7 @@ export function renderResposta(texto: string, fontes: Fonte[]): HTMLElement {
     if (i % 2 === 1) {
       const sup = document.createElement('sup');
       sup.textContent = parte;
+      sup.setAttribute('aria-label', `fonte ${parte}`);
       corpo.append(sup);
     } else if (parte) corpo.append(document.createTextNode(parte));
   });

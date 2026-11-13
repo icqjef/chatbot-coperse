@@ -14,6 +14,16 @@ beforeEach(() => {
   w = montar(config);
 });
 
+describe('estilos móveis', () => {
+  it('campo com 16px, fallback de inset, overscroll e safe-area', () => {
+    const movel = ESTILOS.slice(ESTILOS.indexOf('@media (max-width: 600px)'));
+    expect(movel).toContain('.entrada textarea { font-size: 16px; }');
+    expect(movel).toContain('top: 0; right: 0; bottom: 0; left: 0; inset: 0;');
+    expect(ESTILOS).toContain('overscroll-behavior: contain');
+    expect(ESTILOS).toContain('padding-bottom: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom))');
+  });
+});
+
 describe('montar', () => {
   it('cria um host com shadowRoot e o botão com o texto exato', () => {
     expect(document.body.children).toHaveLength(1);
@@ -140,13 +150,17 @@ describe('conversa', () => {
     montarCom(vi.fn().mockReturnValue(new Promise((r) => (fim = r))));
     digitar('Oi');
     clicarEnviar();
-    expect(q<HTMLTextAreaElement>('textarea').disabled).toBe(true);
+    const campo = q<HTMLTextAreaElement>('textarea');
+    expect(campo.disabled).toBe(false);
+    expect(campo.readOnly).toBe(true);
+    expect(campo.getAttribute('aria-busy')).toBe('true');
     expect(q<HTMLButtonElement>('.enviar').disabled).toBe(true);
     expect(q('[role="status"]').textContent).toBe('Pensando…');
     fim(ok);
     await pronto();
     expect(w.raiz.querySelector('[role="status"]')).toBeNull();
-    expect(q<HTMLTextAreaElement>('textarea').disabled).toBe(false);
+    expect(q<HTMLTextAreaElement>('textarea').readOnly).toBe(false);
+    expect(q<HTMLTextAreaElement>('textarea').hasAttribute('aria-busy')).toBe(false);
   });
 
   it('a resposta fica dentro da região aria-live polite', async () => {
@@ -179,11 +193,31 @@ describe('conversa', () => {
     clicarEnviar();
     await pronto();
     expect(q('.msgs').textContent).toContain('Muitas perguntas');
-    expect(q<HTMLTextAreaElement>('textarea').disabled).toBe(false);
+    expect(q<HTMLTextAreaElement>('textarea').readOnly).toBe(false);
     digitar('B');
     clicarEnviar();
     await pronto();
     expect(env).toHaveBeenLastCalledWith('B', []);
+  });
+
+  it('falhas repetidas não empilham bolhas de erro', async () => {
+    montarCom(vi.fn().mockRejectedValue({ mensagem: 'Falhou' }));
+    for (const t of ['A', 'B']) {
+      digitar(t);
+      clicarEnviar();
+      await pronto();
+    }
+    expect(w.raiz.querySelectorAll('.erro')).toHaveLength(1);
+  });
+
+  it('o foco permanece no campo durante o envio', async () => {
+    let fim!: (v: unknown) => void;
+    montarCom(vi.fn().mockReturnValue(new Promise((r) => (fim = r))));
+    digitar('Oi');
+    clicarEnviar();
+    expect(w.raiz.activeElement).toBe(q('textarea'));
+    fim(ok);
+    await pronto();
   });
 
   it('a segunda pergunta envia o histórico da primeira troca', async () => {
@@ -337,8 +371,8 @@ describe('index', () => {
     await import('../src/index');
   };
   beforeEach(() => {
-    document.body.replaceChildren();
     delete window.__chatbotCoperse;
+    document.body.replaceChildren();
   });
   afterEach(() => {
     Object.defineProperty(document, 'currentScript', { value: null, configurable: true });
@@ -348,6 +382,15 @@ describe('index', () => {
     await carregar('https://w.example/widget.js');
     await carregar('https://w.example/widget.js');
     expect(document.body.children).toHaveLength(1);
+  });
+
+  it('recoloca o host no body se a página o remover', async () => {
+    await carregar('https://w.example/widget.js');
+    const host = document.querySelector('#chatbot-coperse')!;
+    host.remove();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.querySelectorAll('#chatbot-coperse')).toHaveLength(1);
+    expect(document.querySelector('#chatbot-coperse')).toBe(host);
   });
 
   it('não monta sem api', async () => {

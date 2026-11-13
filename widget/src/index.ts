@@ -16,7 +16,16 @@ if (!window.__chatbotCoperse) {
   if (config.api) {
     window.__chatbotCoperse = true;
     const enviar = criarEnviar(config.api);
-    if (document.body) montar(config, { enviar });
-    else document.addEventListener('DOMContentLoaded', () => montar(config, { enviar }), { once: true });
+    // Frameworks (ex.: hidratação do React) podem remover o host do body: recoloca o mesmo host.
+    const iniciar = (): void => {
+      const { host } = montar(config, { enviar });
+      const observador = new MutationObserver(() => {
+        if (!window.__chatbotCoperse) observador.disconnect();
+        else if (!host.isConnected) document.body.append(host);
+      });
+      observador.observe(document.body, { childList: true });
+    };
+    if (document.body) iniciar();
+    else document.addEventListener('DOMContentLoaded', iniciar, { once: true });
   }
 }

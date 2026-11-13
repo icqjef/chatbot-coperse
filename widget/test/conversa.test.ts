@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { criarEnviar, ErroWidget, historicoParaEnvio } from '../src/conversa';
 import type { Mensagem } from '../src/tipos';
 
@@ -57,5 +57,30 @@ describe('historicoParaEnvio', () => {
     expect(h).toHaveLength(8);
     expect(h[0]).toEqual({ papel: 'usuario', texto: '4' });
     expect(h[7]!.papel).toBe('modelo');
+  });
+  it('trunca cada texto a 2000 caracteres (limite do Worker)', () => {
+    const h = historicoParaEnvio([
+      { papel: 'usuario', texto: 'a' },
+      { papel: 'modelo', texto: 'x'.repeat(3000) },
+    ]);
+    expect(h.map((m) => m.texto.length)).toEqual([1, 2000]);
+  });
+});
+
+describe('tempo limite', () => {
+  afterEach(() => vi.useRealTimers());
+  it('fetch que nunca responde lança a mensagem padrão após 30 s', async () => {
+    vi.useFakeTimers();
+    const f = vi.fn(
+      (_u: unknown, init?: RequestInit) =>
+        new Promise<Response>((_r, rej) =>
+          init?.signal?.addEventListener('abort', () => rej(new DOMException('abort', 'AbortError'))),
+        ),
+    );
+    const p = criarEnviar('https://w', f as unknown as typeof fetch)('x', []).catch((x) => x);
+    await vi.advanceTimersByTimeAsync(30_000);
+    const e = await p;
+    expect(e).toBeInstanceOf(ErroWidget);
+    expect(e.mensagem).toContain('Não consegui falar');
   });
 });

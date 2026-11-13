@@ -12,6 +12,7 @@ describe('renderResposta', () => {
   it('marcador vira sup e a fonte vira link seguro', () => {
     const el = renderResposta('Prazo 10/12 [1].', [fonte]);
     expect(el.querySelector('sup')!.textContent).toBe('1');
+    expect(el.querySelector('sup')!.getAttribute('aria-label')).toBe('fonte 1');
     const a = el.querySelector('a')!;
     expect(a.getAttribute('href')).toBe('https://coperse.furg.br/e');
     expect(a.target).toBe('_blank');
