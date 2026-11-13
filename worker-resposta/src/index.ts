@@ -4,7 +4,8 @@ import { cabecalhosCors, origemPermitida } from './cors';
 import { tratarReindexar, tratarSaude } from './operacao';
 import { criarLimites, type CotaDiaria } from './limites';
 import { tratarPerguntar, type RateLimit } from './perguntar';
-import { WIDGET_TESTE } from './widget-teste';
+import { WIDGET } from './widget-gerado';
+import { DEMO_HTML } from './demo';
 
 export interface Env {
   DB: D1Database;
@@ -49,11 +50,17 @@ export default {
       return new Response(null, { status: 405, headers: { Allow: 'POST' } });
     }
     if (req.method === 'GET' && url.pathname === '/widget.js') {
-      return new Response(WIDGET_TESTE, {
+      return new Response(WIDGET, {
         headers: {
           'Content-Type': 'application/javascript; charset=utf-8',
           'Cache-Control': 'public, max-age=300',
+          'X-Content-Type-Options': 'nosniff',
         },
+      });
+    }
+    if (req.method === 'GET' && url.pathname === '/demo') {
+      return new Response(DEMO_HTML, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
       });
     }
     if (url.pathname === '/perguntar') {

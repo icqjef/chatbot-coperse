@@ -1,4 +1,4 @@
 {
   "files": [],
-  "references": [{ "path": "comum" }, { "path": "worker-resposta" }, { "path": "worker-indexacao" }]
+  "references": [{ "path": "comum" }, { "path": "worker-resposta" }, { "path": "worker-indexacao" }, { "path": "widget" }]
 }

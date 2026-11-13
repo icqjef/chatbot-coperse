@@ -39,7 +39,7 @@ describe('carregarSites', () => {
 
 describe('carregarOrigens', () => {
   it('aceita o origens.json real', () => {
-    expect(carregarOrigens(lerJson('origens.json'))).toHaveLength(6);
+    expect(carregarOrigens(lerJson('origens.json'))).toHaveLength(7);
   });
   it('rejeita "*"', () => {
     expect(() => carregarOrigens(['*'])).toThrow(/origem/i);

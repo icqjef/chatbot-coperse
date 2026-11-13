@@ -129,3 +129,11 @@ A primeira carga indexou com nomes de candidatos dois PDFs de locais de prova (`
 - Novo teto diário do bot inteiro (`COTA_DIARIA`, 1.000 perguntas, zera à meia-noite de Brasília): limita o gasto com o Gemini a cerca de US$ 3 por dia mesmo em caso de abuso. A pergunta barrada por visitante não gasta cota. Falha do contador responde 503: o bot não fica sem limite.
 - Contadores por visitante ficam só em memória do objeto. Se a Cloudflare descarregar o objeto, as janelas de 1 minuto recomeçam (efeito pequeno). A cota diária fica gravada numa só chave.
 - Recusas sem fontes: o bot citava trechos sem relação em recusas ("não posso ver sua situação", "não encontrei"). As regras 3 a 5 passaram a mandar não citar trechos, e uma resposta sem citação só é aceita se for curta (até 400 caracteres) e indicar coperse@furg.br. Qualquer outra resposta sem citação continua virando a mensagem padrão de "não encontrei". A linha "Fontes: [1], [2]" que o modelo às vezes escreve é removida.
+
+## 2026-11-13 — Etapa 6: widget
+
+- Nenhum projeto do GitHub serviu. Repositórios conferidos: FlowiseAI/FlowiseChatEmbed (448 estrelas, Solid.js, licença não detectada pelo GitHub), Amrwebdeveloper/dera-chat (0 estrelas), muhammadrauf786/Chatbot-Widget-Vanilla-JS (0 estrelas) e haoyiyin/basjoo (165 estrelas, plataforma completa, não só widget). O widget foi escrito do zero, com o padrão comum de uma tag `<script>` com atributos `data-*` e Shadow DOM (o CSS do Joomla não afeta o widget e vice-versa).
+- Cor por site em `data-cor`, padrão `#1f5fbf` (decisão do Jeferson). Cor inválida ou com contraste abaixo de 4,5:1 com o texto branco cai no padrão.
+- A conversa fica só no `sessionStorage` (últimas 20 mensagens) e some ao fechar a aba. Nada é enviado além de `POST /perguntar`. O widget nunca usa `innerHTML`; um teste confere isso.
+- `/demo` é servida pelo próprio Worker, e a origem `https://chatbot-coperse.coperse-furg.workers.dev` entrou em `config/origens.json` para a página poder perguntar.
+- `/widget.js` é gerado por `widget/build.mjs` (esbuild) em `worker-resposta/src/widget-gerado.ts`; o CI falha se o gerado estiver desatualizado. Tamanho final do bundle: 12.055 bytes (limite 15.360).

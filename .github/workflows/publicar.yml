@@ -20,6 +20,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - run: npm run build -w widget
+      - name: Conferir que o widget gerado está atualizado
+        run: git diff --exit-code worker-resposta/src/widget-gerado.ts
       - run: npm run typecheck
       - run: npm test
 
