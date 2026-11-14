@@ -508,7 +508,7 @@ describe('executar: PDF linkado por página lista', () => {
   });
 
   it('PDF de título neutro cujo texto é lista de nomes vira lista: só resumo, sem os nomes', async () => {
-    const texto = 'Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA';
+    const texto = 'Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA\n87 CINTIA LEVI DE FARIA';
     const m = montar({ paginas: {
       [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/docs/doc.pdf', 'Documento']]) },
       [`${V}/docs/doc.pdf`]: { tipo: 'pdf', bytes: enc(texto) },
