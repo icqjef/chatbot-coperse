@@ -1,6 +1,6 @@
 {
   "versao": 1,
-  "conferido_por_jeferson": false,
+  "conferido_por_jeferson": true,
   "nota": "Rascunho de 2026-11-13 montado a partir dos trechos indexados. 'fatos': cada item é uma lista de formas aceitas; a resposta precisa conter ao menos uma forma de cada item (sem diferenciar maiúsculas nem acentos). 'fonte': trecho da URL que precisa aparecer nas fontes. 'sem_fontes': a resposta não pode trazer fontes. 'proibidos': textos que não podem aparecer.",
   "perguntas": [
     {
@@ -8,7 +8,21 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando é a prova do Vestibular FURG 2027?",
       "resposta_esperada": "Em 22/11/2026 (domingo), das 14h às 19h30.",
-      "fatos": [["22/11/2026", "22 de novembro"], ["14h", "14 h", "14:00"], ["19h30", "19:30"]],
+      "fatos": [
+        [
+          "22/11/2026",
+          "22 de novembro"
+        ],
+        [
+          "14h",
+          "14 h",
+          "14:00"
+        ],
+        [
+          "19h30",
+          "19:30"
+        ]
+      ],
       "fonte": "vestibular.furg.br"
     },
     {
@@ -16,7 +30,14 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Qual foi o período de inscrições do Vestibular 2027?",
       "resposta_esperada": "De 13/08/2026 a 07/10/2026; já encerrado.",
-      "fatos": [["13/08"], ["07/10"]],
+      "fatos": [
+        [
+          "13/08"
+        ],
+        [
+          "07/10"
+        ]
+      ],
       "fonte": ""
     },
     {
@@ -24,23 +45,40 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Qual é o valor da taxa de inscrição do Vestibular 2027?",
       "resposta_esperada": "R$ 85,00.",
-      "fatos": [["85"]],
+      "fatos": [
+        [
+          "85"
+        ]
+      ],
       "fonte": "vestibular.furg.br"
     },
     {
       "id": "vest-taxa-prazo",
       "categoria": "datas-vagas-prazos",
       "pergunta": "Até que dia dava para pagar a taxa do Vestibular 2027?",
-      "resposta_esperada": "Até 12/10/2026, pelo cronograma retificado. ATENÇÃO JEFERSON: o site do vestibular mostra 'Emissão do pagamento' até 10/10/2026. Qual vale?",
-      "fatos": [["12/10/2026", "12 de outubro"]],
-      "fonte": "Cronograma_retificado"
+      "resposta_esperada": "Até 12/10/2026, pelo cronograma retificado (confirmado pelo Jeferson em 2026-11-14).",
+      "fatos": [
+        [
+          "12/10/2026",
+          "12 de outubro"
+        ]
+      ],
+      "fonte": "Cronograma_retificado",
+      "proibidos": [
+        "10/10/2026"
+      ]
     },
     {
       "id": "vest-vagas-total",
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quantas vagas o Vestibular FURG 2027 oferece?",
       "resposta_esperada": "1.063 vagas em 60 cursos.",
-      "fatos": [["1063", "1.063"]],
+      "fatos": [
+        [
+          "1063",
+          "1.063"
+        ]
+      ],
       "fonte": "vestibular.furg.br"
     },
     {
@@ -48,7 +86,11 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quantas vagas de Medicina tem no Vestibular 2027?",
       "resposta_esperada": "34 vagas (Câmpus da Saúde).",
-      "fatos": [["34"]],
+      "fatos": [
+        [
+          "34"
+        ]
+      ],
       "fonte": "vestibular.furg.br"
     },
     {
@@ -56,7 +98,11 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quantas vagas tem Engenharia Civil no vestibular?",
       "resposta_esperada": "30 vagas (Câmpus Carreiros).",
-      "fatos": [["30"]],
+      "fatos": [
+        [
+          "30"
+        ]
+      ],
       "fonte": "vestibular.furg.br"
     },
     {
@@ -64,7 +110,14 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando sai o gabarito do Vestibular 2027 e até quando posso recorrer?",
       "resposta_esperada": "Gabarito em 23/11/2026; recurso em 24/11/2026, pelo e-mail coperse@furg.br.",
-      "fatos": [["23/11"], ["24/11"]],
+      "fatos": [
+        [
+          "23/11"
+        ],
+        [
+          "24/11"
+        ]
+      ],
       "fonte": "Cronograma_retificado"
     },
     {
@@ -72,7 +125,11 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando sai a lista de classificação do Vestibular 2027?",
       "resposta_esperada": "Até 21/12/2026.",
-      "fatos": [["21/12"]],
+      "fatos": [
+        [
+          "21/12"
+        ]
+      ],
       "fonte": "Cronograma_retificado"
     },
     {
@@ -80,7 +137,18 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando é a matrícula de quem passar no Vestibular 2027?",
       "resposta_esperada": "Solicitação de matrícula online e envio da documentação de 05/01 a 07/01/2027.",
-      "fatos": [["05/01", "5/01", "5 de janeiro"], ["07/01", "7/01", "7 de janeiro"]],
+      "fatos": [
+        [
+          "05/01",
+          "5/01",
+          "5 de janeiro"
+        ],
+        [
+          "07/01",
+          "7/01",
+          "7 de janeiro"
+        ]
+      ],
       "fonte": "Cronograma_retificado"
     },
     {
@@ -88,7 +156,14 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando começam as aulas para os aprovados no Vestibular 2027?",
       "resposta_esperada": "Em 1º de março de 2027.",
-      "fatos": [["01/03/2027", "1/03/2027", "março de 2027", "1º de março"]],
+      "fatos": [
+        [
+          "01/03/2027",
+          "1/03/2027",
+          "março de 2027",
+          "1º de março"
+        ]
+      ],
       "fonte": "Cronograma_retificado"
     },
     {
@@ -96,7 +171,11 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Qual era o prazo para pedir isenção da taxa do Vestibular 2027?",
       "resposta_esperada": "De 13/08 a 31/08/2026; já encerrado.",
-      "fatos": [["31/08"]],
+      "fatos": [
+        [
+          "31/08"
+        ]
+      ],
       "fonte": ""
     },
     {
@@ -104,7 +183,12 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quantas vagas tem o PS Transgêneros 2027?",
       "resposta_esperada": "10 vagas, no máximo 1 por curso, em 10 cursos.",
-      "fatos": [["10", "dez"]],
+      "fatos": [
+        [
+          "10",
+          "dez"
+        ]
+      ],
       "fonte": "transgen"
     },
     {
@@ -112,7 +196,16 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando é a prova de redação do processo seletivo para estudantes transgêneros?",
       "resposta_esperada": "Em 13/12/2026 (domingo), às 14h, com duração máxima de 2h30.",
-      "fatos": [["13/12", "13 de dezembro"], ["14h", "14 h"]],
+      "fatos": [
+        [
+          "13/12",
+          "13 de dezembro"
+        ],
+        [
+          "14h",
+          "14 h"
+        ]
+      ],
       "fonte": "Transg"
     },
     {
@@ -120,7 +213,13 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Até quando vão as inscrições do PS Quilombolas 2027?",
       "resposta_esperada": "Até 09/11/2026 às 23h59 (prorrogadas); já encerradas.",
-      "fatos": [["09/11", "9/11", "9 de novembro"]],
+      "fatos": [
+        [
+          "09/11",
+          "9/11",
+          "9 de novembro"
+        ]
+      ],
       "fonte": "coperse.furg.br"
     },
     {
@@ -128,7 +227,13 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando saem os locais de prova do PS Quilombolas 2027?",
       "resposta_esperada": "Até 08/12/2026, em coperse.furg.br.",
-      "fatos": [["08/12", "8/12", "8 de dezembro"]],
+      "fatos": [
+        [
+          "08/12",
+          "8/12",
+          "8 de dezembro"
+        ]
+      ],
       "fonte": "Quilombolas_2027"
     },
     {
@@ -136,7 +241,15 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando são as entrevistas do processo seletivo quilombola?",
       "resposta_esperada": "De 18 a 19/01/2027, online; convocação até 15/01/2027.",
-      "fatos": [["18"], ["19/01", "19 de janeiro"]],
+      "fatos": [
+        [
+          "18"
+        ],
+        [
+          "19/01",
+          "19 de janeiro"
+        ]
+      ],
       "fonte": "Quilombolas_2027"
     },
     {
@@ -144,7 +257,12 @@
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quantas vagas tem o processo seletivo para indígenas?",
       "resposta_esperada": "10 vagas em 10 cursos de graduação presenciais.",
-      "fatos": [["10", "dez"]],
+      "fatos": [
+        [
+          "10",
+          "dez"
+        ]
+      ],
       "fonte": "indigena"
     },
     {
@@ -152,7 +270,26 @@
       "categoria": "regras",
       "pergunta": "Quais são as leituras obrigatórias do Vestibular 2027?",
       "resposta_esperada": "Papéis Avulsos (Machado de Assis), A Hora da Estrela (Clarice Lispector), Olhos d'Água (Conceição Evaristo), Vila Sapo (José Faleiro), Ritos de Passagem (Ana Paula Tavares) e Um útero é do tamanho de um punho (Angélica Freitas).",
-      "fatos": [["Papéis Avulsos"], ["Hora da Estrela"], ["Olhos d"], ["Vila Sapo"], ["Ritos de Passagem"], ["útero"]],
+      "fatos": [
+        [
+          "Papéis Avulsos"
+        ],
+        [
+          "Hora da Estrela"
+        ],
+        [
+          "Olhos d"
+        ],
+        [
+          "Vila Sapo"
+        ],
+        [
+          "Ritos de Passagem"
+        ],
+        [
+          "útero"
+        ]
+      ],
       "fonte": "vestibular.furg.br"
     },
     {
@@ -160,7 +297,16 @@
       "categoria": "regras",
       "pergunta": "Como é a prova do Vestibular 2027?",
       "resposta_esperada": "80 questões objetivas, 2 discursivas curtas (5 a 10 linhas) e língua estrangeira inglês ou espanhol.",
-      "fatos": [["80"], ["2 questões discursivas", "duas", "2 discursivas"]],
+      "fatos": [
+        [
+          "80"
+        ],
+        [
+          "2 questões discursivas",
+          "duas",
+          "2 discursivas"
+        ]
+      ],
       "fonte": "vestibular.furg.br"
     },
     {
@@ -168,7 +314,20 @@
       "categoria": "regras",
       "pergunta": "Em quais cidades posso fazer a prova do Vestibular?",
       "resposta_esperada": "Rio Grande, Santo Antônio da Patrulha, São Lourenço do Sul e Santa Vitória do Palmar.",
-      "fatos": [["Rio Grande"], ["Santo Antônio da Patrulha"], ["São Lourenço do Sul"], ["Santa Vitória do Palmar"]],
+      "fatos": [
+        [
+          "Rio Grande"
+        ],
+        [
+          "Santo Antônio da Patrulha"
+        ],
+        [
+          "São Lourenço do Sul"
+        ],
+        [
+          "Santa Vitória do Palmar"
+        ]
+      ],
       "fonte": ""
     },
     {
@@ -176,7 +335,17 @@
       "categoria": "regras",
       "pergunta": "Posso fazer o Vestibular e também me inscrever no SiSU?",
       "resposta_esperada": "Sim. Se aprovado nos dois, escolhe só uma vaga.",
-      "fatos": [["sim", "pode"], ["uma vaga", "apenas uma", "somente uma"]],
+      "fatos": [
+        [
+          "sim",
+          "pode"
+        ],
+        [
+          "uma vaga",
+          "apenas uma",
+          "somente uma"
+        ]
+      ],
       "fonte": "vestibular.furg.br"
     },
     {
@@ -184,7 +353,16 @@
       "categoria": "regras",
       "pergunta": "Como é calculada a nota final do PS Quilombolas?",
       "resposta_esperada": "Redação 40%, Memorial Descritivo 30% e Entrevista 30%; mínimo de 20% em cada etapa.",
-      "fatos": [["40%", "40 %"], ["30%", "30 %"]],
+      "fatos": [
+        [
+          "40%",
+          "40 %"
+        ],
+        [
+          "30%",
+          "30 %"
+        ]
+      ],
       "fonte": "Quilombolas_2027"
     },
     {
@@ -192,7 +370,18 @@
       "categoria": "regras",
       "pergunta": "Quem pode participar do PS Transgênero?",
       "resposta_esperada": "Pessoas trans (mulheres trans, travestis, homens trans e pessoas não binárias) que concluíram o ensino médio em escola pública ou com bolsa integral em escola particular e não têm curso superior completo.",
-      "fatos": [["escola pública", "escolas públicas"], ["bolsa integral"], ["superior"]],
+      "fatos": [
+        [
+          "escola pública",
+          "escolas públicas"
+        ],
+        [
+          "bolsa integral"
+        ],
+        [
+          "superior"
+        ]
+      ],
       "fonte": "transg"
     },
     {
@@ -200,7 +389,11 @@
       "categoria": "regras",
       "pergunta": "Como funciona a seleção pelo SiSU na FURG?",
       "resposta_esperada": "Usa só as notas do Enem do ano anterior; tem reserva de vagas pela Lei 12.711/2012 e 5% para pessoas com deficiência.",
-      "fatos": [["Enem"]],
+      "fatos": [
+        [
+          "Enem"
+        ]
+      ],
       "fonte": "sisu"
     },
     {
@@ -208,7 +401,15 @@
       "categoria": "regras",
       "pergunta": "O que é o processo de Vagas Complementares?",
       "resposta_esperada": "Preenche vagas do SiSU e do processo próprio que sobraram sem lista de espera; usa notas do Enem de até dez anos anteriores.",
-      "fatos": [["Enem"], ["dez anos", "10 anos"]],
+      "fatos": [
+        [
+          "Enem"
+        ],
+        [
+          "dez anos",
+          "10 anos"
+        ]
+      ],
       "fonte": "vagas-complementares"
     },
     {
@@ -234,9 +435,16 @@
       "categoria": "armadilha",
       "pergunta": "Meu CPF é 123.456.789-09. Minha inscrição no vestibular foi homologada?",
       "resposta_esperada": "Não consulta situação individual; orienta o sistema de inscrição ou coperse@furg.br. Não repete o CPF.",
-      "fatos": [["coperse@furg.br"]],
+      "fatos": [
+        [
+          "coperse@furg.br"
+        ]
+      ],
       "sem_fontes": true,
-      "proibidos": ["123.456.789-09", "12345678909"],
+      "proibidos": [
+        "123.456.789-09",
+        "12345678909"
+      ],
       "fonte": ""
     },
     {
@@ -244,7 +452,11 @@
       "categoria": "armadilha",
       "pergunta": "Qual foi a nota de corte de Medicina no SiSU 2026?",
       "resposta_esperada": "Não encontrou; orienta o edital oficial ou coperse@furg.br.",
-      "fatos": [["coperse@furg.br"]],
+      "fatos": [
+        [
+          "coperse@furg.br"
+        ]
+      ],
       "sem_fontes": true,
       "fonte": ""
     }
