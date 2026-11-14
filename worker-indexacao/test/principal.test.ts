@@ -491,3 +491,30 @@ describe('executar: chave do Gemini recusada', () => {
     expect(m.f.registro.execucoes[0]?.fim).toBeTruthy();
   });
 });
+
+describe('executar: edições antigas excluídas', () => {
+  const ANT = `${V}/anos-anteriores/x`;
+  const comExclusao = () => site({ excluir: ['/anos-anteriores/'] });
+
+  it('link para URL excluída não entra na fila nem é buscado', async () => {
+    const m = montar({ paginas: { [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/anos-anteriores/x', 'Antigo']]) }, [ANT]: { tipo: 'html', texto: pagina('Antigo') } } });
+    await executar(m.opcoes({ sites: [comExclusao()] }), m.deps);
+    expect(m.buscados).toEqual([`${V}/`]);
+    expect(m.f.paginas.has(ANT)).toBe(false);
+  });
+
+  it('item já na fila sai sem ser buscado; página ok já indexada é removida', async () => {
+    const m = montar({ paginas: { [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/anos-anteriores/x', 'Antigo']]) }, [ANT]: { tipo: 'html', texto: pagina('Antigo') } } });
+    await executar(m.opcoes({ sites: [site()] }), m.deps);
+    expect(m.f.paginas.get(ANT)?.status).toBe('ok');
+    expect(m.f.trechos().some((t) => t.url === ANT)).toBe(true);
+    m.f.fila.set(`${V}/anos-anteriores/y`, { url: `${V}/anos-anteriores/y`, site: 'vestibular', profundidade: 1, prioridade: 1, tentativas: 0, lista: 0, proxima_tentativa: null });
+    m.buscados.length = 0;
+    const r = await executar(m.opcoes({ sites: [comExclusao()] }), m.deps);
+    expect(m.f.paginas.get(ANT)?.status).toBe('removida');
+    expect(m.f.trechos().some((t) => t.url === ANT)).toBe(false);
+    expect(m.buscados).not.toContain(`${V}/anos-anteriores/y`);
+    expect(m.f.fila.size).toBe(0);
+    expect(r.removida).toBeGreaterThanOrEqual(1);
+  });
+});

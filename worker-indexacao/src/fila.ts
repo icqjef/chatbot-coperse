@@ -1,3 +1,4 @@
+import type { Site } from '@chatbot/comum/tipos';
 import type { ClienteCloudflare } from './cloudflare.js';
 
 const IGNORAR = /\.(css|js|png|jpe?g|gif|svg|ico|webp|zip|docx?|xlsx?|mp4)(\?|$)|\/_next\/|format=feed|\/login|\/area|[?&](start|limitstart|print|tmpl)=/i;
@@ -56,6 +57,11 @@ export function normalizarUrl(url: string): string | null {
 
 export function deveIgnorar(url: string): boolean {
   return IGNORAR.test(url);
+}
+
+/** URL de edição antiga (casa com alguma expressão de `site.excluir`): não é indexada nem seguida. */
+export function urlExcluida(url: string, site: Site): boolean {
+  return (site.excluir ?? []).some((e) => new RegExp(e).test(url));
 }
 
 export function ehPdf(url: string): boolean {

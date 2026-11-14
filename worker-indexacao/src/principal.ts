@@ -15,7 +15,7 @@ import {
   indexarDocumento, registrarErro, removerPagina, type DepsIndexacao, type ResultadoIndexacao,
 } from './indexar.js';
 import {
-  adiar, carregarEstado, concluir, deveIgnorar, ehPdf, enfileirar, normalizarUrl, proximos,
+  adiar, carregarEstado, concluir, deveIgnorar, ehPdf, enfileirar, normalizarUrl, proximos, urlExcluida,
   type EstadoRastreio, type ItemFila, type NovoItem,
 } from './fila.js';
 
@@ -167,7 +167,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       const novos: NovoItem[] = [];
       for (const l of pagina.links) {
         const url = normalizarUrl(l.url);
-        if (!url || deveIgnorar(url) || !hostPermitido(url, site) || url === item.url) continue;
+        if (!url || deveIgnorar(url) || urlExcluida(url, site) || !hostPermitido(url, site) || url === item.url) continue;
         novos.push({
           url, site: site.id, profundidade: item.profundidade + 1, origem: item.url, prioridade: ehPdf(url) ? 2 : 1,
           // Privacidade: o texto de um link numa lista costuma ser o nome de uma pessoa; o filho usa o próprio título.
@@ -208,6 +208,26 @@ async function ultimaModificacao(url: string, ctx: Contexto): Promise<string | u
   }
 }
 
+/** Tira do índice e da fila o que as regras `excluir` hoje barram (edições antigas já indexadas ou enfileiradas). */
+async function limparExcluidas(sites: Site[], ctx: Contexto, total: Contagem): Promise<void> {
+  const { deps, estado } = ctx;
+  const barrada = (url: string) => sites.some((s) => hostPermitido(url, s) && urlExcluida(url, s));
+  let n = 0;
+  for (const [url, vista] of estado.paginas) {
+    if (vista.status === 'removida' || !barrada(url)) continue;
+    await removerPagina(url, deps);
+    estado.paginas.set(url, { ...vista, status: 'removida' });
+    n++;
+  }
+  for (const url of [...estado.naFila]) {
+    if (!barrada(url)) continue;
+    await concluir(deps.cf, estado, url);
+    n++;
+  }
+  total.removida += n;
+  if (n > 0) console.error(`Edições antigas excluídas do índice e da fila: ${n}`);
+}
+
 async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void> {
   const { deps, estado } = ctx;
   const agora = deps.agora();
@@ -224,7 +244,7 @@ async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void>
           total.erro++;
           continue;
         }
-        if (deveIgnorar(url)) continue;
+        if (deveIgnorar(url) || urlExcluida(url, site)) continue;
         itens.push({
           url, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_FEED,
           titulo: it.titulo || null, processo: null, ano: null, data: it.data || null,
@@ -237,7 +257,7 @@ async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void>
   }
   for (const bruto of site.paginas_chave) {
     const url = normalizarUrl(bruto);
-    if (!url || deveIgnorar(url) || !hostPermitido(url, site)) continue;
+    if (!url || deveIgnorar(url) || urlExcluida(url, site) || !hostPermitido(url, site)) continue;
     itens.push({ url, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_CHAVE, titulo: null, processo: null, ano: null, data: null });
   }
   // Já na fila (achado por link): o feed passa a valer para título e data.
@@ -278,6 +298,7 @@ export async function executar(
   let processados = 0;
   let tetoAtingido = false;
   try {
+    await limparExcluidas(opcoes.sites, ctx, total);
     for (const site of opcoes.sites) await semear(site, ctx, total);
 
     laco: for (;;) {
