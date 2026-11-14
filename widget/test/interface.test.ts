@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ESTILOS } from '../src/estilos';
 import { montar, type Widget } from '../src/interface';
+import type { Enviar } from '../src/tipos';
 
 const config = { api: 'https://w.example', cor: '#8b0000' };
 let w: Widget;
@@ -110,7 +111,7 @@ describe('conversa', () => {
   const pronto = () => new Promise((r) => setTimeout(r, 0));
   const montarCom = (enviar: ReturnType<typeof vi.fn>) => {
     document.body.replaceChildren();
-    w = montar(config, { enviar });
+    w = montar(config, { enviar: enviar as unknown as Enviar });
     w.abrir();
     return enviar;
   };
