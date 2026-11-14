@@ -23,6 +23,7 @@ A COPERSE vai colar, em módulo HTML personalizado do Joomla (autorizado pelo CG
 **O que o script faz.**
 - Mostra um botão que abre um painel de conversa.
 - Quando o candidato digita uma pergunta e envia, manda só esse texto (e as mensagens anteriores da mesma conversa) para o Worker acima.
+- O Worker busca os trechos relevantes no índice e envia a pergunta, com esses trechos, ao modelo Gemini (API do Google) para redigir a resposta. Nada é gravado com identificação.
 - Guarda a conversa apenas na aba do navegador (sessionStorage); ela some ao fechar a aba.
 
 **O que o script não faz.**
@@ -30,7 +31,7 @@ A COPERSE vai colar, em módulo HTML personalizado do Joomla (autorizado pelo CG
 - Não usa cookies.
 - Não coleta dados pessoais; o painel avisa o candidato para não digitar CPF, nome ou outros dados pessoais.
 
-**Onde roda e quem mantém.** O Worker roda na Cloudflare e o código fica em repositório privado no GitHub. A manutenção é da COPERSE (responsável: Jeferson). Contato: coperse@furg.br.
+**Onde roda e quem mantém.** O Worker roda na Cloudflare e o código fica em repositório público no GitHub (github.com/icqjef/chatbot-coperse), sem nenhuma chave ou senha. A manutenção é da COPERSE (responsável: Jeferson). Contato: coperse@furg.br.
 
 **Medidas de segurança.**
 - O Worker só aceita pedidos dos endereços listados em `config/origens.json` (sites da FURG e o próprio endereço do Worker, usado numa página de teste). A origem não é autenticação: um programa fora do navegador pode enviar esse cabeçalho. Por isso existem os limites a seguir.
