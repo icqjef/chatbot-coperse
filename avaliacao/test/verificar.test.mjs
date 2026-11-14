@@ -75,3 +75,13 @@ describe("datas por extenso", () => {
     expect(verificar(p, { resposta: "Foi de 13 a 31 de agosto de 2026.", fontes: [] }).ok).toBe(true);
   });
 });
+
+describe("armadilha de edição passada", () => {
+  const p = { categoria: "armadilha", fatos: [], fonte: "", deve_dizer_edicao_passada: "2022", datas_antigas: ["10/03", "20/03"] };
+  it("falha se repete as datas antigas sem o ano", () => {
+    expect(verificar(p, { resposta: "A habilitação vai de 10/03 a 20/03 [1].", fontes: [{ url: "x" }] }).ok).toBe(false);
+  });
+  it("passa se não repete as datas antigas", () => {
+    expect(verificar(p, { resposta: "No SiSU 2026, a habilitação segue a lista de espera [1].", fontes: [{ url: "x" }] }).ok).toBe(true);
+  });
+});
