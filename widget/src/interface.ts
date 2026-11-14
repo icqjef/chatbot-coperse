@@ -23,6 +23,7 @@ function lerEstado(): Estado {
         }
         const item: Item = { papel: i.papel, texto: i.texto };
         if (i.papel === 'modelo' && Array.isArray(i.fontes)) item.fontes = filtrarFontes(i.fontes);
+        if (i.papel === 'modelo' && typeof i.assinatura === 'string') item.assinatura = i.assinatura;
         itens.push(item);
       }
       return { aberto: bruto.aberto === true, itens: itens.slice(-MAX_ITENS) };
@@ -172,6 +173,7 @@ export function montar(config: Config, deps: { enviar?: Enviar } = {}): Widget {
       const r = await deps.enviar(pergunta, historicoParaEnvio(estado.itens));
       pensando.remove();
       const modelo: Item = { papel: 'modelo', texto: r.resposta, fontes: r.fontes };
+      if (r.assinatura) modelo.assinatura = r.assinatura;
       mostrar(modelo);
       estado.itens.push({ papel: 'usuario', texto: pergunta }, modelo);
       salvar();

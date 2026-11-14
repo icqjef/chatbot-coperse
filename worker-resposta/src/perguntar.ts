@@ -5,6 +5,7 @@ import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type Trecho } from './busca';
 import { diaSaoPaulo } from './limites';
+import { assinar, paresAutenticos, type MensagemRecebida } from './historico';
 import { limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, type Fonte } from './regras';
@@ -156,7 +157,8 @@ export async function aplicarLimite(
   }
 }
 
-function validar(corpo: unknown): EntradaPergunta | null {
+/** Formato e tamanhos; a assinatura das falas do modelo é conferida depois (`paresAutenticos`). */
+function validar(corpo: unknown): { pergunta: string; historico: MensagemRecebida[] } | null {
   if (typeof corpo !== 'object' || corpo === null) return null;
   const { pergunta, historico = [] } = corpo as Record<string, unknown>;
   if (typeof pergunta !== 'string') return null;
@@ -165,16 +167,25 @@ function validar(corpo: unknown): EntradaPergunta | null {
   if (!Array.isArray(historico) || historico.length > MAX_HISTORICO) return null;
   // Alternância estrita: começa em "usuario" e termina em "modelo" (a pergunta nova fecha como "usuario").
   if (historico.length % 2 !== 0) return null;
-  const msgs: Mensagem[] = [];
+  const msgs: MensagemRecebida[] = [];
   for (const [i, m] of historico.entries()) {
     if (typeof m !== 'object' || m === null) return null;
-    const { papel, texto } = m as Record<string, unknown>;
+    const { papel, texto, assinatura } = m as Record<string, unknown>;
     const esperado = i % 2 === 0 ? 'usuario' : 'modelo';
     if (papel !== esperado || typeof texto !== 'string') return null;
     if (texto.length > MAX_MENSAGEM) return null;
-    msgs.push({ papel: esperado, texto: mascararDadosPessoais(texto) });
+    msgs.push(esperado === 'modelo' ? { papel: esperado, texto, assinatura } : { papel: esperado, texto });
   }
-  return { pergunta: mascararDadosPessoais(p), historico: msgs };
+  return { pergunta: p, historico: msgs };
+}
+
+/** Descarta pares com resposta sem assinatura válida e mascara dados pessoais. */
+async function prepararEntrada(e: { pergunta: string; historico: MensagemRecebida[] }, segredo: string): Promise<EntradaPergunta> {
+  const autenticos = await paresAutenticos(e.historico, segredo);
+  return {
+    pergunta: mascararDadosPessoais(e.pergunta),
+    historico: autenticos.map(({ papel, texto }): Mensagem => ({ papel, texto: mascararDadosPessoais(texto) })),
+  };
 }
 
 export function json(corpo: unknown, status: number, cors: Record<string, string>): Response {
@@ -215,13 +226,13 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
 
   const texto = await lerCorpoLimitado(req);
   if (texto === null) return json({ erro: MSG_GRANDE }, 413, cors);
-  let entrada: EntradaPergunta | null = null;
+  let recebida: ReturnType<typeof validar> = null;
   try {
-    entrada = validar(JSON.parse(texto));
+    recebida = validar(JSON.parse(texto));
   } catch {
-    entrada = null;
+    recebida = null;
   }
-  if (!entrada) return json({ erro: 'Pergunta inválida.' }, 400, cors);
+  if (!recebida) return json({ erro: 'Pergunta inválida.' }, 400, cors);
 
   if (!env.GEMINI_API_KEY) {
     if (!avisouSemChave) {
@@ -231,12 +242,16 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
     return json({ erro: MSG_INDISPONIVEL }, 503, cors);
   }
 
+  const segredo = env.GEMINI_API_KEY;
+  const entrada = await prepararEntrada(recebida, segredo);
+  const responder = async (r: { resposta: string; fontes: Fonte[] }) =>
+    json({ ...r, assinatura: await assinar(r.resposta, segredo) }, 200, cors);
   const agora = () => new Date();
   const negado = await aplicarLimite(req, env.LIMITADOR, cors, true);
   if (negado) return negado;
   // Saudação, agradecimento, "quem é você", data e hora: resposta pronta, sem gastar a cota do Gemini.
   const social = respostaSocial(entrada.pergunta, agora());
-  if (social) return json({ resposta: social, fontes: [] }, 200, cors);
+  if (social) return responder({ resposta: social, fontes: [] });
   if (env.COTA) {
     let liberada = false;
     try {
@@ -261,7 +276,7 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
       gerador,
       agora,
     });
-    return json(resultado, 200, cors);
+    return await responder(resultado);
   } catch (e) {
     // Só a parte inicial ("... HTTP 429"); o texto do provedor (depois do travessão) não vai ao log.
     const msg = String(e instanceof Error ? e.message : e).split(env.GEMINI_API_KEY).join('[chave]');
