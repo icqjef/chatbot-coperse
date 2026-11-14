@@ -17,6 +17,10 @@ describe('pareceListaDeNomes', () => {
     expect(pareceListaDeNomes(`Resultado\nINSCRIÇÃO | NOME | NOTA\n${linhas}`)).toBe(true);
     expect(pareceListaDeNomes(`Nome do candidato ........ Inscricao\n${linhas}`)).toBe(true);
   });
+  it('cabeçalho seguido de só 2 nomes (trecho real do PS EaD)', () => {
+    expect(pareceListaDeNomes('Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA')).toBe(true);
+    expect(pareceListaDeNomes('Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\nRio Grande')).toBe(false);
+  });
   it('cabeçalho largo com colunas à direita e nomes em caixa mista', () => {
     const cab = 'Nº Inscrição Nome do Candidato Curso Modalidade de Ingresso Nota Final Classificação';
     expect(cab.length).toBeGreaterThan(80);
