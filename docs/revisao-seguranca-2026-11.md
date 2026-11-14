@@ -50,7 +50,10 @@ Contagem: Crítica 0 · Importante 3 · Menor 6 · Informativa 9.
 | I3 | Corrigido: o token só aparece nos passos que usam o `wrangler` (commit `7194854`). |
 | M1 | Corrigido: ações fixadas por SHA (commit `7194854`). |
 | M2 | Corrigido: indexador sobe `http` para `https` e barra redirecionamento para fora do domínio (commit `06de3d8`). |
-| M3, M4, M5, M6 | Adiados, como propostos. |
+| M3 | Corrigido em 14/11/2026: PDF com no máximo 300 páginas, 2 milhões de caracteres e 60 s de leitura. |
+| M4 | Corrigido em 14/11/2026: as respostas saem com assinatura HMAC e o Worker descarta do histórico os pares sem assinatura válida. |
+| M5 | Corrigido em 14/11/2026: vitest 5.1, esbuild 0.28 e fast-xml-parser 5.12 (também N6), `npm audit` com 0 vulnerabilidades, Dependabot ligado. |
+| M6 | Mitigado em 14/11/2026: filtro nativo da Cloudflare (20 por minuto por visitante) antes do Durable Object. As 100 mil requisições diárias do plano gratuito continuam podendo ser gastas por volume; acompanhamento descrito no guia de operação, seção 8. `/saude` continua sem exigir `Origin`, porque é aberta direto no navegador, onde não há `Origin`. |
 | N1 a N9 | Informativos, sem mudança de código. N8 foi registrado no aviso ao CGTI. |
 
 ## O que está bem

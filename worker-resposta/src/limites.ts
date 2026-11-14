@@ -109,6 +109,30 @@ function inteiro(valor: string | undefined, padrao: number): number {
   return Number.isInteger(n) && n > 0 ? n : padrao;
 }
 
+/** Limitador nativo da Cloudflare (binding `ratelimits`): aproximado, por local, sem custo de Durable Object. */
+export interface FiltroNativo {
+  limit(opcoes: { key: string }): Promise<{ success: boolean }>;
+}
+
+/**
+ * M6: filtro barato antes do Durable Object. Uma enxurrada de pedidos do mesmo visitante para no
+ * limitador nativo e não chega ao DO único, que segue atendendo os demais. O limite exato continua
+ * no DO. Se o filtro falhar, segue para o DO (que decide sozinho).
+ */
+export function comFiltro(filtro: FiltroNativo | undefined, limitador: RateLimit): RateLimit {
+  if (!filtro) return limitador;
+  return {
+    limit: async (opcoes) => {
+      try {
+        if (!(await filtro.limit({ key: opcoes.key })).success) return { success: false, motivo: 'minuto' };
+      } catch {
+        console.error('Falha no filtro nativo; seguindo para o Durable Object');
+      }
+      return limitador.limit(opcoes);
+    },
+  };
+}
+
 /** Adaptadores com a mesma interface que os tratadores já usam. */
 export function criarLimites(
   ns: DurableObjectNamespace,

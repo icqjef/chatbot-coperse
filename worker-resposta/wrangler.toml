@@ -40,3 +40,10 @@ class_name = "Limites"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Limites"]
+
+# Filtro barato antes do Durable Object (M6): 20 chamadas por minuto por visitante, contado em cada
+# local da Cloudflare. O limite exato (6 por minuto, 150 por dia) continua no Durable Object.
+[[ratelimits]]
+name = "FILTRO"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }

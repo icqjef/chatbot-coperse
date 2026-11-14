@@ -204,3 +204,9 @@ Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo:
 - vitest 2.1 → 5.1 em todos os pacotes (corrige tinypool, vite e esbuild apontados pelo `npm audit`), esbuild do widget 0.21 → 0.28 (exigência do vite 8) e fast-xml-parser 4.5 → 5.12 (N6). `npm audit` agora: 0 vulnerabilidades.
 - O vitest 5 deixou de ignorar a pasta `dist` por padrão; os scripts de teste passaram a `vitest run --dir test`. Mesma contagem de testes antes e depois.
 - Dependabot ligado (`.github/dependabot.yml`): npm toda segunda, agrupado em desenvolvimento e produção, e GitHub Actions uma vez por mês. As PRs dele passam pelos mesmos testes e pelo ramo protegido.
+
+## 2026-11-14 — Segurança M6: filtro nativo antes do Durable Object
+
+- Novo binding `FILTRO` (`[[ratelimits]]` no `wrangler.toml`): limitador nativo da Cloudflare, 20 chamadas por minuto por visitante, com a mesma chave anônima do limite (hash do IP com a data). Ele roda antes do Durable Object em `/perguntar`, `/saude` e `/reindexar`. Uma enxurrada de um mesmo endereço recebe 429 sem chegar ao DO único, que segue atendendo os outros visitantes. O limite exato (6 por minuto e 150 por dia) continua no DO; se o filtro falhar, decide o DO.
+- O que não muda: cada pedido, mesmo barrado, conta nas 100 mil requisições diárias do plano gratuito. Isso não é evitável no código em `workers.dev` (regras de WAF exigem domínio próprio na Cloudflare). O guia de operação diz onde acompanhar o uso.
+- `/saude` continua aceitando chamadas sem `Origin`: é aberta direto no navegador pelo Jeferson, e o navegador não manda `Origin` nesse caso.
