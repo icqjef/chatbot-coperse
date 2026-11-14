@@ -122,13 +122,13 @@ function ehCabecalhoDeNomes(linha: string): boolean {
 
 /**
  * Lista nominal detectada pelo conteúdo do PDF (primeiros 4000 caracteres): 8+ linhas "número Nome Sobrenome", ou
- * cabeçalho "inscrição ... nome" seguido de 3+ dessas linhas nas 10 linhas seguintes.
+ * cabeçalho "inscrição ... nome" seguido de 2+ dessas linhas nas 10 linhas seguintes.
  */
 export function pareceListaDeNomes(texto: string): boolean {
   const linhas = texto.slice(0, 4000).split(/\r?\n/).map((l) => l.trim());
   const ehNome = linhas.map((l) => LINHA_DE_NOME.test(l));
   if (ehNome.filter(Boolean).length >= 8) return true;
-  return linhas.some((l, i) => ehCabecalhoDeNomes(l) && ehNome.slice(i + 1, i + 11).filter(Boolean).length >= 3);
+  return linhas.some((l, i) => ehCabecalhoDeNomes(l) && ehNome.slice(i + 1, i + 11).filter(Boolean).length >= 2);
 }
 
 export function ehListaDeCandidatos(titulo: string, url: string, regras: RegrasClassificacao): boolean {
