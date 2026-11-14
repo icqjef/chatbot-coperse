@@ -99,6 +99,16 @@ describe('fundir', () => {
     );
     expect(r[0]!.id).toBe('y27');
   });
+  it('processo citado dá +0.02 e desempata a favor do processo', () => {
+    const m = new Map([
+      ['q', { data: '2026-01-01T00:00:00Z', ano: 2026, processo: 'quilombolas' }],
+      ['t', { data: '2026-01-01T00:00:00Z', ano: 2026, processo: 'transgeneros' }],
+    ]);
+    const vet = [{ id: 'q', similaridade: 0.9 }, { id: 't', similaridade: 0.9 }];
+    expect(fundir(vet, [], m, agora)[0]!.id).toBe('q');
+    expect(fundir(vet, [], m, agora, 'transgeneros')[0]!.id).toBe('t');
+    expect(fundir(vet, [], m, agora, null)[0]!.id).toBe('q');
+  });
   it('data futura não passa do bônus máximo', () => {
     const m = new Map([['f', meta(2020, '2030-01-01T00:00:00Z')]]);
     const m2 = new Map([['f', meta(2020, '2026-11-12T12:00:00Z')]]);
@@ -109,15 +119,15 @@ describe('fundir', () => {
 });
 
 describe('buscarTrechos', () => {
-  it('consulta vetorial, lê D1 e limita a 6', async () => {
-    const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  it('consulta vetorial, lê D1 e limita a 8', async () => {
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
     const v = vectorizeFalso(ids.map((id, i) => match(id, 0.9 - i * 0.01)));
     const d = d1Falso({ fts: ['h'], linhas: ids.map((id) => linha(id)) });
     const e = embedderFalso();
     const r = await buscarTrechos('prazo de inscrição', { embedder: e.embedder, vectorize: v.indice, db: d.db, agora: () => agora }, { limiar: 0.5 });
     expect(e.chamadas[0]!.tipo).toBe('RETRIEVAL_QUERY');
     expect(v.chamadas[0]!.opcoes).toMatchObject({ topK: 20, returnMetadata: 'all' });
-    expect(r.trechos).toHaveLength(6);
+    expect(r.trechos).toHaveLength(8);
     expect(r.melhorSimilaridade).toBeCloseTo(0.9);
     expect(r.trechos[0]!.texto).toBe('texto h');
     expect(d.consultas.every((c) => c.params.length < 100)).toBe(true);

@@ -63,7 +63,7 @@
           "12 de outubro"
         ]
       ],
-      "fonte": "Cronograma_retificado",
+      "fonte": "vestibular",
       "proibidos": [
         "10/10/2026"
       ]
@@ -118,7 +118,7 @@
           "24/11"
         ]
       ],
-      "fonte": "Cronograma_retificado"
+      "fonte": "vestibular"
     },
     {
       "id": "vest-classificacao",
@@ -130,7 +130,7 @@
           "21/12"
         ]
       ],
-      "fonte": "Cronograma_retificado"
+      "fonte": "vestibular"
     },
     {
       "id": "vest-matricula",
@@ -149,7 +149,7 @@
           "7 de janeiro"
         ]
       ],
-      "fonte": "Cronograma_retificado"
+      "fonte": "vestibular"
     },
     {
       "id": "vest-aulas",
@@ -164,7 +164,7 @@
           "1º de março"
         ]
       ],
-      "fonte": "Cronograma_retificado"
+      "fonte": "vestibular"
     },
     {
       "id": "vest-isencao",
@@ -226,12 +226,13 @@
       "id": "quil-locais",
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando saem os locais de prova do PS Quilombolas 2027?",
-      "resposta_esperada": "Até 08/12/2026, em coperse.furg.br.",
+      "resposta_esperada": "Lista final das inscrições homologadas com o local de prova até 02/12/2026; lista definitiva dos locais (com sala) até 08/12/2026. As duas datas estão no edital.",
       "fatos": [
         [
           "08/12",
           "8/12",
-          "8 de dezembro"
+          "02/12",
+          "2/12"
         ]
       ],
       "fonte": "Quilombolas_2027"

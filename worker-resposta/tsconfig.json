@@ -6,6 +6,6 @@
     "rootDir": "..",
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["src", "test", "../config/origens.json"],
+  "include": ["src", "test", "../config/origens.json", "../config/processos.json", "../config/listas.json"],
   "references": [{ "path": "../comum" }]
 }

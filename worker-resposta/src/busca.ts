@@ -25,6 +25,7 @@ const MAX_TERMOS = 12;
 const OPERADORES_FTS = new Set(['or', 'and', 'not', 'near']);
 const PESO_VETORIAL = 1;
 const PESO_TEXTUAL = 0.5;
+const BONUS_PROCESSO = 0.02;
 const MS_DIA = 86_400_000;
 
 /** Monta uma consulta FTS5 segura: termos entre aspas unidos por OR. */
@@ -51,6 +52,7 @@ export function fundir(
   textuais: { id: string }[],
   meta: Map<string, MetaFusao>,
   agora: Date,
+  processo?: string | null,
 ): { id: string; pontuacao: number }[] {
   const pont = new Map<string, number>();
   const somar = (lista: { id: string }[], peso: number) =>
@@ -68,6 +70,7 @@ export function fundir(
         bonus += 0.01 * Math.min(1, Math.max(0, 1 - dias / 365));
       }
       if (m.ano !== null && m.ano >= anoAtual) bonus += 0.01;
+      if (processo && m.processo === processo) bonus += BONUS_PROCESSO;
     }
     pont.set(id, p + bonus);
   }
@@ -102,9 +105,9 @@ async function buscarFts(db: D1Database, pergunta: string): Promise<{ id: string
 export async function buscarTrechos(
   pergunta: string,
   deps: DepsBusca,
-  opcoes: { limiar: number; maximo?: number },
+  opcoes: { limiar: number; maximo?: number; processo?: string | null },
 ): Promise<{ trechos: Trecho[]; melhorSimilaridade: number }> {
-  const maximo = opcoes.maximo ?? 6;
+  const maximo = opcoes.maximo ?? 8;
   const [vetor] = await deps.embedder.embed([pergunta], 'RETRIEVAL_QUERY');
   if (!vetor) throw new Error('embedding vazio');
   const [resp, textuais] = await Promise.all([
@@ -136,6 +139,7 @@ export async function buscarTrechos(
     textuais.filter((t) => linhas.has(t.id)),
     meta,
     deps.agora(),
+    opcoes.processo,
   );
   const trechos: Trecho[] = fundidos.slice(0, maximo).map(({ id }) => {
     const l = linhas.get(id)!;
