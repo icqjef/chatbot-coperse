@@ -12,9 +12,25 @@ const VEST_RESULTADO = 'https://vestibular.furg.br/api/documentos/publico?arquiv
 
 describe('pareceListaDeNomes', () => {
   it('cabeçalho de tabela com inscrição e nome', () => {
-    expect(pareceListaDeNomes('Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA')).toBe(true);
-    expect(pareceListaDeNomes('Resultado\nINSCRIÇÃO | NOME | NOTA')).toBe(true);
-    expect(pareceListaDeNomes('Nome do candidato ........ Inscricao')).toBe(true);
+    const linhas = '329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA\n87 CINTIA LEVI DE FARIA';
+    expect(pareceListaDeNomes(`Nº INSCRIÇÃO NOME\n${linhas}`)).toBe(true);
+    expect(pareceListaDeNomes(`Resultado\nINSCRIÇÃO | NOME | NOTA\n${linhas}`)).toBe(true);
+    expect(pareceListaDeNomes(`Nome do candidato ........ Inscricao\n${linhas}`)).toBe(true);
+  });
+  it('cabeçalho largo com colunas à direita e nomes em caixa mista', () => {
+    const cab = 'Nº Inscrição Nome do Candidato Curso Modalidade de Ingresso Nota Final Classificação';
+    expect(cab.length).toBeGreaterThan(80);
+    expect(pareceListaDeNomes(`${cab}\n329 ALINE DAIANE SCHEIBLER MEDICINA AC 750,3\n300 ANA CARLA PEREIRA DIREITO L1 700,1\n87 CINTIA LEVI DE FARIA HISTORIA AC 650,0`)).toBe(true);
+    expect(pareceListaDeNomes(`${cab}\n329 Aline Daiane Scheibler\n300 Ana Carla Pereira\n87 Cintia Levi de Faria`)).toBe(true);
+  });
+  it('cabeçalho sem linhas de nome depois não basta (cronograma)', () => {
+    const t = 'Lista final das inscrições homologadas, contendo nome, número de inscrição, curso e município de realização da prova\n22/10/2026 www.coperse.furg.br/vestibular\nResultado da solicitação de atendimento';
+    expect(pareceListaDeNomes(t)).toBe(false);
+  });
+  it('títulos de seção "1 – ABERTURA" não são linhas de nome', () => {
+    const t = ['ABERTURA', 'VAGAS', 'INSCRIÇÃO', 'PROVAS', 'RESULTADO', 'MATRÍCULA', 'DISPOSIÇÕES FINAIS', 'RECURSOS', 'CRONOGRAMA']
+      .map((x, i) => `${i + 1} – ${x}`).join('\n');
+    expect(pareceListaDeNomes(t)).toBe(false);
   });
   it('8 linhas número + nome em maiúsculas, sem cabeçalho', () => {
     const l = Array.from({ length: 8 }, (_, i) => `${100 + i} NOME SOBRENOME`);

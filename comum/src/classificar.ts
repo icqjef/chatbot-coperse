@@ -110,21 +110,25 @@ export function nomeDoArquivo(url: string): string {
   }
 }
 
-const LINHA_DE_NOME = /^\d{1,7}\s+\p{Lu}[\p{Lu}'’.-]*(?:\s+\p{Lu}[\p{Lu}'’.-]*)+$/u;
+/** número + 2 ou mais palavras de nome (inicial maiúscula, só letras); colunas à direita são ignoradas */
+const LINHA_DE_NOME = /^\d{1,6}\s+(?![–\-.):])\p{Lu}\p{L}+\s+\p{Lu}\p{L}+(?:\s|$)/u;
 
-/** Lista nominal detectada pelo conteúdo do PDF (primeiros 4000 caracteres): cabeçalho "inscrição + nome" ou 8+ linhas "número NOME EM MAIÚSCULAS". */
+function ehCabecalhoDeNomes(linha: string): boolean {
+  const n = normalizar(linha);
+  const i = n.indexOf('inscricao');
+  const m = /\bnome\b/.exec(n);
+  return i >= 0 && !!m && Math.abs(m.index - i) <= 40;
+}
+
+/**
+ * Lista nominal detectada pelo conteúdo do PDF (primeiros 4000 caracteres): 8+ linhas "número Nome Sobrenome", ou
+ * cabeçalho "inscrição ... nome" seguido de 3+ dessas linhas nas 10 linhas seguintes.
+ */
 export function pareceListaDeNomes(texto: string): boolean {
-  let linhasDeNome = 0;
-  for (const linha of texto.slice(0, 4000).split(/\r?\n/)) {
-    const t = linha.trim();
-    // cabeçalho é curto; parágrafo de edital ("nome social ... inscrição") não conta
-    if (t.length <= 80) {
-      const n = normalizar(t);
-      if (/inscricao/.test(n) && /\bnome\b/.test(n)) return true;
-    }
-    if (LINHA_DE_NOME.test(t) && ++linhasDeNome >= 8) return true;
-  }
-  return false;
+  const linhas = texto.slice(0, 4000).split(/\r?\n/).map((l) => l.trim());
+  const ehNome = linhas.map((l) => LINHA_DE_NOME.test(l));
+  if (ehNome.filter(Boolean).length >= 8) return true;
+  return linhas.some((l, i) => ehCabecalhoDeNomes(l) && ehNome.slice(i + 1, i + 11).filter(Boolean).length >= 3);
 }
 
 export function ehListaDeCandidatos(titulo: string, url: string, regras: RegrasClassificacao): boolean {
