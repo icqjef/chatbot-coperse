@@ -4,6 +4,7 @@ import processosJson from '../../config/processos.json';
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type Trecho } from './busca';
+import { diaSaoPaulo } from './limites';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, type Fonte } from './regras';
 
@@ -117,9 +118,9 @@ export function prefixoIp(ip: string): string {
   return grupos.slice(0, 4).map((g) => (parseInt(g, 16) || 0).toString(16)).join(':');
 }
 
-/** sha256(ip (IPv6: /64) + data UTC) em hex: não guarda o IP e renova a cada dia. */
+/** sha256(ip (IPv6: /64) + data de Brasília) em hex: não guarda o IP e renova à meia-noite de Brasília. */
 export async function chaveLimite(ip: string, agora: Date): Promise<string> {
-  const dia = agora.toISOString().slice(0, 10);
+  const dia = diaSaoPaulo(agora);
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(prefixoIp(ip) + dia));
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
