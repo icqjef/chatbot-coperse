@@ -21,7 +21,7 @@ Abra `https://chatbot-coperse.coperse-furg.workers.dev/demo`. É uma página só
 ## Colar no coperse.furg.br e no sisu3.furg.br
 
 1. Entre no painel do Joomla como Administrator.
-2. Abra a lista de módulos: no menu de Módulos (Conteúdo → Módulos do Site, ou Extensões → Módulos, conforme a versão). No sisu3 (Joomla 3) o caminho é Extensões → Gerenciar módulos.
+2. Abra a lista de módulos: no menu de Módulos (Conteúdo → Módulos do Site, ou Extensões → Módulos, conforme a versão). No sisu3 (Joomla 3) o caminho é Extensões → Módulos.
 3. Clique em Novo e escolha o tipo "Personalizado" (HTML personalizado / Custom).
 4. Dê o título `Assistente COPERSE` e, em "Mostrar título", escolha "Ocultar".
 5. Antes de colar, deixe a caixa de texto em código puro, de um destes jeitos:
@@ -42,11 +42,7 @@ Abra `https://chatbot-coperse.coperse-furg.workers.dev/demo`. É uma página só
 
 ## Se o `<script>` sumir
 
-O Joomla pode apagar o script ao salvar, por causa do filtro de texto do grupo do usuário.
-
-1. Peça a um Super Usuário do site para salvar o módulo com o script colado.
-2. Ou peça a ele para marcar "Sem filtragem" para o seu grupo em Configuração Global, Filtros de texto. Só um Super Usuário consegue.
-3. Confira de novo, como na seção anterior.
+Se o `<script>` desaparecer depois de salvar o módulo, não mude mais nada no Joomla. Avise quem mantém o assistente (coperse@furg.br): a linha pode ser colada por uma pessoa cujo grupo de usuários já mantém scripts nas páginas. Depois confira de novo, como na seção anterior.
 
 ## Vestibular
 

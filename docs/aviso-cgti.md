@@ -35,8 +35,10 @@ A COPERSE vai colar, em módulo HTML personalizado do Joomla (autorizado pelo CG
 
 **Medidas de segurança.**
 - O Worker só aceita pedidos dos endereços listados em `config/origens.json` (sites da FURG e o próprio endereço do Worker, usado numa página de teste). A origem não é autenticação: um programa fora do navegador pode enviar esse cabeçalho. Por isso existem os limites a seguir.
-- Limite de 6 perguntas por minuto e 40 por dia para cada visitante, e de 1.000 perguntas por dia no total. A contagem usa um código derivado do endereço IP e da data, sem guardar o IP.
+- Limite de 6 perguntas por minuto e 150 por dia para cada visitante, e de 1.000 perguntas por dia no total. A contagem usa um código derivado do endereço IP e da data, sem guardar o IP.
 - As chaves e senhas ficam como segredos da Cloudflare e do GitHub, nunca no código.
+
+Informação para o futuro, sem pedido de ação agora: se os sites da FURG adotarem uma política de segurança de conteúdo (Content-Security-Policy), será preciso permitir o domínio do Worker em `script-src` e `connect-src`, além de estilos inline para o widget.
 
 **Se for preciso desligar.** Basta apagar a linha do script ou despublicar o módulo no Joomla. Nada mais precisa ser alterado.
 

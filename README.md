@@ -45,7 +45,7 @@ Dois arquivos em `config/` controlam como cada documento é marcado. Os padrões
 
 Em JSON a barra invertida é escrita dobrada (`"\\bsisu\\b"`). Os testes (`npm test`) conferem que os arquivos carregam.
 
-Para rodar na hora: GitHub, aba Actions, workflow `indexar`, Run workflow, e informe `limite` (itens) e `minutos` se quiser outros valores. Os segredos `CLOUDFLARE_API_TOKEN` e `GEMINI_API_KEY` e as variáveis `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID` e `VECTORIZE_INDICE` ficam nas configurações do repositório. Um segundo job (`workflow-keepalive`) evita que o GitHub desligue o agendamento por inatividade.
+Para rodar na hora: GitHub, aba Actions, workflow `indexar`, Run workflow, e informe `limite` (itens) e `minutos` se quiser outros valores. Os segredos `CLOUDFLARE_API_TOKEN_INDEXACAO` (token só de D1 e Vectorize; enquanto não existir, o workflow usa `CLOUDFLARE_API_TOKEN`) e `GEMINI_API_KEY` e as variáveis `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID` e `VECTORIZE_INDICE` ficam nas configurações do repositório. Um segundo job (`workflow-keepalive`) evita que o GitHub desligue o agendamento por inatividade.
 
 ## Worker de resposta
 
@@ -53,14 +53,14 @@ Para rodar na hora: GitHub, aba Actions, workflow `indexar`, Run workflow, e inf
 
 Rotas:
 
-- `POST /perguntar`: recebe `{ pergunta, historico }` do widget; só aceita as origens de `config/origens.json`. Responde 429 acima de `LIMITE_POR_MINUTO` perguntas por minuto do mesmo visitante ou acima de `COTA_DIARIA` perguntas no dia (todos os visitantes somados, zera à meia-noite de Brasília). Os dois contadores ficam no Durable Object `Limites`.
+- `POST /perguntar`: recebe `{ pergunta, historico }` do widget; só aceita as origens de `config/origens.json`. Responde 429 acima de `LIMITE_POR_MINUTO` perguntas por minuto do mesmo visitante, acima de `LIMITE_DIARIO_VISITANTE` perguntas por dia do mesmo visitante ou acima de `COTA_DIARIA` perguntas no dia (todos os visitantes somados, zera à meia-noite de Brasília). Os contadores ficam no Durable Object `Limites`. Só `/perguntar` gasta o limite diário do visitante; `/saude` e `/reindexar` passam apenas pelo limite por minuto.
 - `GET /saude`: `{ ok, ultima_indexacao: { inicio, fim, paginas, erros } | null, fila, paginas_ok }`; responde 503 `{ ok: false }` se o D1 falhar.
 - `POST /reindexar`: com `Authorization: Bearer <REINDEX_TOKEN>`, dispara o workflow de indexação no GitHub (resposta 202). Exemplo: `curl -X POST -H "Authorization: Bearer $SENHA" https://<worker>/reindexar`.
 - `GET /widget.js`: o script do widget.
 
-Variáveis (em `worker-resposta/wrangler.toml`): `PROVEDOR_LLM`, `MODELO_RESPOSTA`, `MODELO_EMBEDDING`, `DIMENSAO_EMBEDDING`, `LIMIAR_SIMILARIDADE`, `GITHUB_REPO`, `GITHUB_WORKFLOW`, `LIMITE_POR_MINUTO` (padrão 6), `LIMITE_DIARIO_VISITANTE` (padrão 40 perguntas por visitante por dia), `COTA_DIARIA` (padrão 1000).
+Variáveis (em `worker-resposta/wrangler.toml`): `PROVEDOR_LLM`, `MODELO_RESPOSTA`, `MODELO_EMBEDDING`, `DIMENSAO_EMBEDDING`, `LIMIAR_SIMILARIDADE`, `GITHUB_REPO`, `GITHUB_WORKFLOW`, `LIMITE_POR_MINUTO` (padrão 6), `LIMITE_DIARIO_VISITANTE` (padrão 150 perguntas por visitante por dia, só em `/perguntar`), `COTA_DIARIA` (padrão 1000).
 
-Segredos: `GEMINI_API_KEY`, `REINDEX_TOKEN` (senha longa, no mínimo 32 caracteres; se faltar ou for menor, a rota `/reindexar` fica desativada e responde 503) e `GITHUB_TOKEN`. Cadastre-os no painel do Cloudflare: Workers & Pages, chatbot-coperse, Settings, Variables and Secrets, tipo Secret. Nunca coloque segredos no código nem no chat.
+Segredos do Worker (Cloudflare): `GEMINI_API_KEY`, `REINDEX_TOKEN` (senha longa, no mínimo 32 caracteres; se faltar ou for menor, a rota `/reindexar` fica desativada e responde 503) e `GITHUB_TOKEN`. Cadastre-os no painel do Cloudflare: Workers & Pages, chatbot-coperse, Settings, Variables and Secrets, tipo Secret. Os segredos do GitHub Actions (`GEMINI_API_KEY`, `CLOUDFLARE_API_TOKEN` para publicar e `CLOUDFLARE_API_TOKEN_INDEXACAO` para indexar) são cadastrados no site do GitHub. Nunca coloque segredos no código nem no chat.
 
 Token do GitHub de escopo mínimo: em GitHub, Settings, Developer settings, Personal access tokens, Fine-grained tokens; escolha apenas este repositório e a permissão Repository permissions, Actions: Read and write.
 
@@ -80,7 +80,7 @@ O assistente é um único script, que o Worker entrega em `/widget.js`. O códig
 
 4. Em "Posição", escolha uma posição que apareça em todas as páginas do modelo (rodapé, por exemplo). Em "Atribuição de menu", marque "Em todas as páginas". Deixe "Mostrar título" em "Ocultar" e salve.
 5. Confira depois de salvar: abra o módulo de novo e veja se a linha `<script ...>` continua lá. Também dá para abrir uma página do site e apertar Ctrl+U (código-fonte) e procurar por `widget.js`.
-6. Se a linha sumiu, foi o filtro de texto do Joomla para o seu grupo de usuário. Peça a um Super Usuário do site para salvar o módulo com o script, ou para marcar "Sem filtragem" para o seu grupo em Configuração Global, Filtros de texto (só um Super Usuário consegue fazer isso).
+6. Se a linha sumiu depois de salvar, não mude mais nada no Joomla. Avise quem mantém o assistente (coperse@furg.br): a linha pode ser colada por uma pessoa cujo grupo de usuários já mantém scripts nas páginas.
 
 ### Cor (`data-cor`)
 

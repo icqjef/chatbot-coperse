@@ -22,6 +22,8 @@ O GitHub avisa por e-mail quando a leitura agendada dos sites (workflow `indexar
    - Chave do Gemini recusada ("API key not valid"): troque a chave (seção 4).
    - Token do Cloudflare recusado ou vencido: crie um novo (seção 7) e cadastre no GitHub.
    - Um site fora do ar: espere. A próxima execução tenta de novo.
+
+Se quem falhar for o workflow `publicar` (publicação do Worker depois de uma mudança aprovada) com o token da Cloudflare recusado, o token de publicação venceu: quem mantém o código cria um novo no site da Cloudflare e atualiza o segredo `CLOUDFLARE_API_TOKEN` no site do GitHub (Settings, Secrets and variables, Actions).
 3. Depois de corrigir, rode de novo pela seção 3 e confira em `/saude`.
 
 O que já está no assistente continua valendo durante a falha; só as novidades deixam de entrar.
@@ -41,10 +43,11 @@ Pelo endereço `/reindexar` (para quem tem a senha): é um pedido `POST` com a s
 
 A chave fica em dois lugares, e os dois precisam receber a nova.
 
-1. No site do Google AI Studio, crie uma chave nova e apague a antiga.
+1. No site do Google AI Studio, crie uma chave nova. Não apague a antiga ainda.
 2. No painel do Cloudflare: Workers & Pages, `chatbot-coperse`, Settings, Variables and Secrets. Edite o segredo `GEMINI_API_KEY` (tipo Secret) e salve.
 3. No GitHub: repositório, Settings, Secrets and variables, Actions. Edite o segredo `GEMINI_API_KEY` e salve.
 4. Rode a indexação (seção 3) e faça uma pergunta de teste no assistente.
+5. Só depois de a chave nova estar no Cloudflare e no GitHub e de o teste passar, apague a chave antiga no Google AI Studio.
 
 ## 5. Alerta de orçamento no Google Cloud
 
@@ -88,7 +91,7 @@ A revisão de segurança ([revisao-seguranca-2026-11.md](revisao-seguranca-2026-
 
 ## 8. Limites e o que o candidato vê
 
-- Por visitante: 6 perguntas por minuto e 40 por dia. Acima disso o assistente avisa "Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo." ou "Você atingiu o limite de perguntas de hoje. Tente amanhã ou escreva para coperse@furg.br."
+- Por visitante: 6 perguntas por minuto e 150 por dia, só nas perguntas (consultar `/saude` não gasta o limite do dia). Acima disso o assistente avisa "Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo." ou "Você atingiu o limite de perguntas de hoje. Tente amanhã ou escreva para coperse@furg.br." Pessoas na mesma rede (campus, escola, celular) podem dividir o mesmo limite; a avaliação (`avaliar.mjs`, 31 perguntas) também conta.
 - No total: 1.000 perguntas por dia, zerando à meia-noite de Brasília. Acima disso todos veem "O assistente atingiu o limite de perguntas de hoje. Tente de novo amanhã ou escreva para coperse@furg.br."
 - Quando não encontra a informação, o assistente orienta a consultar o edital oficial ou escrever para coperse@furg.br. Não opina sobre situação individual (homologação, recurso, nota) e recusa assuntos fora dos processos seletivos da FURG.
 - Em semana de inscrição ou resultado, acompanhe o uso: se a cota diária esgotar, os candidatos ficam sem o assistente até o dia seguinte. Os valores ficam em `worker-resposta/wrangler.toml` (`LIMITE_POR_MINUTO`, `LIMITE_DIARIO_VISITANTE`, `COTA_DIARIA`) e são mudados por pull request.

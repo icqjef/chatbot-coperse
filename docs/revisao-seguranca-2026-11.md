@@ -41,6 +41,18 @@ Contagem: Crítica 0 · Importante 3 · Menor 6 · Informativa 9.
 | N8 | Informativa | `worker-resposta/src/index.ts:52-65` | O `widget.js` não tem SRI (muda a cada publicação) e o `/demo` não tem CSP. Se os sites da FURG adotarem CSP, vão precisar liberar o script e o `connect-src` para o domínio do Worker, e `style-src` para o `<style>` do Shadow DOM. | Sem impacto hoje. A falta de SRI é o que dá peso a I2/I3. | Registrar no aviso ao CGTI. Opcional: `Content-Security-Policy: default-src 'self'` no `/demo`. |
 | N9 | Informativa | `worker-resposta/src/perguntar.ts:102-106` | A chave do limite é `sha256(ip + dia)` sem sal. Dá para reverter por força bruta no espaço de IPv4. | Fica só na memória do Durable Object e nunca é gravada nem registrada. Não há exposição prática. | Nenhuma mudança. |
 
+## Situação dos achados (atualizada em 2026-11-14)
+
+| id | situação |
+|---|---|
+| I1 | Corrigido: limite diário por visitante e chave IPv6 por /64 (commit `4497d65`). Depois da revisão final, o limite diário ficou em 150 por visitante (não 50) e só `/perguntar` o gasta. |
+| I2 | Corrigido no código (commit `7194854`: o `indexar.yml` usa `CLOUDFLARE_API_TOKEN_INDEXACAO`). Pendente: o Jeferson criar o token restrito e gravá-lo no GitHub (guia-operacao, seção 7); só então sai o trecho provisório que ainda aceita o token antigo. |
+| I3 | Corrigido: o token só aparece nos passos que usam o `wrangler` (commit `7194854`). |
+| M1 | Corrigido: ações fixadas por SHA (commit `7194854`). |
+| M2 | Corrigido: indexador sobe `http` para `https` e barra redirecionamento para fora do domínio (commit `06de3d8`). |
+| M3, M4, M5, M6 | Adiados, como propostos. |
+| N1 a N9 | Informativos, sem mudança de código. N8 foi registrado no aviso ao CGTI. |
+
 ## O que está bem
 
 - **CORS e origens.** Lista fechada em `config/origens.json`, comparação exata, só `https`, sem `Allow-Credentials`, `Vary: Origin` sempre. A preflight de origem desconhecida volta 403 sem cabeçalhos CORS (conferido em produção). A origem é checada antes de ler o corpo e de qualquer chamada ao Gemini.
