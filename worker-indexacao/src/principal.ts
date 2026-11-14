@@ -264,20 +264,16 @@ async function migrarHttp(sites: Site[], ctx: Contexto, total: Contagem): Promis
   const agora = deps.agora();
   let removidas = 0;
   let falhas = 0;
+  // Primeiro enfileira as versões https; só remove as http depois que a fila aceitou (falha = tudo fica para a próxima).
+  const migrar: string[] = [];
   const novos: NovoItem[] = [];
   for (const [url, vista] of [...estado.paginas]) {
     if (!url.startsWith('http://') || vista.status === 'removida') continue;
     const https = url.replace(/^http:/, 'https:');
     const site = sites.find((s) => hostPermitido(url, s));
-    try {
-      await removerPagina(url, deps);
-    } catch {
-      falhas++;
-      continue; // fica para a próxima execução
-    }
-    estado.paginas.set(url, { ...vista, status: 'removida' });
-    removidas++;
-    if (!site || estado.paginas.get(https)?.status === 'ok' || estado.naFila.has(https)) continue;
+    if (!site) continue; // sem site correspondente não há para onde migrar
+    migrar.push(url);
+    if (estado.paginas.get(https)?.status === 'ok' || estado.naFila.has(https)) continue;
     novos.push({
       url: https, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_CHAVE,
       titulo: null, processo: null, ano: null, data: null,
@@ -286,7 +282,18 @@ async function migrarHttp(sites: Site[], ctx: Contexto, total: Contagem): Promis
   try {
     await enfileirar(deps.cf, estado, novos, { agora, forcar: true });
   } catch {
-    falhas++;
+    if (migrar.length > 0) console.error(`Falha ao migrar ${migrar.length} página(s) http://; tentará de novo na próxima execução.`);
+    return;
+  }
+  for (const url of migrar) {
+    try {
+      await removerPagina(url, deps);
+    } catch {
+      falhas++;
+      continue; // fica para a próxima execução
+    }
+    estado.paginas.set(url, { ...estado.paginas.get(url)!, status: 'removida' });
+    removidas++;
   }
   total.removida += removidas;
   if (removidas > 0) console.error(`Páginas http:// removidas e reenfileiradas como https://: ${removidas}`);
