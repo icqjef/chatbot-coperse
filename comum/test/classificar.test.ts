@@ -17,6 +17,9 @@ describe('pareceListaDeNomes', () => {
     expect(pareceListaDeNomes(`Resultado\nINSCRIÇÃO | NOME | NOTA\n${linhas}`)).toBe(true);
     expect(pareceListaDeNomes(`Nome do candidato ........ Inscricao\n${linhas}`)).toBe(true);
   });
+  it('nomes em caixa mista com partícula (da, de, dos)', () => {
+    expect(pareceListaDeNomes('Inscrição Nome\n12 Maria da Silva\n5 João de Souza\n7 Ana dos Santos')).toBe(true);
+  });
   it('cabeçalho seguido de só 2 nomes (trecho real do PS EaD)', () => {
     expect(pareceListaDeNomes('Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA')).toBe(true);
     expect(pareceListaDeNomes('Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\nRio Grande')).toBe(false);

@@ -111,7 +111,7 @@ export function nomeDoArquivo(url: string): string {
 }
 
 /** número + 2 ou mais palavras de nome (inicial maiúscula, só letras); colunas à direita são ignoradas */
-const LINHA_DE_NOME = /^\d{1,6}\s+(?![–\-.):])\p{Lu}\p{L}+\s+\p{Lu}\p{L}+(?:\s|$)/u;
+const LINHA_DE_NOME = /^\d{1,6}\s+(?![–\-.):])\p{Lu}\p{L}+\s+(?:(?:d[aeo]s?|e)\s+)?\p{Lu}\p{L}+(?:\s|$)/u;
 
 function ehCabecalhoDeNomes(linha: string): boolean {
   const n = normalizar(linha);
