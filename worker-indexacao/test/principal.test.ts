@@ -5,6 +5,7 @@ import { carregarRegras } from '@chatbot/comum/classificar';
 import { executar, codigoSaida, type OpcoesExecucao } from '../src/principal.js';
 import { ErroHttp, type Resposta } from '../src/http.js';
 import { criarCfFalso } from './fakes.js';
+import { ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import { carregarEstado, enfileirar } from '../src/fila.js';
 
 const json = (p: string) => JSON.parse(readFileSync(new URL(`../../config/${p}`, import.meta.url), 'utf8'));
@@ -115,6 +116,14 @@ describe('executar: rastreamento pela fila', () => {
     await executar(m.opcoes(), m.deps);
     expect(m.buscados.some((u) => u.includes('outro.br'))).toBe(false);
     expect(m.buscados.some((u) => u.includes('format=feed'))).toBe(false);
+  });
+
+  it('PDF sem ano no título, em pasta de 2026, usa o ano que o texto cita (2027)', async () => {
+    const u = `${V}/images/2026/Vestibular-2026/Cronograma_retificado.pdf`;
+    const m = montar({ paginas: { [u]: { tipo: 'pdf', bytes: new TextEncoder().encode('10.1. O cronograma do Vestibular FURG 2027 está na Tabela 5') } } });
+    await enfileirar(m.f.cf, await carregarEstado(m.f.cf), [{ url: u, site: 'vestibular', profundidade: 1, origem: `${V}/`, prioridade: 2, titulo: 'Consulte aqui a retificação do cronograma', processo: null, ano: null, data: null }], { agora: m.estado.agora });
+    await executar(m.opcoes({ sites: [site({ paginas_chave: [] })] }), m.deps);
+    expect(m.f.paginas.get(u)).toMatchObject({ tipo: 'pdf', ano: 2027 });
   });
 
   it('PDF herda processo e ano da página que o linkou', async () => {
@@ -473,5 +482,47 @@ describe('codigoSaida', () => {
     expect(codigoSaida({ ...z, erro: 3, teto: 1 })).toBe(0);
     expect(codigoSaida({ ...z, erro: 3, removida: 1 })).toBe(0);
     expect(codigoSaida(z)).toBe(0);
+  });
+});
+
+describe('executar: chave do Gemini recusada', () => {
+  it('interrompe sem registrar erro nem penalizar a fila, e rejeita', async () => {
+    const chaves = [`${V}/a`, `${V}/b`, `${V}/c`];
+    const paginas: Record<string, Resposta> = Object.fromEntries(chaves.map((u) => [u, { tipo: 'html', texto: pagina(`P ${u}`) } as Resposta]));
+    const m = montar({ paginas });
+    m.deps.embedder = { async embed() { throw new ErroAutenticacaoProvedor('Chave do Gemini recusada pelo provedor'); } };
+    const o = m.opcoes({ sites: [site({ paginas_chave: chaves })] });
+    await expect(executar(o, m.deps)).rejects.toBeInstanceOf(ErroAutenticacaoProvedor);
+    expect(m.f.registro.eventos).not.toContain('paginas:erro');
+    expect(m.f.paginas.size).toBe(0);
+    expect(chaves.map((u) => m.f.fila.get(u)?.tentativas)).toEqual([0, 0, 0]);
+    expect(m.f.registro.execucoes[0]?.fim).toBeTruthy();
+  });
+});
+
+describe('executar: edições antigas excluídas', () => {
+  const ANT = `${V}/anos-anteriores/x`;
+  const comExclusao = () => site({ excluir: ['/anos-anteriores/'] });
+
+  it('link para URL excluída não entra na fila nem é buscado', async () => {
+    const m = montar({ paginas: { [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/anos-anteriores/x', 'Antigo']]) }, [ANT]: { tipo: 'html', texto: pagina('Antigo') } } });
+    await executar(m.opcoes({ sites: [comExclusao()] }), m.deps);
+    expect(m.buscados).toEqual([`${V}/`]);
+    expect(m.f.paginas.has(ANT)).toBe(false);
+  });
+
+  it('item já na fila sai sem ser buscado; página ok já indexada é removida', async () => {
+    const m = montar({ paginas: { [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/anos-anteriores/x', 'Antigo']]) }, [ANT]: { tipo: 'html', texto: pagina('Antigo') } } });
+    await executar(m.opcoes({ sites: [site()] }), m.deps);
+    expect(m.f.paginas.get(ANT)?.status).toBe('ok');
+    expect(m.f.trechos().some((t) => t.url === ANT)).toBe(true);
+    m.f.fila.set(`${V}/anos-anteriores/y`, { url: `${V}/anos-anteriores/y`, site: 'vestibular', profundidade: 1, prioridade: 1, tentativas: 0, lista: 0, proxima_tentativa: null });
+    m.buscados.length = 0;
+    const r = await executar(m.opcoes({ sites: [comExclusao()] }), m.deps);
+    expect(m.f.paginas.get(ANT)?.status).toBe('removida');
+    expect(m.f.trechos().some((t) => t.url === ANT)).toBe(false);
+    expect(m.buscados).not.toContain(`${V}/anos-anteriores/y`);
+    expect(m.f.fila.size).toBe(0);
+    expect(r.removida).toBeGreaterThanOrEqual(1);
   });
 });

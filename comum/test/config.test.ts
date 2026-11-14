@@ -37,6 +37,20 @@ describe('carregarSites', () => {
   });
 });
 
+describe('carregarSites: excluir', () => {
+  it('aceita lista de regex e recusa regex inválida ou não lista', () => {
+    expect(carregarSites([site({ excluir: ['/a/'] })])[0]?.excluir).toEqual(['/a/']);
+    expect(() => carregarSites([site({ excluir: ['('] })])).toThrow(/excluir/);
+    expect(() => carregarSites([site({ excluir: '/a/' })])).toThrow(/excluir/);
+  });
+  it('o sites.json real traz os padrões de edições antigas', () => {
+    const [c, s, v] = carregarSites(lerJson('sites.json'));
+    expect(c?.excluir).toEqual(['/anos-anteriores/', '/images/Editais/20(0\\d|1\\d|2[0-4])/']);
+    expect(s?.excluir).toEqual(['/anos-anteriores/']);
+    expect(v?.excluir).toEqual([]);
+  });
+});
+
 describe('carregarOrigens', () => {
   it('aceita o origens.json real', () => {
     expect(carregarOrigens(lerJson('origens.json'))).toHaveLength(7);

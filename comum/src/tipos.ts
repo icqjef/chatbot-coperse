@@ -7,6 +7,8 @@ export interface Site {
   paginas_chave: string[];
   profundidade: number;
   dominios_permitidos: string[];
+  /** expressões regulares aplicadas à URL completa: o que casar não é indexado (edições antigas) */
+  excluir?: string[];
 }
 
 export interface ItemFeed {

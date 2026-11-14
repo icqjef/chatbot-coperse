@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { criarCfFalso } from './fakes.js';
-import { adiar, carregarEstado, concluir, deveIgnorar, ehPdf, enfileirar, normalizarUrl, proximos, type EstadoRastreio, type NovoItem } from '../src/fila.js';
+import type { Site } from '@chatbot/comum/tipos';
+import { urlExcluida, adiar, carregarEstado, concluir, deveIgnorar, ehPdf, enfileirar, normalizarUrl, proximos, type EstadoRastreio, type NovoItem } from '../src/fila.js';
 
 const AGORA = '2026-11-12T12:00:00.000Z';
 const antes = (horas: number) => new Date(Date.parse(AGORA) - horas * 3600_000).toISOString();
@@ -198,5 +199,21 @@ describe('proximos / concluir / adiar', () => {
     await adiar(cf, estado, atual, AGORA);
     expect(fila.has(u('z'))).toBe(false);
     expect(estado.naFila.has(u('z'))).toBe(false);
+  });
+});
+
+describe('urlExcluida', () => {
+  const coperse: Site = {
+    id: 'coperse', nome: 'C', base: 'https://coperse.furg.br', paginas_chave: [], profundidade: 1, dominios_permitidos: ['coperse.furg.br'],
+    excluir: ['/anos-anteriores/', '/images/Editais/20(0\\d|1\\d|2[0-4])/'],
+  };
+  it('exclui edições antigas e mantém as atuais', () => {
+    expect(urlExcluida('https://coperse.furg.br/anos-anteriores/indigenas/ps-2019-indigenas', coperse)).toBe(true);
+    expect(urlExcluida('https://coperse.furg.br/images/Editais/2024/indigenas/x.pdf', coperse)).toBe(true);
+    expect(urlExcluida('https://coperse.furg.br/images/2026/Vestibular-2026/Cronograma_retificado.pdf', coperse)).toBe(false);
+    expect(urlExcluida('https://coperse.furg.br/images/Editais/2025/x.pdf', coperse)).toBe(false);
+  });
+  it('sem excluir nada é excluído', () => {
+    expect(urlExcluida('https://coperse.furg.br/anos-anteriores/x', { ...coperse, excluir: undefined })).toBe(false);
   });
 });

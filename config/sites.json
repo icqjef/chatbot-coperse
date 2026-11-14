@@ -1,11 +1,13 @@
 [
   { "id": "coperse", "nome": "COPERSE", "base": "https://coperse.furg.br",
     "feed": "https://coperse.furg.br/index.php?format=feed&type=rss",
-    "paginas_chave": ["https://coperse.furg.br/"], "profundidade": 10, "dominios_permitidos": ["coperse.furg.br"] },
+    "paginas_chave": ["https://coperse.furg.br/"], "profundidade": 10, "dominios_permitidos": ["coperse.furg.br"],
+    "excluir": ["/anos-anteriores/", "/images/Editais/20(0\\d|1\\d|2[0-4])/"] },
   { "id": "sisu", "nome": "SiSU FURG", "processo_padrao": "sisu", "base": "https://sisu3.furg.br",
     "feed": "https://sisu3.furg.br/index.php?format=feed&type=rss",
-    "paginas_chave": ["https://sisu3.furg.br/"], "profundidade": 10, "dominios_permitidos": ["sisu3.furg.br", "sisu.furg.br"] },
+    "paginas_chave": ["https://sisu3.furg.br/"], "profundidade": 10, "dominios_permitidos": ["sisu3.furg.br", "sisu.furg.br"],
+    "excluir": ["/anos-anteriores/"] },
   { "id": "vestibular", "nome": "Vestibular FURG", "processo_padrao": "vestibular", "base": "https://vestibular.furg.br",
     "paginas_chave": ["https://vestibular.furg.br/"], "profundidade": 10,
-    "dominios_permitidos": ["vestibular.furg.br"] }
+    "dominios_permitidos": ["vestibular.furg.br"], "excluir": [] }
 ]

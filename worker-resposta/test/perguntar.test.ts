@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import worker, { type Env } from '../src/index';
-import { responderPergunta, chaveLimite } from '../src/perguntar';
+import { responderPergunta, chaveLimite, consultaDeBusca } from '../src/perguntar';
 import { SEM_BASE } from '../src/regras';
 import type { Trecho } from '../src/busca';
 import { d1Falso, vectorizeFalso } from './fakes';
@@ -425,5 +425,48 @@ describe('recusas sem fontes', () => {
     const { env } = montar({ texto: 'O prazo é 10/12 [7]. Dúvidas: coperse@furg.br.' });
     const r = await pedir(env, { pergunta: 'qual o prazo?' });
     expect(await r.json()).toEqual({ resposta: SEM_BASE, fontes: [] });
+  });
+});
+
+describe('consultaDeBusca', () => {
+  const hist = [
+    { papel: 'usuario' as const, texto: 'Quantas vagas de Direito tem no Vestibular 2027?' },
+    { papel: 'modelo' as const, texto: '22 vagas [1]' },
+  ];
+
+  it('junta a última pergunta do usuário a um seguimento curto', () => {
+    expect(consultaDeBusca('e de Medicina?', hist)).toBe(
+      'Quantas vagas de Direito tem no Vestibular 2027?\ne de Medicina?',
+    );
+  });
+
+  it('não junta pergunta nova que cita o processo', () => {
+    const h = [{ papel: 'usuario' as const, texto: 'Qual a nota de corte do SiSU?' }];
+    expect(consultaDeBusca('Quando é a prova do Vestibular?', h)).toBe('Quando é a prova do Vestibular?');
+  });
+
+  it('junta pergunta curta sem palavra de processo', () => {
+    expect(consultaDeBusca('Quantas vagas tem?', hist)).toBe(
+      'Quantas vagas de Direito tem no Vestibular 2027?\nQuantas vagas tem?',
+    );
+  });
+
+  it('junta elo "e ..." mesmo citando o processo', () => {
+    expect(consultaDeBusca('e no SiSU?', hist)).toBe('Quantas vagas de Direito tem no Vestibular 2027?\ne no SiSU?');
+  });
+
+  it('mantém a pergunta com 60 ou mais caracteres ou sem histórico', () => {
+    const longa = 'x'.repeat(60);
+    expect(consultaDeBusca(longa, hist)).toBe(longa);
+    expect(consultaDeBusca('e de Medicina?', [])).toBe('e de Medicina?');
+  });
+
+  it('responderPergunta busca com a consulta combinada', async () => {
+    const buscar = vi.fn(async () => ({ trechos: [] as Trecho[], melhorSimilaridade: 0 }));
+    await responderPergunta(
+      { pergunta: 'e de Medicina?', historico: hist },
+      { buscar, gerador: { gerar: async () => '' }, agora: () => new Date() },
+    );
+    expect(buscar).toHaveBeenCalledWith('Quantas vagas de Direito tem no Vestibular 2027?\ne de Medicina?');
   });
 });

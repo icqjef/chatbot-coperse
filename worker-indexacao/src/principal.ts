@@ -4,7 +4,7 @@ import { carregarSites } from '@chatbot/comum';
 import {
   carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, type RegrasClassificacao,
 } from '@chatbot/comum/classificar';
-import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
+import { criarEmbedder, ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import type { Site, TipoDocumento } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
@@ -15,7 +15,7 @@ import {
   indexarDocumento, registrarErro, removerPagina, type DepsIndexacao, type ResultadoIndexacao,
 } from './indexar.js';
 import {
-  adiar, carregarEstado, concluir, deveIgnorar, ehPdf, enfileirar, normalizarUrl, proximos,
+  adiar, carregarEstado, concluir, deveIgnorar, ehPdf, enfileirar, normalizarUrl, proximos, urlExcluida,
   type EstadoRastreio, type ItemFila, type NovoItem,
 } from './fila.js';
 
@@ -75,10 +75,10 @@ function tituloDoArquivo(url: string): string {
 const tituloPdf = (item: ItemFila) => (item.titulo && !ehGenerico(item.titulo) ? item.titulo : tituloDoArquivo(item.url));
 
 /** Processo e ano: o próprio documento › herdado da fila › padrão. `herdavel` não inclui os padrões. */
-function classificar(titulo: string, url: string, data: string, item: ItemFila, site: Site, regras: RegrasClassificacao) {
+function classificar(titulo: string, url: string, data: string, item: ItemFila, site: Site, regras: RegrasClassificacao, texto?: string) {
   // Só o caminho da URL: o host sisu3.furg.br casaria com \bsisu\b.
   const processoProprio = inferirProcesso([titulo, new URL(url).pathname], regras) ?? item.processo;
-  const anoProprio = inferirAno(titulo, new URL(url).pathname) ?? item.ano;
+  const anoProprio = inferirAno(titulo, new URL(url).pathname, texto) ?? item.ano;
   return {
     processo: processoProprio ?? site.processo_padrao ?? 'geral',
     ano: anoProprio ?? new Date(data).getUTCFullYear(),
@@ -138,11 +138,11 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       titulo = tituloPdf(item);
       const conhecida = (ctx.doFeed.has(item.url) && valida(item.data) ? item.data : undefined) ?? resp.ultimaModificacao;
       data = conhecida ?? (valida(item.data) ? item.data : agora);
-      const c = classificar(titulo, item.url, data, item, site, regras);
       // URL sem cara de PDF que devolveu PDF: a regra de lista ainda vale (não lê o conteúdo).
       const lista = filhoDeLista || ehListaDeCandidatos(titulo, item.url, regras);
       saida.tipo = lista ? 'lista' : 'pdf';
       const texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
+      const c = classificar(titulo, item.url, data, item, site, regras, texto);
       return await indexarDocumento(
         { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo: lista ? 'lista' : 'pdf', processo: c.processo, ano: c.ano, texto }, deps,
       );
@@ -153,7 +153,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     titulo = (doFeed && item.titulo) || pagina.titulo || item.titulo || '';
     const conhecida = (doFeed && valida(item.data) ? item.data : undefined) ?? pagina.data ?? resp.ultimaModificacao;
     data = conhecida ?? agora;
-    const c = classificar(titulo, item.url, data, item, site, regras);
+    const c = classificar(titulo, item.url, data, item, site, regras, pagina.texto);
     const lista = ehListaDeCandidatos(titulo, item.url, regras);
     tipo = lista ? 'lista' : 'html';
     saida.tipo = tipo;
@@ -167,7 +167,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       const novos: NovoItem[] = [];
       for (const l of pagina.links) {
         const url = normalizarUrl(l.url);
-        if (!url || deveIgnorar(url) || !hostPermitido(url, site) || url === item.url) continue;
+        if (!url || deveIgnorar(url) || urlExcluida(url, site) || !hostPermitido(url, site) || url === item.url) continue;
         novos.push({
           url, site: site.id, profundidade: item.profundidade + 1, origem: item.url, prioridade: ehPdf(url) ? 2 : 1,
           // Privacidade: o texto de um link numa lista costuma ser o nome de uma pessoa; o filho usa o próprio título.
@@ -180,6 +180,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     }
     return r;
   } catch (e) {
+    if (e instanceof ErroAutenticacaoProvedor) throw e; // nada de registrarErro/adiar: a fila fica intacta
     const msg = e instanceof Error ? e.message : String(e);
     let falhas = 0;
     try {
@@ -207,6 +208,33 @@ async function ultimaModificacao(url: string, ctx: Contexto): Promise<string | u
   }
 }
 
+/** Tira do índice e da fila o que as regras `excluir` hoje barram (edições antigas já indexadas ou enfileiradas). */
+async function limparExcluidas(sites: Site[], ctx: Contexto, total: Contagem): Promise<void> {
+  const { deps, estado } = ctx;
+  const barrada = (url: string) => sites.some((s) => hostPermitido(url, s) && urlExcluida(url, s));
+  let n = 0;
+  let falhas = 0;
+  for (const [url, vista] of estado.paginas) {
+    if (vista.status === 'removida' || !barrada(url)) continue;
+    try {
+      await removerPagina(url, deps);
+    } catch {
+      falhas++;
+      continue; // fica para a próxima execução
+    }
+    estado.paginas.set(url, { ...vista, status: 'removida' });
+    n++;
+  }
+  for (const url of [...estado.naFila]) {
+    if (!barrada(url)) continue;
+    await concluir(deps.cf, estado, url);
+    n++;
+  }
+  total.removida += n;
+  if (n > 0) console.error(`Edições antigas excluídas do índice e da fila: ${n}`);
+  if (falhas > 0) console.error(`Falha ao remover ${falhas} página(s) excluída(s); tentará de novo na próxima execução.`);
+}
+
 async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void> {
   const { deps, estado } = ctx;
   const agora = deps.agora();
@@ -223,7 +251,7 @@ async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void>
           total.erro++;
           continue;
         }
-        if (deveIgnorar(url)) continue;
+        if (deveIgnorar(url) || urlExcluida(url, site)) continue;
         itens.push({
           url, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_FEED,
           titulo: it.titulo || null, processo: null, ano: null, data: it.data || null,
@@ -236,7 +264,7 @@ async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void>
   }
   for (const bruto of site.paginas_chave) {
     const url = normalizarUrl(bruto);
-    if (!url || deveIgnorar(url) || !hostPermitido(url, site)) continue;
+    if (!url || deveIgnorar(url) || urlExcluida(url, site) || !hostPermitido(url, site)) continue;
     itens.push({ url, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_CHAVE, titulo: null, processo: null, ano: null, data: null });
   }
   // Já na fila (achado por link): o feed passa a valer para título e data.
@@ -274,47 +302,59 @@ export async function executar(
   const ctx: Contexto = { opcoes, deps, estado, esperar, doFeed: new Set() };
   const sites = new Map(opcoes.sites.map((s) => [s.id, s]));
 
-  for (const site of opcoes.sites) await semear(site, ctx, total);
-
   let processados = 0;
   let tetoAtingido = false;
-  laco: for (;;) {
-    const lote = await proximos(deps.cf, LOTE, deps.agora());
-    if (lote.length === 0) break;
-    for (const item of lote) {
-      if (processados >= opcoes.maxItens || relogio() - inicio >= opcoes.prazoMs) break laco;
-      processados++;
-      const site = sites.get(item.site);
-      if (!site) {
-        // site saiu da configuração
-        await concluir(deps.cf, estado, item.url);
-        total.ignorada++;
-        continue;
-      }
-      const { r, tipo } = await processarItem(item, site, ctx);
-      total[r]++;
-      if (r === 'teto') {
-        tetoAtingido = true;
-        break laco; // o item fica na fila
-      }
-      if (r === 'erro') {
-        await adiar(deps.cf, estado, item, deps.agora());
-        // Marca o erro com as falhas atuais: se o item acabou de sair da fila (5ª tentativa), links de volta
-        // não o enfileiram de novo nesta execução (erro permanente usa a janela de 30 dias).
-        let falhas = item.tentativas + 1;
-        try {
-          falhas = Math.max(falhas, Number((await deps.cf.d1('SELECT falhas FROM paginas WHERE url = ?', [item.url]))[0]?.falhas ?? 0));
-        } catch {
-          // fica a contagem da fila
+  try {
+    await limparExcluidas(opcoes.sites, ctx, total);
+    for (const site of opcoes.sites) await semear(site, ctx, total);
+
+    laco: for (;;) {
+      const lote = await proximos(deps.cf, LOTE, deps.agora());
+      if (lote.length === 0) break;
+      for (const item of lote) {
+        if (processados >= opcoes.maxItens || relogio() - inicio >= opcoes.prazoMs) break laco;
+        processados++;
+        const site = sites.get(item.site);
+        if (!site) {
+          // site saiu da configuração
+          await concluir(deps.cf, estado, item.url);
+          total.ignorada++;
+          continue;
         }
-        estado.paginas.set(item.url, { dataVista: deps.agora(), status: 'erro', tipo, falhas });
-      } else {
-        await concluir(deps.cf, estado, item.url);
-        // Marca como visto agora: links de volta para esta URL não a enfileiram de novo nesta execução.
-        const status = r === 'vazia' || r === 'removida' || r === 'ignorada' ? r : 'ok';
-        estado.paginas.set(item.url, { dataVista: deps.agora(), status, tipo });
+        const { r, tipo } = await processarItem(item, site, ctx);
+        total[r]++;
+        if (r === 'teto') {
+          tetoAtingido = true;
+          break laco; // o item fica na fila
+        }
+        if (r === 'erro') {
+          await adiar(deps.cf, estado, item, deps.agora());
+          // Marca o erro com as falhas atuais: se o item acabou de sair da fila (5ª tentativa), links de volta
+          // não o enfileiram de novo nesta execução (erro permanente usa a janela de 30 dias).
+          let falhas = item.tentativas + 1;
+          try {
+            falhas = Math.max(falhas, Number((await deps.cf.d1('SELECT falhas FROM paginas WHERE url = ?', [item.url]))[0]?.falhas ?? 0));
+          } catch {
+            // fica a contagem da fila
+          }
+          estado.paginas.set(item.url, { dataVista: deps.agora(), status: 'erro', tipo, falhas });
+        } else {
+          await concluir(deps.cf, estado, item.url);
+          // Marca como visto agora: links de volta para esta URL não a enfileiram de novo nesta execução.
+          const status = r === 'vazia' || r === 'removida' || r === 'ignorada' ? r : 'ok';
+          estado.paginas.set(item.url, { dataVista: deps.agora(), status, tipo });
+        }
       }
     }
+  } catch (e) {
+    if (e instanceof ErroAutenticacaoProvedor) {
+      try {
+        await depsBase.cf.d1('UPDATE execucoes SET fim = ?, paginas = ?, erros = ? WHERE id = ?', [deps.agora(), processados, total.erro, id]);
+      } catch {
+        // o erro de autenticação original é o que importa
+      }
+    }
+    throw e;
   }
 
   const filaRestante = Number((await deps.cf.d1('SELECT COUNT(*) AS n FROM fila'))[0]?.n ?? 0);
@@ -367,7 +407,7 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   main().catch((e) => {
-    console.error(`Falha na indexação: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(e instanceof ErroAutenticacaoProvedor ? 'Chave do Gemini recusada pelo provedor' : `Falha na indexação: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   });
 }

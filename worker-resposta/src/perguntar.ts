@@ -46,11 +46,29 @@ export interface DepsResposta {
   agora: () => Date;
 }
 
+const MAX_SEGUIMENTO = 60;
+
+/**
+ * Consulta usada na busca vetorial. Um seguimento curto ("e de Medicina?") não tem contexto
+ * sozinho; junta-se a última pergunta do usuário. O gerador continua recebendo o histórico normal.
+ */
+export function consultaDeBusca(pergunta: string, historico: Mensagem[]): string {
+  const p = pergunta.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (p.length >= MAX_SEGUIMENTO) return pergunta;
+  // Só é seguimento se começa com um elo ("e de Medicina?") ou não cita processo algum ("Quantas vagas tem?").
+  // Pergunta nova que cita o processo ("Quando é a prova do Vestibular?") não herda o assunto anterior.
+  const elo = /^(e\b|mesmo\b|tambem\b)/.test(p);
+  const citaProcesso = /\b(vestibular|sisu|quilombola|indigena|transgen\w*|trans|ead|distancia|complementar|ociosa|enem)\b/.test(p);
+  if (!elo && citaProcesso) return pergunta;
+  const anterior = [...historico].reverse().find((m) => m.papel === 'usuario');
+  return anterior ? `${anterior.texto}\n${pergunta}` : pergunta;
+}
+
 export async function responderPergunta(
   entrada: EntradaPergunta,
   deps: DepsResposta,
 ): Promise<{ resposta: string; fontes: Fonte[] }> {
-  const { trechos } = await deps.buscar(entrada.pergunta);
+  const { trechos } = await deps.buscar(consultaDeBusca(entrada.pergunta, entrada.historico));
   if (trechos.length === 0) return { resposta: SEM_BASE, fontes: [] };
   let bruta: string;
   try {
