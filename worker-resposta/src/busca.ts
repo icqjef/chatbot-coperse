@@ -111,7 +111,7 @@ export async function buscarTrechos(
   const [vetor] = await deps.embedder.embed([pergunta], 'RETRIEVAL_QUERY');
   if (!vetor) throw new Error('embedding vazio');
   const [resp, textuais] = await Promise.all([
-    deps.vectorize.query(vetor, { topK: TOP_K, returnMetadata: 'all' }),
+    deps.vectorize.query(vetor, { topK: TOP_K, returnMetadata: 'none' }),
     buscarFts(deps.db, pergunta),
   ]);
   const vetoriais = resp.matches.map((m) => ({ id: m.id, similaridade: m.score }));
