@@ -185,6 +185,40 @@ describe('executar: rastreamento pela fila', () => {
     expect(m.buscados).toEqual([sumiu, sumiu, sumiu]);
   });
 
+  it('página ok que passa a dar 500 continua ok, com trechos, e é reagendada', async () => {
+    const u = `${V}/estavel`;
+    const paginas: Record<string, Resposta | Error> = { [u]: { tipo: 'html', texto: pagina('Estável') } };
+    const m = montar({ paginas });
+    const o = m.opcoes({ sites: [site({ paginas_chave: [u] })] });
+    await executar(o, m.deps);
+    const hash = m.f.paginas.get(u)?.hash;
+    const trechos = m.f.trechos().length;
+    expect(trechos).toBeGreaterThan(0);
+    paginas[u] = new ErroHttp(500, u);
+    m.estado.agora = '2026-11-14T00:00:00.000Z';
+    expect(await executar(o, m.deps)).toMatchObject({ erro: 1, removida: 0 });
+    expect(m.f.paginas.get(u)).toMatchObject({ status: 'ok', falhas: 1, hash });
+    expect(m.f.trechos()).toHaveLength(trechos);
+    expect(m.f.fila.get(u)?.tentativas).toBe(1);
+  });
+
+  it('página ok que passa a dar 404 três vezes é removida', async () => {
+    const u = `${V}/vai-sumir`;
+    const paginas: Record<string, Resposta | Error> = { [u]: { tipo: 'html', texto: pagina('Some') } };
+    const m = montar({ paginas });
+    const o = m.opcoes({ sites: [site({ paginas_chave: [u] })] });
+    await executar(o, m.deps);
+    delete paginas[u];
+    let r;
+    for (const d of ['14', '15', '16']) {
+      m.estado.agora = `2026-11-${d}T00:00:00.000Z`;
+      r = await executar(o, m.deps);
+    }
+    expect(r).toMatchObject({ removida: 1 });
+    expect(m.f.paginas.get(u)?.status).toBe('removida');
+    expect(m.f.trechos().filter((t) => t.url === u)).toHaveLength(0);
+  });
+
   it('erro diferente de 404 não remove, só adia', async () => {
     const u = `${V}/instavel`;
     const m = montar({ paginas: { [u]: new ErroHttp(500, u) } });

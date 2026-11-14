@@ -236,6 +236,23 @@ describe('registrarErro e removerPagina', () => {
     expect(f.paginas.get(e.url)).toMatchObject({ status: 'erro', falhas: 2, erro: 'HTTP 404', tipo: 'pdf' });
   });
 
+  it('registrarErro em página já ok mantém ok, hash e trechos; conta a falha', async () => {
+    const { f, deps } = montar();
+    await indexarDocumento({ ...doc, texto: paragrafos(4) }, deps);
+    const antes = f.paginas.get(e.url)!;
+    const hash = antes.hash;
+    const trechos = f.trechos().length;
+    expect(await registrarErro(e, 'HTTP 500', deps)).toBe(1);
+    expect(f.paginas.get(e.url)).toMatchObject({ status: 'ok', falhas: 1, erro: 'HTTP 500', hash });
+    expect(f.trechos()).toHaveLength(trechos);
+  });
+
+  it('registrarErro em URL nova ou não ok vira erro', async () => {
+    const { f, deps } = montar();
+    await registrarErro(e, 'HTTP 500', deps);
+    expect(f.paginas.get(e.url)).toMatchObject({ status: 'erro', falhas: 1 });
+  });
+
   it('removerPagina apaga vetores, trechos e FTS e marca removida', async () => {
     const { f, deps } = montar();
     await indexarDocumento({ ...doc, texto: paragrafos(4) }, deps);
