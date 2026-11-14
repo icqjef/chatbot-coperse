@@ -5,6 +5,7 @@ import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type Trecho } from './busca';
 import { diaSaoPaulo } from './limites';
+import { respostaSocial } from './conversa';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, type Fonte } from './regras';
 
@@ -223,6 +224,9 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   const agora = () => new Date();
   const negado = await aplicarLimite(req, env.LIMITADOR, cors, true);
   if (negado) return negado;
+  // Saudação, agradecimento, "quem é você", data e hora: resposta pronta, sem gastar a cota do Gemini.
+  const social = respostaSocial(entrada.pergunta, agora());
+  if (social) return json({ resposta: social, fontes: [] }, 200, cors);
   if (env.COTA) {
     let liberada = false;
     try {

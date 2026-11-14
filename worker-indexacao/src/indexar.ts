@@ -72,6 +72,12 @@ export async function removerPagina(url: string, deps: Pick<DepsIndexacao, 'cf'>
   await cf.d1("UPDATE paginas SET status = 'removida', hash = NULL WHERE url = ?", [url]);
 }
 
+/**
+ * Páginas HTML misturam assuntos (cronograma, perguntas frequentes, cursos): trechos menores que os de PDF
+ * deixam cada seção com vetor próprio. PDFs ficam em 3200, para caber no teto de vetores.
+ */
+export const TRECHOS_HTML = { maxCaracteres: 1600, sobreposicao: 300, versao: 'html-1600' } as const;
+
 export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Promise<ResultadoIndexacao> {
   const { cf, embedder, teto } = deps;
   const agora = deps.agora();
@@ -91,7 +97,10 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
     }
 
     // Classificação e título entram no hash: mudar as regras ou o título força um novo embedding.
-    const hash = sha256(JSON.stringify([doc.tipo, processo, ano, titulo, texto]));
+    // HTML leva também a versão da divisão em trechos: mudar o tamanho redivide as páginas na revisita.
+    const partes: unknown[] = [doc.tipo, processo, ano, titulo, texto];
+    if (doc.tipo === 'html') partes.push(TRECHOS_HTML.versao);
+    const hash = sha256(JSON.stringify(partes));
     const anterior = (await cf.d1('SELECT hash, status FROM paginas WHERE url = ?', [url]))[0];
     if (anterior && anterior.hash === hash && anterior.status === 'ok') {
       await cf.d1('UPDATE paginas SET data_vista = ? WHERE url = ?', [agora, url]);
@@ -99,7 +108,7 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
     }
 
     // Primeiro calcula trechos e embeddings; só depois troca o que já existe.
-    const trechos = dividirEmTrechos(texto);
+    const trechos = dividirEmTrechos(texto, doc.tipo === 'html' ? TRECHOS_HTML : {});
     const antigos = (await cf.d1('SELECT id FROM trechos WHERE url = ?', [url])).map((r) => r.id as string);
     const delta = trechos.length - antigos.length;
     if (teto && delta > teto.restante()) return 'teto';

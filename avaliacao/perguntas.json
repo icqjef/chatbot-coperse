@@ -493,6 +493,83 @@
       ],
       "sem_fontes": true,
       "fonte": ""
+    },
+    {
+      "id": "conversa-saudacao",
+      "categoria": "conversa",
+      "pergunta": "Oi, tudo bem?",
+      "resposta_esperada": "Cumprimenta, se apresenta e oferece ajuda.",
+      "fatos": [
+        [
+          "olá"
+        ],
+        [
+          "assistente virtual"
+        ]
+      ],
+      "sem_fontes": true,
+      "fonte": ""
+    },
+    {
+      "id": "conversa-quem-e",
+      "categoria": "conversa",
+      "pergunta": "Quem é você?",
+      "resposta_esperada": "Assistente virtual da COPERSE; não é uma pessoa; não digitar dados pessoais.",
+      "fatos": [
+        [
+          "assistente virtual da coperse"
+        ],
+        [
+          "não uma pessoa",
+          "programa"
+        ]
+      ],
+      "sem_fontes": true,
+      "fonte": ""
+    },
+    {
+      "id": "conversa-obrigado",
+      "categoria": "conversa",
+      "pergunta": "Muito obrigado pela ajuda!",
+      "resposta_esperada": "Por nada, e convida a perguntar de novo.",
+      "fatos": [
+        [
+          "por nada"
+        ]
+      ],
+      "sem_fontes": true,
+      "fonte": ""
+    },
+    {
+      "id": "conversa-data",
+      "categoria": "conversa",
+      "pergunta": "Que dia da semana é hoje?",
+      "resposta_esperada": "Dia da semana, dia do mês e ano no horário de Brasília.",
+      "fatos": [
+        [
+          "hoje é"
+        ],
+        [
+          "feira",
+          "sábado",
+          "domingo"
+        ]
+      ],
+      "sem_fontes": true,
+      "fonte": ""
+    },
+    {
+      "id": "conversa-hora",
+      "categoria": "conversa",
+      "pergunta": "Que horas são?",
+      "resposta_esperada": "Hora atual no horário de Brasília.",
+      "fatos": [
+        [
+          "horário de brasília"
+        ]
+      ],
+      "sem_fontes": true,
+      "fonte": ""
     }
   ]
 }

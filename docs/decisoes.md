@@ -184,3 +184,11 @@ Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo:
 ## 2026-11-14 — Limite diário vira à meia-noite de Brasília
 
 - A chave do visitante (hash do IP + dia) usava a data UTC; os contadores já usavam o dia de São Paulo. Com isso, às 21h de Brasília a chave mudava e o visitante ganhava outras 150 perguntas. Agora a chave usa `diaSaoPaulo`, o mesmo dia dos contadores e da cota global.
+
+## 2026-11-14 — Conversa cordial, data e hora; trechos menores em HTML
+
+- Pedido do Jeferson: o bot responde saudações e agradecimentos, se apresenta quando perguntado, é cordial e informa dia da semana, dia do mês e hora.
+- Mensagens só sociais (saudação, "tudo bem?", "quem é você?", agradecimento, despedida, data, hora) são respondidas por `worker-resposta/src/conversa.ts`, sem busca e sem Gemini. Motivos: resposta previsível, sem custo, sem cair na trava de "resposta sem fonte vira SEM_BASE". Passam pelo limite por visitante, mas não gastam a cota diária. Data e hora usam o fuso de Brasília. Mensagem que mistura saudação e pergunta ("bom dia, quando é a prova?") segue para o fluxo normal.
+- Prompt: regra 11 (cordialidade; cumprimentar ou agradecer em poucas palavras antes de responder) e exceção na regra 5 para data, dia da semana e hora, que agora vão no prompt ("Hoje é dd/mm/aaaa (dia da semana), HHhMM no horário de Brasília").
+- Avaliação: categoria `conversa` com 5 perguntas.
+- Busca (pendência da etapa 7): "Posso fazer o Vestibular e o SiSU?" não achava a seção da página inicial do vestibular, porque ela ficava num trecho de 3.000 caracteres dominado pelo cronograma. Páginas HTML passam a ter trechos de até 1.600 caracteres (sobreposição 300); PDFs continuam em 3.200 para caber no teto de 6.000 vetores (cerca de 2.900 em uso; o HTML acrescenta uns 450). A versão da divisão entra no hash só do HTML, então cada página HTML é redividida quando revisitada, sem reprocessar os PDFs.

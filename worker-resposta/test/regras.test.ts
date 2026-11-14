@@ -73,7 +73,8 @@ describe('montarSistema', () => {
   const s = montarSistema([trecho(1), trecho(2)], new Date('2026-11-12T15:00:00Z'));
   it('traz regras e data', () => {
     expect(s).toContain('Você é o assistente virtual da COPERSE');
-    expect(s).toContain('Hoje é 12/11/2026');
+    expect(s).toContain('Hoje é 12/11/2026 (quinta-feira), 12h00 no horário de Brasília.');
+    expect(s).toContain('11. Seja cordial');
   });
   it('numera os trechos com metadados', () => {
     expect(s).toContain(
