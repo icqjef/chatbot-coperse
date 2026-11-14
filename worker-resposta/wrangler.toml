@@ -29,7 +29,7 @@ LIMIAR_SIMILARIDADE = "0.5"
 GITHUB_REPO = "icqjef/chatbot-coperse"
 GITHUB_WORKFLOW = "indexar.yml"
 LIMITE_POR_MINUTO = "6"
-LIMITE_DIARIO_VISITANTE = "40"
+LIMITE_DIARIO_VISITANTE = "150"
 COTA_DIARIA = "1000"
 
 # Limites exatos (o limitador nativo da Cloudflare é aproximado). SQLite: único tipo no plano gratuito.

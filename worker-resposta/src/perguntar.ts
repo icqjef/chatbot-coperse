@@ -8,7 +8,7 @@ import { cabecalhosCors, origemPermitida } from './cors';
 import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, type Fonte } from './regras';
 
 export interface RateLimit {
-  limit(opcoes: { key: string }): Promise<{ success: boolean; motivo?: 'minuto' | 'dia' }>;
+  limit(opcoes: { key: string; diario?: boolean }): Promise<{ success: boolean; motivo?: 'minuto' | 'dia' }>;
 }
 
 export interface EnvPerguntar {
@@ -32,8 +32,8 @@ const LIMIAR_PADRAO = 0.5;
 const MAX_RECUSA = 400;
 
 const MSG_GRANDE = 'Pergunta grande demais.';
-const MSG_LIMITE = 'Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo.';
-const MSG_LIMITE_DIA = 'Você atingiu o limite de perguntas de hoje. Tente amanhã ou escreva para coperse@furg.br.';
+export const MSG_LIMITE = 'Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo.';
+export const MSG_LIMITE_DIA = 'Você atingiu o limite de perguntas de hoje. Tente amanhã ou escreva para coperse@furg.br.';
 const MSG_COTA =
   'O assistente atingiu o limite de perguntas de hoje. Tente de novo amanhã ou escreva para coperse@furg.br.';
 const MSG_INDISPONIVEL =
@@ -129,12 +129,14 @@ export async function aplicarLimite(
   req: Request,
   limitador: RateLimit,
   cors: Record<string, string>,
+  /** só /perguntar gasta o limite diário do visitante; /saude e /reindexar só passam pelo de minuto */
+  diario = false,
 ): Promise<Response | null> {
   // A Cloudflare sempre define CF-Connecting-IP em produção; sem ele (teste local) todos
   // os visitantes dividem a chave 'sem-ip' + dia.
   const ip = req.headers.get('CF-Connecting-IP') || 'sem-ip';
   try {
-    const { success, motivo } = await limitador.limit({ key: await chaveLimite(ip, new Date()) });
+    const { success, motivo } = await limitador.limit({ key: await chaveLimite(ip, new Date()), diario });
     return success ? null : json({ erro: motivo === 'dia' ? MSG_LIMITE_DIA : MSG_LIMITE }, 429, cors);
   } catch {
     console.error('Falha no limitador');
@@ -218,7 +220,7 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   }
 
   const agora = () => new Date();
-  const negado = await aplicarLimite(req, env.LIMITADOR, cors);
+  const negado = await aplicarLimite(req, env.LIMITADOR, cors, true);
   if (negado) return negado;
   if (env.COTA) {
     let liberada = false;

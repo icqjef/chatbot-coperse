@@ -67,8 +67,8 @@ export async function consumirCota(armazem: Armazenamento, dia: string, teto: nu
 /**
  * Durable Object único ("global"): processa um pedido por vez, então as contagens são exatas
  * (o limitador nativo da Cloudflare é aproximado e conta por data center).
- * Os contadores por visitante ficam só em memória: se o objeto for descarregado, as janelas
- * de 1 minuto recomeçam (aceitável). A cota diária fica gravada.
+ * Os contadores por visitante (janela de 1 minuto e total do dia) ficam só em memória: se o objeto
+ * for descarregado, recomeçam do zero (aceitável: o teto de gasto é a cota global, que fica gravada).
  */
 export class Limites {
   private contadores = new Contadores();
@@ -115,12 +115,13 @@ export function criarLimites(
   vars: { LIMITE_POR_MINUTO?: string; COTA_DIARIA?: string; LIMITE_DIARIO_VISITANTE?: string },
 ): { limitador: RateLimit; cota: CotaDiaria } {
   const limite = inteiro(vars.LIMITE_POR_MINUTO, 6);
-  const limiteDia = inteiro(vars.LIMITE_DIARIO_VISITANTE, 40);
+  const limiteDia = inteiro(vars.LIMITE_DIARIO_VISITANTE, 150);
   const teto = inteiro(vars.COTA_DIARIA, 1000);
   return {
     limitador: {
-      limit: async ({ key }) => {
-        const { ok, motivo } = await chamarBruto(ns, '/visitante', { chave: key, limite, limiteDia });
+      // Sem `diario` (saúde, reindexar) só vale o limite por minuto: não gasta a cota do dia do visitante.
+      limit: async ({ key, diario }) => {
+        const { ok, motivo } = await chamarBruto(ns, '/visitante', { chave: key, limite, ...(diario ? { limiteDia } : {}) });
         return ok ? { success: true } : { success: false, motivo };
       },
     },

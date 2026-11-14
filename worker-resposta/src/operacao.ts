@@ -1,4 +1,4 @@
-import { aplicarLimite, chaveLimite, json } from './perguntar';
+import { aplicarLimite, chaveLimite, json, MSG_LIMITE, MSG_LIMITE_DIA } from './perguntar';
 import type { Env } from './index';
 
 const MIN_SENHA = 32;
@@ -47,14 +47,14 @@ export async function tratarReindexar(req: Request, env: Env): Promise<Response>
   }
   // O limite vem antes da senha, para também frear tentativas de adivinhá-la.
   const ip = req.headers.get('CF-Connecting-IP') || 'sem-ip';
-  let liberado = false;
+  let resultado: { success: boolean; motivo?: 'minuto' | 'dia' };
   try {
-    liberado = (await env.LIMITADOR.limit({ key: await chaveLimite(ip, new Date()) })).success;
+    resultado = await env.LIMITADOR.limit({ key: await chaveLimite(ip, new Date()) });
   } catch {
     console.error('Falha no limitador da reindexação');
     return json({ erro: MSG_INDISPONIVEL }, 503, {});
   }
-  if (!liberado) return json({ erro: 'Muitas chamadas. Aguarde um minuto.' }, 429, {});
+  if (!resultado.success) return json({ erro: resultado.motivo === 'dia' ? MSG_LIMITE_DIA : MSG_LIMITE }, 429, {});
 
   const enviado = /^Bearer (.+)$/.exec(req.headers.get('Authorization') ?? '')?.[1] ?? '';
   if (!(await iguaisEmTempoConstante(enviado, env.REINDEX_TOKEN))) {

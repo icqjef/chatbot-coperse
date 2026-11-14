@@ -268,6 +268,14 @@ describe('endurecimento', () => {
     expect(await r.json()).toEqual({ erro: 'Você atingiu o limite de perguntas de hoje. Tente amanhã ou escreva para coperse@furg.br.' });
   });
 
+  it('/perguntar pede ao limitador que conte o limite do dia', async () => {
+    const { env } = montar({});
+    const chamadas: { diario?: boolean }[] = [];
+    env.LIMITADOR = { limit: async (o) => (chamadas.push(o), { success: false }) };
+    await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(chamadas[0]?.diario).toBe(true);
+  });
+
   it('limitador que lança -> 503 amigável com CORS, log sem IP', async () => {
     const { env } = montar({});
     env.LIMITADOR = {

@@ -145,6 +145,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       if (!lista && pareceListaDeNomes(texto)) {
         lista = true;
         texto = '';
+        console.error(`PDF tratado como lista pelo conteúdo: ${item.url}`);
       }
       saida.tipo = lista ? 'lista' : 'pdf';
       const c = classificar(titulo, item.url, data, item, site, regras, texto);
@@ -189,6 +190,15 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     if (e instanceof ErroForaDoDominio) {
       // Permanente: não repete na fila e nada é indexado.
       console.error(e.message);
+      // Já indexada e agora desviada para fora do domínio: o conteúdo antigo sai do índice.
+      if (estado.paginas.get(item.url)?.status === 'ok') {
+        try {
+          await removerPagina(item.url, deps);
+          return 'removida';
+        } catch {
+          // fica como está; a próxima execução tenta de novo
+        }
+      }
       return 'ignorada';
     }
     const msg = e instanceof Error ? e.message : String(e);
@@ -243,6 +253,44 @@ async function limparExcluidas(sites: Site[], ctx: Contexto, total: Contagem): P
   total.removida += n;
   if (n > 0) console.error(`Edições antigas excluídas do índice e da fila: ${n}`);
   if (falhas > 0) console.error(`Falha ao remover ${falhas} página(s) excluída(s); tentará de novo na próxima execução.`);
+}
+
+/**
+ * Linhas antigas com http://: tira do índice e enfileira a versão https (a menos que já esteja ok ou na fila).
+ * Falha por URL não derruba a execução; só contagens vão ao log.
+ */
+async function migrarHttp(sites: Site[], ctx: Contexto, total: Contagem): Promise<void> {
+  const { deps, estado } = ctx;
+  const agora = deps.agora();
+  let removidas = 0;
+  let falhas = 0;
+  const novos: NovoItem[] = [];
+  for (const [url, vista] of [...estado.paginas]) {
+    if (!url.startsWith('http://') || vista.status === 'removida') continue;
+    const https = url.replace(/^http:/, 'https:');
+    const site = sites.find((s) => hostPermitido(url, s));
+    try {
+      await removerPagina(url, deps);
+    } catch {
+      falhas++;
+      continue; // fica para a próxima execução
+    }
+    estado.paginas.set(url, { ...vista, status: 'removida' });
+    removidas++;
+    if (!site || estado.paginas.get(https)?.status === 'ok' || estado.naFila.has(https)) continue;
+    novos.push({
+      url: https, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_CHAVE,
+      titulo: null, processo: null, ano: null, data: null,
+    });
+  }
+  try {
+    await enfileirar(deps.cf, estado, novos, { agora, forcar: true });
+  } catch {
+    falhas++;
+  }
+  total.removida += removidas;
+  if (removidas > 0) console.error(`Páginas http:// removidas e reenfileiradas como https://: ${removidas}`);
+  if (falhas > 0) console.error(`Falha ao migrar ${falhas} página(s) http://; tentará de novo na próxima execução.`);
 }
 
 async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void> {
@@ -316,6 +364,7 @@ export async function executar(
   let tetoAtingido = false;
   try {
     await limparExcluidas(opcoes.sites, ctx, total);
+    await migrarHttp(opcoes.sites, ctx, total);
     for (const site of opcoes.sites) await semear(site, ctx, total);
 
     laco: for (;;) {
