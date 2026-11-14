@@ -506,6 +506,21 @@ describe('executar: PDF linkado por página lista', () => {
     expect(m.f.trechos().filter((t) => t.url === `${V}/docs/x.pdf`).map((t) => t.texto).join(' ')).not.toMatch(/Fulano/);
     expect(m.buscados.filter((u) => u === `${V}/docs/x.pdf`)).toHaveLength(1);
   });
+
+  it('PDF de título neutro cujo texto é lista de nomes vira lista: só resumo, sem os nomes', async () => {
+    const texto = 'Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA';
+    const m = montar({ paginas: {
+      [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/docs/doc.pdf', 'Documento']]) },
+      [`${V}/docs/doc.pdf`]: { tipo: 'pdf', bytes: enc(texto) },
+    } });
+    const r = await executar(m.opcoes(), m.deps);
+    expect(r).toMatchObject({ erro: 0 });
+    expect(m.f.paginas.get(`${V}/docs/doc.pdf`)?.tipo).toBe('lista');
+    const trechos = m.f.trechos().filter((t) => t.url === `${V}/docs/doc.pdf`);
+    expect(trechos).toHaveLength(1);
+    expect(trechos[0]!.texto).toMatch(/lista nominal/);
+    expect(trechos[0]!.texto).not.toMatch(/SCHEIBLER|ALINE/);
+  });
 });
 
 describe('codigoSaida', () => {

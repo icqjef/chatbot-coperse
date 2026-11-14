@@ -110,6 +110,23 @@ export function nomeDoArquivo(url: string): string {
   }
 }
 
+const LINHA_DE_NOME = /^\d{1,7}\s+\p{Lu}[\p{Lu}'’.-]*(?:\s+\p{Lu}[\p{Lu}'’.-]*)+$/u;
+
+/** Lista nominal detectada pelo conteúdo do PDF (primeiros 4000 caracteres): cabeçalho "inscrição + nome" ou 8+ linhas "número NOME EM MAIÚSCULAS". */
+export function pareceListaDeNomes(texto: string): boolean {
+  let linhasDeNome = 0;
+  for (const linha of texto.slice(0, 4000).split(/\r?\n/)) {
+    const t = linha.trim();
+    // cabeçalho é curto; parágrafo de edital ("nome social ... inscrição") não conta
+    if (t.length <= 80) {
+      const n = normalizar(t);
+      if (/inscricao/.test(n) && /\bnome\b/.test(n)) return true;
+    }
+    if (LINHA_DE_NOME.test(t) && ++linhasDeNome >= 8) return true;
+  }
+  return false;
+}
+
 export function ehListaDeCandidatos(titulo: string, url: string, regras: RegrasClassificacao): boolean {
   const t = normalizar(titulo);
   const arquivo = normalizar(nomeDoArquivo(url));

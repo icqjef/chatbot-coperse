@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { carregarSites } from '@chatbot/comum';
 import {
-  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, type RegrasClassificacao,
+  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, pareceListaDeNomes, type RegrasClassificacao,
 } from '@chatbot/comum/classificar';
 import { criarEmbedder, ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import type { Site, TipoDocumento } from '@chatbot/comum/tipos';
@@ -139,9 +139,14 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       const conhecida = (ctx.doFeed.has(item.url) && valida(item.data) ? item.data : undefined) ?? resp.ultimaModificacao;
       data = conhecida ?? (valida(item.data) ? item.data : agora);
       // URL sem cara de PDF que devolveu PDF: a regra de lista ainda vale (não lê o conteúdo).
-      const lista = filhoDeLista || ehListaDeCandidatos(titulo, item.url, regras);
+      let lista = filhoDeLista || ehListaDeCandidatos(titulo, item.url, regras);
+      let texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
+      // Privacidade: lista de nomes com título neutro é pega pelo cabeçalho/linhas do conteúdo; o texto é descartado.
+      if (!lista && pareceListaDeNomes(texto)) {
+        lista = true;
+        texto = '';
+      }
       saida.tipo = lista ? 'lista' : 'pdf';
-      const texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
       const c = classificar(titulo, item.url, data, item, site, regras, texto);
       return await indexarDocumento(
         { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo: lista ? 'lista' : 'pdf', processo: c.processo, ano: c.ano, texto }, deps,

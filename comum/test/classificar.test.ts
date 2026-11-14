@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, normalizar,
+  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, normalizar, pareceListaDeNomes,
 } from '../src/classificar';
 
 const lerJson = (c: string): unknown =>
@@ -9,6 +9,26 @@ const lerJson = (c: string): unknown =>
 const regras = carregarRegras(lerJson('processos.json'), lerJson('listas.json'));
 const X = 'https://coperse.furg.br/x';
 const VEST_RESULTADO = 'https://vestibular.furg.br/api/documentos/publico?arquivo=docs.publicacoes%2FResultado_Final_2026.pdf';
+
+describe('pareceListaDeNomes', () => {
+  it('cabeçalho de tabela com inscrição e nome', () => {
+    expect(pareceListaDeNomes('Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA')).toBe(true);
+    expect(pareceListaDeNomes('Resultado\nINSCRIÇÃO | NOME | NOTA')).toBe(true);
+    expect(pareceListaDeNomes('Nome do candidato ........ Inscricao')).toBe(true);
+  });
+  it('8 linhas número + nome em maiúsculas, sem cabeçalho', () => {
+    const l = Array.from({ length: 8 }, (_, i) => `${100 + i} NOME SOBRENOME`);
+    expect(pareceListaDeNomes(l.join('\n'))).toBe(true);
+    expect(pareceListaDeNomes(l.slice(0, 7).join('\n'))).toBe(false);
+  });
+  it('edital e tabela de vagas não são lista', () => {
+    expect(pareceListaDeNomes('3.4. A pessoa candidata poderá se inscrever no Vestibular 2027 e informar seu nome social no ato da inscrição, conforme as regras deste edital e da legislação vigente.')).toBe(false);
+    expect(pareceListaDeNomes('Medicina 34 vagas\nDireito 40 vagas\nOceanologia 25 vagas')).toBe(false);
+  });
+  it('só olha os primeiros 4000 caracteres', () => {
+    expect(pareceListaDeNomes(`${'x '.repeat(2100)}\nNº INSCRIÇÃO NOME`)).toBe(false);
+  });
+});
 
 describe('normalizar', () => {
   it('decodifica, remove acentos e separadores', () => {
