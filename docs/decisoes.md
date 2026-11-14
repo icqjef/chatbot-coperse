@@ -150,3 +150,14 @@ A primeira carga indexou com nomes de candidatos dois PDFs de locais de prova (`
 ## 2026-11-14 — Listas com nomes que escaparam da regra
 
 Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo: eliminados do Processo Próprio, eliminados e ausentes do PS EaD. O link dizia "candidatos que não obtiveram pontuação mínima" e "não compareceram", termos que não estavam nos padrões. Entraram nos padrões de lista: `eliminad`, `compareceram`, `ausentes`, `pontuacao minima`, `nota minima`. As três páginas foram reprocessadas e ficaram só com o resumo. Pendência para a etapa 8: conferir também o início do texto do PDF (cabeçalho "Nº INSCRIÇÃO NOME"), não só o link.
+
+## 2026-11-14 — Etapa 7: portão de qualidade
+
+- 31 perguntas de referência em `avaliacao/perguntas.json`, conferidas pelo Jeferson (prazo da taxa do Vestibular 2027: 12/10/2026). Executor: `node avaliacao/avaliar.mjs` (11 s entre perguntas, sai com erro se datas/vagas/prazos não passarem 100%).
+- Placar das rodadas no bot publicado: 11/19 → 18/19 → 19/19 → 19/19 em datas/vagas/prazos. Última rodada: regras 6/8, armadilhas 3/4 (a armadilha do SiSU 2022 respondeu sobre o SiSU 2026 sem repetir as datas antigas; a verificação passou a aceitar isso).
+- O que mudou para chegar lá: chave recusada interrompe a indexação; edições de 2013 a 2025 saíram do índice; ano do documento vem do texto; busca dá prioridade (+0,02) ao processo citado e envia 8 trechos ao modelo; datas sempre com ano e aviso de edição passada (regra 8); texto simples, sem LaTeX (regra 9); falha passageira (HTTP 500 dos sites) não esconde mais página já indexada; listas de eliminados e ausentes viram só resumo.
+- Limiar de similaridade mantido em 0,5: nenhuma falha da última rodada foi por limiar (as duas de regras são trechos fora dos 8 primeiros). Não foi preciso testar 0,4 e 0,6.
+- Verificador aceita datas por extenso ("13 de agosto") e números só em fronteira de dígito ("30" não casa em "19h30").
+- Pendentes, fora do portão: "Posso fazer o Vestibular e o SiSU?" e "Como é a prova do Vestibular?" não acham o trecho da página inicial do vestibular.furg.br (página longa, dividida em trechos grandes).
+- Teste de carga leve (31 perguntas seguidas, `wrangler tail`): tempo de CPU por chamada p50 15 ms, máximo 32 ms; todas com resultado `ok`. Passa do limite nominal de 10 ms do plano gratuito, que a Cloudflare não cortou nesta medição. Risco R3 continua aberto para a etapa 8: provável custo de `returnMetadata: 'all'` com 20 vetores; medir de novo e, se houver erro de CPU, reduzir os metadados ou ir ao plano pago (US$ 5/mês).
+- Índice em 2026-11-14: cerca de 1.250 trechos (teto 6.000), sem duplicatas `?Itemid=`, http/https ou sisu3/sisu.

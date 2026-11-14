@@ -1,7 +1,7 @@
 {
   "versao": 1,
   "conferido_por_jeferson": true,
-  "nota": "Rascunho de 2026-11-13 montado a partir dos trechos indexados. 'fatos': cada item é uma lista de formas aceitas; a resposta precisa conter ao menos uma forma de cada item (sem diferenciar maiúsculas nem acentos). 'fonte': trecho da URL que precisa aparecer nas fontes. 'sem_fontes': a resposta não pode trazer fontes. 'proibidos': textos que não podem aparecer. 'historico': lista opcional de mensagens anteriores ({papel, texto}), enviada como está na requisição (testa seguimentos como 'e de Medicina?').",
+  "nota": "Rascunho de 2026-11-13 montado a partir dos trechos indexados. 'fatos': cada item é uma lista de formas aceitas; a resposta precisa conter ao menos uma forma de cada item (sem diferenciar maiúsculas nem acentos). 'fonte': trecho da URL que precisa aparecer nas fontes. 'sem_fontes': a resposta não pode trazer fontes. 'proibidos': textos que não podem aparecer. 'historico': lista opcional de mensagens anteriores ({papel, texto}), enviada como está na requisição (testa seguimentos como 'e de Medicina?'). 'datas_antigas': datas da edição passada que não podem aparecer sem o ano.",
   "perguntas": [
     {
       "id": "vest-prova-data",
@@ -442,10 +442,17 @@
       "id": "armadilha-edicao-sisu",
       "categoria": "armadilha",
       "pergunta": "Qual é o período de habilitação para a lista de espera do SiSU?",
-      "resposta_esperada": "O site só tem as datas do SiSU 2022/1 (10 a 20/03/2022). O bot precisa dizer que é de edição passada e não apresentar como atual, ou dizer que não encontrou.",
+      "resposta_esperada": "Não pode apresentar as datas do SiSU 2022/1 (10 a 20/03, 22/03 a 05/04, 07/04 a 01/05) como atuais: passa se disser que são de 2022, se encaminhar à COPERSE sem fontes, ou se não repetir essas datas.",
       "fatos": [],
       "deve_dizer_edicao_passada": "2022",
-      "fonte": ""
+      "fonte": "",
+      "datas_antigas": [
+        "10/03",
+        "20/03",
+        "22/03",
+        "05/04",
+        "01/05"
+      ]
     },
     {
       "id": "armadilha-fora-tema",

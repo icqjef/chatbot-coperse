@@ -62,7 +62,9 @@ export function verificar(p, r) {
   if (p.deve_dizer_edicao_passada) {
     const ano = texto.includes(normalizar(p.deve_dizer_edicao_passada));
     const recusa = fontes.length === 0 && texto.includes("coperse@furg.br");
-    if (!ano && !recusa) {
+    // Também passa se não repetiu nenhuma data da edição passada (não a apresentou como atual).
+    const semDatasAntigas = (p.datas_antigas ?? []).length > 0 && !p.datas_antigas.some((d) => contemFato(texto, d));
+    if (!ano && !recusa && !semDatasAntigas) {
       motivos.push(`não indicou edição passada (${p.deve_dizer_edicao_passada}) nem orientou a COPERSE`);
     }
   }
