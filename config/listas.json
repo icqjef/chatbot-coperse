@@ -2,6 +2,7 @@
   "padroes": ["resultado", "homologa", "aprovad", "classifica", "convoca", "chamad", "chamamento",
               "\\blista\\b", "listagem", "deferid", "\\bnotas?\\b", "\\bloca(l|is) (de )?provas?\\b",
               "\\bsalas\\b", "selecionad", "suplente", "complementacao documental", "heteroidentifica",
-              "inscritos", "nominal", "ensalamento"],
+              "inscritos", "nominal", "ensalamento", "eliminad", "compareceram", "ausentes",
+              "pontuacao minima", "nota minima"],
   "excecoes": ["gabarito"]
 }
