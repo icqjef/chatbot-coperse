@@ -118,6 +118,14 @@ describe('executar: rastreamento pela fila', () => {
     expect(m.buscados.some((u) => u.includes('format=feed'))).toBe(false);
   });
 
+  it('PDF sem ano no título, em pasta de 2026, usa o ano que o texto cita (2027)', async () => {
+    const u = `${V}/images/2026/Vestibular-2026/Cronograma_retificado.pdf`;
+    const m = montar({ paginas: { [u]: { tipo: 'pdf', bytes: new TextEncoder().encode('10.1. O cronograma do Vestibular FURG 2027 está na Tabela 5') } } });
+    await enfileirar(m.f.cf, await carregarEstado(m.f.cf), [{ url: u, site: 'vestibular', profundidade: 1, origem: `${V}/`, prioridade: 2, titulo: 'Consulte aqui a retificação do cronograma', processo: null, ano: null, data: null }], { agora: m.estado.agora });
+    await executar(m.opcoes({ sites: [site({ paginas_chave: [] })] }), m.deps);
+    expect(m.f.paginas.get(u)).toMatchObject({ tipo: 'pdf', ano: 2027 });
+  });
+
   it('PDF herda processo e ano da página que o linkou', async () => {
     const m = montar();
     await executar(m.opcoes(), m.deps);

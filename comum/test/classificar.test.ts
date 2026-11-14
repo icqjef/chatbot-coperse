@@ -86,6 +86,22 @@ describe('inferirAno', () => {
     expect(inferirAno('Vestibular 2027', 'https://x/2026/a')).toBe(2027);
     expect(inferirAno('Edital', 'https://coperse.furg.br/anos-anteriores/2024-3/ps-2013-quilombolas')).toBe(2013);
   });
+  it('sem ano no título, o ano citado no texto vence o do caminho', () => {
+    const url = 'https://coperse.furg.br/images/2026/Vestibular-2026/Cronograma_retificado.pdf';
+    expect(inferirAno('Consulte aqui a retificação do cronograma', url,
+      '10.1. O cronograma do Vestibular FURG 2027 está apresentado na Tabela 5')).toBe(2027);
+    // sem texto, ou texto sem processo seguido de ano, vale o caminho
+    expect(inferirAno('Consulte aqui a retificação do cronograma', url)).toBe(2026);
+    expect(inferirAno('Consulte aqui', url, 'Tabela de datas de 2027 sem o nome do processo')).toBe(2026);
+    // ano a mais de 60 caracteres da palavra-chave não conta
+    expect(inferirAno('Consulte aqui', url, `Vestibular ${'x'.repeat(70)} 2027`)).toBe(2026);
+    // só os primeiros 3000 caracteres
+    expect(inferirAno('Consulte aqui', url, `${'x'.repeat(3000)} Vestibular FURG 2027`)).toBe(2026);
+  });
+  it('o ano do título continua prioritário sobre o do texto', () => {
+    expect(inferirAno('EDITAL Nº 21/2026', 'https://coperse.furg.br/images/2026/Vestibular-2026/e.pdf',
+      '... Processo Seletivo Específico para Ingresso de Estudantes Transgêneros no primeiro semestre de 2027')).toBe(2026);
+  });
   it('null sem ano isolado', () => {
     expect(inferirAno('Edital', 'https://coperse.furg.br/images/Edital_EaD_20261_FINAL_OK.pdf')).toBeNull();
     expect(inferirAno('Edital', 'https://x/a')).toBeNull();

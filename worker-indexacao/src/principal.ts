@@ -75,10 +75,10 @@ function tituloDoArquivo(url: string): string {
 const tituloPdf = (item: ItemFila) => (item.titulo && !ehGenerico(item.titulo) ? item.titulo : tituloDoArquivo(item.url));
 
 /** Processo e ano: o próprio documento › herdado da fila › padrão. `herdavel` não inclui os padrões. */
-function classificar(titulo: string, url: string, data: string, item: ItemFila, site: Site, regras: RegrasClassificacao) {
+function classificar(titulo: string, url: string, data: string, item: ItemFila, site: Site, regras: RegrasClassificacao, texto?: string) {
   // Só o caminho da URL: o host sisu3.furg.br casaria com \bsisu\b.
   const processoProprio = inferirProcesso([titulo, new URL(url).pathname], regras) ?? item.processo;
-  const anoProprio = inferirAno(titulo, new URL(url).pathname) ?? item.ano;
+  const anoProprio = inferirAno(titulo, new URL(url).pathname, texto) ?? item.ano;
   return {
     processo: processoProprio ?? site.processo_padrao ?? 'geral',
     ano: anoProprio ?? new Date(data).getUTCFullYear(),
@@ -138,11 +138,11 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       titulo = tituloPdf(item);
       const conhecida = (ctx.doFeed.has(item.url) && valida(item.data) ? item.data : undefined) ?? resp.ultimaModificacao;
       data = conhecida ?? (valida(item.data) ? item.data : agora);
-      const c = classificar(titulo, item.url, data, item, site, regras);
       // URL sem cara de PDF que devolveu PDF: a regra de lista ainda vale (não lê o conteúdo).
       const lista = filhoDeLista || ehListaDeCandidatos(titulo, item.url, regras);
       saida.tipo = lista ? 'lista' : 'pdf';
       const texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
+      const c = classificar(titulo, item.url, data, item, site, regras, texto);
       return await indexarDocumento(
         { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo: lista ? 'lista' : 'pdf', processo: c.processo, ano: c.ano, texto }, deps,
       );
@@ -153,7 +153,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     titulo = (doFeed && item.titulo) || pagina.titulo || item.titulo || '';
     const conhecida = (doFeed && valida(item.data) ? item.data : undefined) ?? pagina.data ?? resp.ultimaModificacao;
     data = conhecida ?? agora;
-    const c = classificar(titulo, item.url, data, item, site, regras);
+    const c = classificar(titulo, item.url, data, item, site, regras, pagina.texto);
     const lista = ehListaDeCandidatos(titulo, item.url, regras);
     tipo = lista ? 'lista' : 'html';
     saida.tipo = tipo;

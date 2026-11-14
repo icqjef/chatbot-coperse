@@ -62,9 +62,16 @@ export function inferirProcesso(textos: string[], regras: RegrasClassificacao): 
 
 const ANO = /(?<!\d)20[0-3]\d(?!\d)/g;
 
-export function inferirAno(titulo: string, url: string): number | null {
+/** Processo citado seguido, em até 60 caracteres, de um ano: "Vestibular FURG 2027". */
+const PROCESSO_ANO = /(?<![a-z])(?:vestibular|sisu|processo seletivo|ps)(?![a-z])[\s\S]{0,60}?(?<!\d)(20[0-3]\d)(?!\d)/i;
+const INICIO_TEXTO = 3000;
+
+/** Ordem: ano no título; ano citado junto ao nome do processo no início do texto; último ano do caminho da URL. */
+export function inferirAno(titulo: string, url: string, texto?: string): number | null {
   const noTitulo = titulo.match(ANO);
   if (noTitulo?.[0]) return Number(noTitulo[0]);
+  const noTexto = texto?.slice(0, INICIO_TEXTO).match(PROCESSO_ANO);
+  if (noTexto?.[1]) return Number(noTexto[1]);
   let caminho = url;
   try {
     caminho = new URL(url).pathname;
