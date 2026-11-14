@@ -15,6 +15,7 @@ export interface Env {
   LIMITADOR: RateLimit;
   COTA?: CotaDiaria;
   LIMITE_POR_MINUTO?: string;
+  LIMITE_DIARIO_VISITANTE?: string;
   COTA_DIARIA?: string;
   AMBIENTE: string;
   PROVEDOR_LLM: string;

@@ -61,6 +61,12 @@ describe('GET /saude', () => {
     expect(r.status).toBe(429);
     expect(consultou).toBe(false);
   });
+  it('/saude pede o limite sem contar o dia', async () => {
+    const chamadas: unknown[] = [];
+    const env = montarEnv({ LIMITADOR: { limit: async (o: unknown) => (chamadas.push(o), { success: true }) } });
+    await worker.fetch(new Request(`${base}/saude`), env);
+    expect((chamadas[0] as { diario?: boolean }).diario).toBeFalsy();
+  });
   it('limitador que lança -> 503', async () => {
     const env = montarEnv({ LIMITADOR: { limit: async () => { throw new Error('x'); } } });
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -151,6 +157,17 @@ describe('POST /reindexar', () => {
     const r = await worker.fetch(reindexar(SENHA), montarEnv({}, false));
     expect(r.status).toBe(429);
     expect(fetchFalso).not.toHaveBeenCalled();
+  });
+  it('limitador esgotado no dia -> 429 com a mensagem do dia', async () => {
+    const env = montarEnv({ LIMITADOR: { limit: async () => ({ success: false, motivo: 'dia' as const }) } });
+    const r = await worker.fetch(reindexar(SENHA), env);
+    expect(r.status).toBe(429);
+    expect(JSON.stringify(await r.json())).toContain('hoje');
+  });
+  it('limitador esgotado no minuto -> 429 com a mensagem do minuto', async () => {
+    const env = montarEnv({ LIMITADOR: { limit: async () => ({ success: false, motivo: 'minuto' as const }) } });
+    const r = await worker.fetch(reindexar(SENHA), env);
+    expect(JSON.stringify(await r.json())).toContain('Aguarde um minuto');
   });
   it('GET /reindexar -> 405', async () => {
     const r = await worker.fetch(new Request(`${base}/reindexar`), montarEnv());

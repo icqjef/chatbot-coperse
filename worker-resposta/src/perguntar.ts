@@ -8,7 +8,7 @@ import { cabecalhosCors, origemPermitida } from './cors';
 import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, type Fonte } from './regras';
 
 export interface RateLimit {
-  limit(opcoes: { key: string }): Promise<{ success: boolean }>;
+  limit(opcoes: { key: string; diario?: boolean }): Promise<{ success: boolean; motivo?: 'minuto' | 'dia' }>;
 }
 
 export interface EnvPerguntar {
@@ -32,7 +32,8 @@ const LIMIAR_PADRAO = 0.5;
 const MAX_RECUSA = 400;
 
 const MSG_GRANDE = 'Pergunta grande demais.';
-const MSG_LIMITE = 'Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo.';
+export const MSG_LIMITE = 'Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo.';
+export const MSG_LIMITE_DIA = 'Você atingiu o limite de perguntas de hoje. Tente amanhã ou escreva para coperse@furg.br.';
 const MSG_COTA =
   'O assistente atingiu o limite de perguntas de hoje. Tente de novo amanhã ou escreva para coperse@furg.br.';
 const MSG_INDISPONIVEL =
@@ -98,10 +99,28 @@ export async function responderPergunta(
   return { resposta, fontes };
 }
 
-/** sha256(ip + data UTC) em hex: não guarda o IP e renova a cada dia. */
+/**
+ * Identificador do visitante: IPv4 inteiro; IPv6 só o prefixo /64 (4 primeiros grupos, com o `::`
+ * expandido), porque um único usuário controla o /64 inteiro e mudaria de endereço para escapar do limite.
+ */
+export function prefixoIp(ip: string): string {
+  const semEscopo = ip.split('%')[0]!;
+  if (!semEscopo.includes(':')) return ip;
+  // IPv4 mapeado em IPv6 (::ffff:a.b.c.d): vale o IPv4.
+  const mapeado = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(semEscopo);
+  if (mapeado) return mapeado[1]!;
+  const [cabeca = '', cauda] = semEscopo.split('::') as [string, string?];
+  const ini = cabeca ? cabeca.split(':') : [];
+  const fim = cauda === undefined ? [] : cauda ? cauda.split(':') : [];
+  const grupos = cauda === undefined ? ini : [...ini, ...Array<string>(Math.max(0, 8 - ini.length - fim.length)).fill('0'), ...fim];
+  while (grupos.length < 8) grupos.push('0');
+  return grupos.slice(0, 4).map((g) => (parseInt(g, 16) || 0).toString(16)).join(':');
+}
+
+/** sha256(ip (IPv6: /64) + data UTC) em hex: não guarda o IP e renova a cada dia. */
 export async function chaveLimite(ip: string, agora: Date): Promise<string> {
   const dia = agora.toISOString().slice(0, 10);
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip + dia));
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(prefixoIp(ip) + dia));
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -110,13 +129,15 @@ export async function aplicarLimite(
   req: Request,
   limitador: RateLimit,
   cors: Record<string, string>,
+  /** só /perguntar gasta o limite diário do visitante; /saude e /reindexar só passam pelo de minuto */
+  diario = false,
 ): Promise<Response | null> {
   // A Cloudflare sempre define CF-Connecting-IP em produção; sem ele (teste local) todos
   // os visitantes dividem a chave 'sem-ip' + dia.
   const ip = req.headers.get('CF-Connecting-IP') || 'sem-ip';
   try {
-    const { success } = await limitador.limit({ key: await chaveLimite(ip, new Date()) });
-    return success ? null : json({ erro: MSG_LIMITE }, 429, cors);
+    const { success, motivo } = await limitador.limit({ key: await chaveLimite(ip, new Date()), diario });
+    return success ? null : json({ erro: motivo === 'dia' ? MSG_LIMITE_DIA : MSG_LIMITE }, 429, cors);
   } catch {
     console.error('Falha no limitador');
     return json({ erro: MSG_INDISPONIVEL }, 503, cors);
@@ -199,7 +220,7 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   }
 
   const agora = () => new Date();
-  const negado = await aplicarLimite(req, env.LIMITADOR, cors);
+  const negado = await aplicarLimite(req, env.LIMITADOR, cors, true);
   if (negado) return negado;
   if (env.COTA) {
     let liberada = false;

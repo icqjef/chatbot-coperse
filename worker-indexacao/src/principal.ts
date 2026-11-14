@@ -2,13 +2,13 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { carregarSites } from '@chatbot/comum';
 import {
-  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, type RegrasClassificacao,
+  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, pareceListaDeNomes, type RegrasClassificacao,
 } from '@chatbot/comum/classificar';
 import { criarEmbedder, ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import type { Site, TipoDocumento } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
-import { criarBuscar, criarCabecalho, ErroHttp, type Resposta } from './http.js';
+import { criarBuscar, criarCabecalho, ErroForaDoDominio, ErroHttp, type Resposta } from './http.js';
 import { ehGenerico, extrairPagina } from './extrair.js';
 import { extrairPdf } from './pdf.js';
 import {
@@ -38,7 +38,7 @@ export interface OpcoesExecucao {
 }
 
 export interface DepsExecucao extends DepsIndexacao {
-  buscar: (url: string) => Promise<Resposta>;
+  buscar: (url: string, dominiosPermitidos?: string[]) => Promise<Resposta>;
   extrairPdf: (b: Uint8Array) => Promise<{ texto: string; paginas: number }>;
   /** HEAD: Last-Modified sem baixar o corpo (listas em PDF) */
   cabecalho: (url: string) => Promise<{ ultimaModificacao?: string }>;
@@ -129,7 +129,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     }
 
     await ctx.esperar(PAUSA_MS);
-    const resp = await deps.buscar(item.url);
+    const resp = await deps.buscar(item.url, site.dominios_permitidos);
 
     if (resp.tipo === 'outro') return 'ignorada';
 
@@ -139,9 +139,15 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       const conhecida = (ctx.doFeed.has(item.url) && valida(item.data) ? item.data : undefined) ?? resp.ultimaModificacao;
       data = conhecida ?? (valida(item.data) ? item.data : agora);
       // URL sem cara de PDF que devolveu PDF: a regra de lista ainda vale (não lê o conteúdo).
-      const lista = filhoDeLista || ehListaDeCandidatos(titulo, item.url, regras);
+      let lista = filhoDeLista || ehListaDeCandidatos(titulo, item.url, regras);
+      let texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
+      // Privacidade: lista de nomes com título neutro é pega pelo cabeçalho/linhas do conteúdo; o texto é descartado.
+      if (!lista && pareceListaDeNomes(texto)) {
+        lista = true;
+        texto = '';
+        console.error(`PDF tratado como lista pelo conteúdo: ${item.url}`);
+      }
       saida.tipo = lista ? 'lista' : 'pdf';
-      const texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
       const c = classificar(titulo, item.url, data, item, site, regras, texto);
       return await indexarDocumento(
         { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo: lista ? 'lista' : 'pdf', processo: c.processo, ano: c.ano, texto }, deps,
@@ -181,6 +187,20 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     return r;
   } catch (e) {
     if (e instanceof ErroAutenticacaoProvedor) throw e; // nada de registrarErro/adiar: a fila fica intacta
+    if (e instanceof ErroForaDoDominio) {
+      // Permanente: não repete na fila e nada é indexado.
+      console.error(e.message);
+      // Já indexada e agora desviada para fora do domínio: o conteúdo antigo sai do índice.
+      if (estado.paginas.get(item.url)?.status === 'ok') {
+        try {
+          await removerPagina(item.url, deps);
+          return 'removida';
+        } catch {
+          // fica como está; a próxima execução tenta de novo
+        }
+      }
+      return 'ignorada';
+    }
     const msg = e instanceof Error ? e.message : String(e);
     let falhas = 0;
     try {
@@ -235,6 +255,51 @@ async function limparExcluidas(sites: Site[], ctx: Contexto, total: Contagem): P
   if (falhas > 0) console.error(`Falha ao remover ${falhas} página(s) excluída(s); tentará de novo na próxima execução.`);
 }
 
+/**
+ * Linhas antigas com http://: tira do índice e enfileira a versão https (a menos que já esteja ok ou na fila).
+ * Falha por URL não derruba a execução; só contagens vão ao log.
+ */
+async function migrarHttp(sites: Site[], ctx: Contexto, total: Contagem): Promise<void> {
+  const { deps, estado } = ctx;
+  const agora = deps.agora();
+  let removidas = 0;
+  let falhas = 0;
+  // Primeiro enfileira as versões https; só remove as http depois que a fila aceitou (falha = tudo fica para a próxima).
+  const migrar: string[] = [];
+  const novos: NovoItem[] = [];
+  for (const [url, vista] of [...estado.paginas]) {
+    if (!url.startsWith('http://') || vista.status === 'removida') continue;
+    const https = url.replace(/^http:/, 'https:');
+    const site = sites.find((s) => hostPermitido(url, s));
+    if (!site) continue; // sem site correspondente não há para onde migrar
+    migrar.push(url);
+    if (estado.paginas.get(https)?.status === 'ok' || estado.naFila.has(https)) continue;
+    novos.push({
+      url: https, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_CHAVE,
+      titulo: null, processo: null, ano: null, data: null,
+    });
+  }
+  try {
+    await enfileirar(deps.cf, estado, novos, { agora, forcar: true });
+  } catch {
+    if (migrar.length > 0) console.error(`Falha ao migrar ${migrar.length} página(s) http://; tentará de novo na próxima execução.`);
+    return;
+  }
+  for (const url of migrar) {
+    try {
+      await removerPagina(url, deps);
+    } catch {
+      falhas++;
+      continue; // fica para a próxima execução
+    }
+    estado.paginas.set(url, { ...estado.paginas.get(url)!, status: 'removida' });
+    removidas++;
+  }
+  total.removida += removidas;
+  if (removidas > 0) console.error(`Páginas http:// removidas e reenfileiradas como https://: ${removidas}`);
+  if (falhas > 0) console.error(`Falha ao migrar ${falhas} página(s) http://; tentará de novo na próxima execução.`);
+}
+
 async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void> {
   const { deps, estado } = ctx;
   const agora = deps.agora();
@@ -242,7 +307,7 @@ async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void>
   if (site.feed) {
     try {
       await ctx.esperar(PAUSA_MS);
-      const resp = await deps.buscar(site.feed);
+      const resp = await deps.buscar(site.feed, site.dominios_permitidos);
       if (resp.texto === undefined) throw new Error(`resposta do tipo ${resp.tipo}, não um feed`);
       for (const it of lerFeed(resp.texto)) {
         const url = normalizarUrl(it.url);
@@ -306,6 +371,7 @@ export async function executar(
   let tetoAtingido = false;
   try {
     await limparExcluidas(opcoes.sites, ctx, total);
+    await migrarHttp(opcoes.sites, ctx, total);
     for (const site of opcoes.sites) await semear(site, ctx, total);
 
     laco: for (;;) {

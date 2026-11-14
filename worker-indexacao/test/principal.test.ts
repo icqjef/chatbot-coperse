@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { Site, Embedder } from '@chatbot/comum/tipos';
 import { carregarRegras } from '@chatbot/comum/classificar';
 import { executar, codigoSaida, type OpcoesExecucao } from '../src/principal.js';
-import { ErroHttp, type Resposta } from '../src/http.js';
+import { ErroForaDoDominio, ErroHttp, type Resposta } from '../src/http.js';
 import { criarCfFalso } from './fakes.js';
 import { ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import { carregarEstado, enfileirar } from '../src/fila.js';
@@ -229,6 +229,15 @@ describe('executar: rastreamento pela fila', () => {
     }
     expect(m.f.paginas.get(u)?.status).toBe('erro');
     expect(m.f.paginas.get(u)?.falhas).toBe(3);
+  });
+
+  it('redirecionou para fora do domínio: ignorada, nada indexado nem adiado', async () => {
+    const u = `${V}/desvia`;
+    const m = montar({ paginas: { [u]: new ErroForaDoDominio(u, 'https://evil.example.com/') } });
+    const o = m.opcoes({ sites: [site({ paginas_chave: [u] })] });
+    const r = await executar(o, m.deps);
+    expect(r).toMatchObject({ ignorada: 1, erro: 0 });
+    expect(m.f.trechos().filter((t) => t.url === u)).toHaveLength(0);
   });
 
   it('PDF escaneado vira vazia; PDF grande demais vira erro e é adiado', async () => {
@@ -505,6 +514,72 @@ describe('executar: PDF linkado por página lista', () => {
     expect(m.f.paginas.get(`${V}/docs/x.pdf`)?.tipo).toBe('lista');
     expect(m.f.trechos().filter((t) => t.url === `${V}/docs/x.pdf`).map((t) => t.texto).join(' ')).not.toMatch(/Fulano/);
     expect(m.buscados.filter((u) => u === `${V}/docs/x.pdf`)).toHaveLength(1);
+  });
+
+  it('PDF de título neutro cujo texto é lista de nomes vira lista: só resumo, sem os nomes', async () => {
+    const texto = 'Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA\n87 CINTIA LEVI DE FARIA';
+    const m = montar({ paginas: {
+      [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/docs/doc.pdf', 'Documento']]) },
+      [`${V}/docs/doc.pdf`]: { tipo: 'pdf', bytes: enc(texto) },
+    } });
+    const r = await executar(m.opcoes(), m.deps);
+    expect(r).toMatchObject({ erro: 0 });
+    expect(m.f.paginas.get(`${V}/docs/doc.pdf`)?.tipo).toBe('lista');
+    const trechos = m.f.trechos().filter((t) => t.url === `${V}/docs/doc.pdf`);
+    expect(trechos).toHaveLength(1);
+    expect(trechos[0]!.texto).toMatch(/lista nominal/);
+    expect(trechos[0]!.texto).not.toMatch(/SCHEIBLER|ALINE/);
+  });
+});
+
+describe('executar: ajustes da revisão final', () => {
+  const linhaOk = (url: string) => ({ url, site: 'vestibular', titulo: 'Antiga', tipo: 'html', status: 'ok', falhas: 0, data_vista: '2026-11-12T00:00:00.000Z', hash: 'h' });
+
+  it('redirecionou para fora do domínio uma URL já indexada: remove do índice, sem nova tentativa', async () => {
+    const u = `${V}/desvia`;
+    const m = montar({ paginas: { [u]: new ErroForaDoDominio(u, 'https://evil.example.com/') } });
+    m.f.paginas.set(u, linhaOk(u));
+    const r = await executar(m.opcoes({ sites: [site({ paginas_chave: [u] })] }), m.deps);
+    expect(m.f.paginas.get(u)?.status).toBe('removida');
+    expect(r).toMatchObject({ erro: 0, removida: 1 });
+    expect(m.f.fila.size).toBe(0);
+  });
+
+  it('linha http:// ok vira removida e a versão https entra na fila e é indexada', async () => {
+    const velha = 'http://vestibular.furg.br/antiga';
+    const m = montar({ paginas: {
+      [`${V}/`]: { tipo: 'html', texto: pagina('Início') },
+      [`${V}/antiga`]: { tipo: 'html', texto: pagina('Antiga') },
+    } });
+    m.f.paginas.set(velha, linhaOk(velha));
+    const r = await executar(m.opcoes(), m.deps);
+    expect(m.f.paginas.get(velha)?.status).toBe('removida');
+    expect(m.f.paginas.get(`${V}/antiga`)?.status).toBe('ok');
+    expect(r.removida).toBeGreaterThanOrEqual(1);
+  });
+
+  it('linha http:// cuja versão https já está ok: só remove a antiga, sem rebuscar', async () => {
+    const velha = 'http://vestibular.furg.br/antiga';
+    const m = montar({ paginas: { [`${V}/`]: { tipo: 'html', texto: pagina('Início') } } });
+    m.f.paginas.set(velha, linhaOk(velha));
+    m.f.paginas.set(`${V}/antiga`, linhaOk(`${V}/antiga`));
+    await executar(m.opcoes(), m.deps);
+    expect(m.f.paginas.get(velha)?.status).toBe('removida');
+    expect(m.buscados).toEqual([`${V}/`]);
+  });
+
+  it('PDF tratado como lista pelo conteúdo: registra só a URL, sem o texto', async () => {
+    const texto = 'Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA\n87 CINTIA LEVI DE FARIA';
+    const m = montar({ paginas: {
+      [`${V}/`]: { tipo: 'html', texto: pagina('Início', [['/docs/doc.pdf', 'Documento']]) },
+      [`${V}/docs/doc.pdf`]: { tipo: 'pdf', bytes: new TextEncoder().encode(texto) },
+    } });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await executar(m.opcoes(), m.deps);
+    const linhas = log.mock.calls.map((c) => c.join(' '));
+    log.mockRestore();
+    expect(linhas).toContain(`PDF tratado como lista pelo conteúdo: ${V}/docs/doc.pdf`);
+    expect(linhas.join('\n')).not.toMatch(/SCHEIBLER|ALINE/);
   });
 });
 

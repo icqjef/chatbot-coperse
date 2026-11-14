@@ -126,7 +126,8 @@ describe('buscarTrechos', () => {
     const e = embedderFalso();
     const r = await buscarTrechos('prazo de inscrição', { embedder: e.embedder, vectorize: v.indice, db: d.db, agora: () => agora }, { limiar: 0.5 });
     expect(e.chamadas[0]!.tipo).toBe('RETRIEVAL_QUERY');
-    expect(v.chamadas[0]!.opcoes).toMatchObject({ topK: 20, returnMetadata: 'all' });
+    expect(v.chamadas[0]!.opcoes).toMatchObject({ topK: 20, returnMetadata: 'none' });
+    expect(v.chamadas[0]!.opcoes.returnValues ?? false).toBe(false);
     expect(r.trechos).toHaveLength(8);
     expect(r.melhorSimilaridade).toBeCloseTo(0.9);
     expect(r.trechos[0]!.texto).toBe('texto h');

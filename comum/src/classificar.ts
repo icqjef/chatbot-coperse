@@ -110,6 +110,27 @@ export function nomeDoArquivo(url: string): string {
   }
 }
 
+/** número + 2 ou mais palavras de nome (inicial maiúscula, só letras); colunas à direita são ignoradas */
+const LINHA_DE_NOME = /^\d{1,6}\s+(?![–\-.):])\p{Lu}\p{L}+\s+(?:(?:d[aeo]s?|e)\s+)?\p{Lu}\p{L}+(?:\s|$)/u;
+
+function ehCabecalhoDeNomes(linha: string): boolean {
+  const n = normalizar(linha);
+  const i = n.indexOf('inscricao');
+  const m = /\bnome\b/.exec(n);
+  return i >= 0 && !!m && Math.abs(m.index - i) <= 40;
+}
+
+/**
+ * Lista nominal detectada pelo conteúdo do PDF (primeiros 4000 caracteres): 8+ linhas "número Nome Sobrenome", ou
+ * cabeçalho "inscrição ... nome" seguido de 2+ dessas linhas nas 10 linhas seguintes.
+ */
+export function pareceListaDeNomes(texto: string): boolean {
+  const linhas = texto.slice(0, 4000).split(/\r?\n/).map((l) => l.trim());
+  const ehNome = linhas.map((l) => LINHA_DE_NOME.test(l));
+  if (ehNome.filter(Boolean).length >= 8) return true;
+  return linhas.some((l, i) => ehCabecalhoDeNomes(l) && ehNome.slice(i + 1, i + 11).filter(Boolean).length >= 2);
+}
+
 export function ehListaDeCandidatos(titulo: string, url: string, regras: RegrasClassificacao): boolean {
   const t = normalizar(titulo);
   const arquivo = normalizar(nomeDoArquivo(url));

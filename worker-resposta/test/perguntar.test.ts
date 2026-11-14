@@ -260,6 +260,22 @@ describe('endurecimento', () => {
     expect(lidos).toBeLessThan(20);
   });
 
+  it('limitador que barra pelo limite diário -> 429 com a mensagem do dia', async () => {
+    const { env } = montar({});
+    env.LIMITADOR = { limit: async () => ({ success: false, motivo: 'dia' as const }) };
+    const r = await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(r.status).toBe(429);
+    expect(await r.json()).toEqual({ erro: 'Você atingiu o limite de perguntas de hoje. Tente amanhã ou escreva para coperse@furg.br.' });
+  });
+
+  it('/perguntar pede ao limitador que conte o limite do dia', async () => {
+    const { env } = montar({});
+    const chamadas: { diario?: boolean }[] = [];
+    env.LIMITADOR = { limit: async (o) => (chamadas.push(o), { success: false }) };
+    await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(chamadas[0]?.diario).toBe(true);
+  });
+
   it('limitador que lança -> 503 amigável com CORS, log sem IP', async () => {
     const { env } = montar({});
     env.LIMITADOR = {
@@ -318,6 +334,31 @@ describe('endurecimento', () => {
 });
 
 describe('chave do limite', () => {
+  const t = new Date('2026-11-12T10:00:00Z');
+  it('IPv6 do mesmo /64 divide a chave; /64 diferente não; IPv4 inalterado', async () => {
+    const a = await chaveLimite('2001:db8:1:2:aaaa:bbbb:cccc:dddd', t);
+    const b = await chaveLimite('2001:0db8:0001:0002::1', t);
+    const c = await chaveLimite('2001:db8:1:3::1', t);
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
+    expect(await chaveLimite('203.0.113.7', t)).toBe(await chaveLimite('203.0.113.7', t));
+    const bruto = new TextEncoder().encode('203.0.113.7' + '2026-11-12');
+    const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bruto))].map((x) => x.toString(16).padStart(2, '0')).join('');
+    expect(await chaveLimite('203.0.113.7', t)).toBe(h);
+  });
+  it('formas comprimidas expandem certo (::1, ::, 2001:db8::, :: no meio)', async () => {
+    expect(await chaveLimite('::1', t)).toBe(await chaveLimite('0:0:0:0:0:0:0:1', t));
+    expect(await chaveLimite('::', t)).toBe(await chaveLimite('0:0:0:0::', t));
+    expect(await chaveLimite('2001:db8::5', t)).toBe(await chaveLimite('2001:db8:0:0:9:9:9:9', t));
+    expect(await chaveLimite('2001:db8:0:0:1::', t)).toBe(await chaveLimite('2001:db8::7', t));
+    expect(await chaveLimite('1:2:3:4::5', t)).toBe(await chaveLimite('1:2:3:4:0:0:0:0', t));
+    expect(await chaveLimite('1::2:3:4', t)).not.toBe(await chaveLimite('1:2:3:4::', t));
+  });
+  it('IPv6 com escopo ou IPv4 embutido não quebra', async () => {
+    expect(await chaveLimite('fe80::1%eth0', t)).toMatch(/^[0-9a-f]{64}$/);
+    expect(await chaveLimite('::ffff:203.0.113.7', t)).toMatch(/^[0-9a-f]{64}$/);
+  });
+
   it('mesmo IP no mesmo dia -> mesma chave; não contém o IP', async () => {
     const a = await chaveLimite('203.0.113.7', new Date('2026-11-12T10:00:00Z'));
     const b = await chaveLimite('203.0.113.7', new Date('2026-11-12T23:59:00Z'));

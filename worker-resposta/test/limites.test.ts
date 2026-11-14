@@ -35,6 +35,23 @@ describe('Contadores.visitante', () => {
   });
 });
 
+describe('Contadores.diario', () => {
+  it('libera 40 no dia e barra a 41ª; no dia seguinte volta a liberar', () => {
+    const c = new Contadores();
+    const r = Array.from({ length: 41 }, () => c.diario('a', 40, '2026-11-14'));
+    expect(r.filter(Boolean)).toHaveLength(40);
+    expect(r[40]).toBe(false);
+    expect(c.diario('b', 40, '2026-11-14')).toBe(true);
+    expect(c.diario('a', 40, '2026-11-15')).toBe(true);
+  });
+  it('descarta chaves de dias anteriores quando o mapa cresce', () => {
+    const c = new Contadores();
+    for (let i = 0; i < 5001; i++) c.diario(`k${i}`, 40, '2026-11-14');
+    c.diario('novo', 40, '2026-11-15');
+    expect((c as unknown as { dias: Map<string, unknown> }).dias.size).toBe(1);
+  });
+});
+
 describe('consumirCota', () => {
   it('libera até o teto e barra depois', async () => {
     const a = armazemFalso();
@@ -76,6 +93,38 @@ describe('Limites (Durable Object) e criarLimites', () => {
     for (let i = 0; i < 7; i++) r.push((await limitador.limit({ key: 'k' })).success);
     expect(r).toEqual([true, true, true, true, true, true, false]);
     expect(new Set(ids)).toEqual(new Set(['global']));
+  });
+  it('limitador: 151ª pergunta do mesmo visitante no dia -> barrada com motivo "dia"', async () => {
+    const { ns } = nsFalso();
+    const { limitador } = criarLimites(ns, { LIMITE_POR_MINUTO: '1000', LIMITE_DIARIO_VISITANTE: '150' });
+    const r = [];
+    for (let i = 0; i < 151; i++) r.push(await limitador.limit({ key: 'k', diario: true }));
+    expect(r.slice(0, 150).every((x) => x.success)).toBe(true);
+    expect(r[150]).toEqual({ success: false, motivo: 'dia' });
+    expect((await limitador.limit({ key: 'outro', diario: true })).success).toBe(true);
+  });
+  it('limitador: chamadas sem diario (saúde, reindexar) não gastam o limite do dia', async () => {
+    const { ns } = nsFalso();
+    const { limitador } = criarLimites(ns, { LIMITE_POR_MINUTO: '1000', LIMITE_DIARIO_VISITANTE: '3' });
+    for (let i = 0; i < 20; i++) expect((await limitador.limit({ key: 'k' })).success).toBe(true);
+    const r = [];
+    for (let i = 0; i < 4; i++) r.push((await limitador.limit({ key: 'k', diario: true })).success);
+    expect(r).toEqual([true, true, true, false]);
+  });
+  it('limitador: barrado no minuto não gasta o limite diário e traz motivo "minuto"', async () => {
+    const { ns } = nsFalso();
+    const { limitador } = criarLimites(ns, { LIMITE_POR_MINUTO: '2', LIMITE_DIARIO_VISITANTE: '3' });
+    const r = [];
+    for (let i = 0; i < 6; i++) r.push(await limitador.limit({ key: 'k', diario: true }));
+    expect(r.map((x) => x.success)).toEqual([true, true, false, false, false, false]);
+    expect(r[2]).toEqual({ success: false, motivo: 'minuto' });
+  });
+  it('limite diário inválido usa o padrão 150', async () => {
+    const { ns } = nsFalso();
+    const { limitador } = criarLimites(ns, { LIMITE_POR_MINUTO: '1000', LIMITE_DIARIO_VISITANTE: 'x' });
+    let ok = 0;
+    for (let i = 0; i < 155; i++) if ((await limitador.limit({ key: 'k', diario: true })).success) ok++;
+    expect(ok).toBe(150);
   });
   it('cota: respeita COTA_DIARIA', async () => {
     const { ns } = nsFalso();

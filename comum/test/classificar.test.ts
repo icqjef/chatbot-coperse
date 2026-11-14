@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, normalizar,
+  carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, normalizar, pareceListaDeNomes,
 } from '../src/classificar';
 
 const lerJson = (c: string): unknown =>
@@ -9,6 +9,49 @@ const lerJson = (c: string): unknown =>
 const regras = carregarRegras(lerJson('processos.json'), lerJson('listas.json'));
 const X = 'https://coperse.furg.br/x';
 const VEST_RESULTADO = 'https://vestibular.furg.br/api/documentos/publico?arquivo=docs.publicacoes%2FResultado_Final_2026.pdf';
+
+describe('pareceListaDeNomes', () => {
+  it('cabeçalho de tabela com inscrição e nome', () => {
+    const linhas = '329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA\n87 CINTIA LEVI DE FARIA';
+    expect(pareceListaDeNomes(`Nº INSCRIÇÃO NOME\n${linhas}`)).toBe(true);
+    expect(pareceListaDeNomes(`Resultado\nINSCRIÇÃO | NOME | NOTA\n${linhas}`)).toBe(true);
+    expect(pareceListaDeNomes(`Nome do candidato ........ Inscricao\n${linhas}`)).toBe(true);
+  });
+  it('nomes em caixa mista com partícula (da, de, dos)', () => {
+    expect(pareceListaDeNomes('Inscrição Nome\n12 Maria da Silva\n5 João de Souza\n7 Ana dos Santos')).toBe(true);
+  });
+  it('cabeçalho seguido de só 2 nomes (trecho real do PS EaD)', () => {
+    expect(pareceListaDeNomes('Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA')).toBe(true);
+    expect(pareceListaDeNomes('Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\nRio Grande')).toBe(false);
+  });
+  it('cabeçalho largo com colunas à direita e nomes em caixa mista', () => {
+    const cab = 'Nº Inscrição Nome do Candidato Curso Modalidade de Ingresso Nota Final Classificação';
+    expect(cab.length).toBeGreaterThan(80);
+    expect(pareceListaDeNomes(`${cab}\n329 ALINE DAIANE SCHEIBLER MEDICINA AC 750,3\n300 ANA CARLA PEREIRA DIREITO L1 700,1\n87 CINTIA LEVI DE FARIA HISTORIA AC 650,0`)).toBe(true);
+    expect(pareceListaDeNomes(`${cab}\n329 Aline Daiane Scheibler\n300 Ana Carla Pereira\n87 Cintia Levi de Faria`)).toBe(true);
+  });
+  it('cabeçalho sem linhas de nome depois não basta (cronograma)', () => {
+    const t = 'Lista final das inscrições homologadas, contendo nome, número de inscrição, curso e município de realização da prova\n22/10/2026 www.coperse.furg.br/vestibular\nResultado da solicitação de atendimento';
+    expect(pareceListaDeNomes(t)).toBe(false);
+  });
+  it('títulos de seção "1 – ABERTURA" não são linhas de nome', () => {
+    const t = ['ABERTURA', 'VAGAS', 'INSCRIÇÃO', 'PROVAS', 'RESULTADO', 'MATRÍCULA', 'DISPOSIÇÕES FINAIS', 'RECURSOS', 'CRONOGRAMA']
+      .map((x, i) => `${i + 1} – ${x}`).join('\n');
+    expect(pareceListaDeNomes(t)).toBe(false);
+  });
+  it('8 linhas número + nome em maiúsculas, sem cabeçalho', () => {
+    const l = Array.from({ length: 8 }, (_, i) => `${100 + i} NOME SOBRENOME`);
+    expect(pareceListaDeNomes(l.join('\n'))).toBe(true);
+    expect(pareceListaDeNomes(l.slice(0, 7).join('\n'))).toBe(false);
+  });
+  it('edital e tabela de vagas não são lista', () => {
+    expect(pareceListaDeNomes('3.4. A pessoa candidata poderá se inscrever no Vestibular 2027 e informar seu nome social no ato da inscrição, conforme as regras deste edital e da legislação vigente.')).toBe(false);
+    expect(pareceListaDeNomes('Medicina 34 vagas\nDireito 40 vagas\nOceanologia 25 vagas')).toBe(false);
+  });
+  it('só olha os primeiros 4000 caracteres', () => {
+    expect(pareceListaDeNomes(`${'x '.repeat(2100)}\nNº INSCRIÇÃO NOME`)).toBe(false);
+  });
+});
 
 describe('normalizar', () => {
   it('decodifica, remove acentos e separadores', () => {

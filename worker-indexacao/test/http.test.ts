@@ -1,8 +1,32 @@
 import { describe, it, expect } from 'vitest';
-import { criarBuscar, criarCabecalho, ErroHttp } from '../src/http.js';
+import { criarBuscar, criarCabecalho, ErroForaDoDominio, ErroHttp } from '../src/http.js';
 
 const fx = (corpo: ConstructorParameters<typeof Response>[0], headers: Record<string, string> = {}, status = 200) =>
   (async () => new Response(corpo, { status, headers })) as typeof fetch;
+
+const comUrlFinal = (final: string, corpo = '<p>ok</p>') =>
+  (async () => {
+    const r = new Response(corpo, { headers: { 'content-type': 'text/html' } });
+    Object.defineProperty(r, 'url', { value: final });
+    return r;
+  }) as typeof fetch;
+
+describe('criarBuscar: redirecionamento', () => {
+  const dominios = ['coperse.furg.br', 'www.coperse.furg.br'];
+  it('redirecionou para fora do domínio -> ErroForaDoDominio, sem conteúdo', async () => {
+    const p = criarBuscar(comUrlFinal('https://evil.example.com/x'))('https://coperse.furg.br/a', dominios);
+    await expect(p).rejects.toBeInstanceOf(ErroForaDoDominio);
+    await expect(p).rejects.toThrow('redirecionou para fora do domínio');
+  });
+  it('redirecionou dentro dos domínios permitidos -> segue normal', async () => {
+    const r = await criarBuscar(comUrlFinal('https://www.coperse.furg.br/b'))('https://coperse.furg.br/a', dominios);
+    expect(r).toMatchObject({ tipo: 'html', texto: '<p>ok</p>' });
+  });
+  it('sem lista de domínios (ou sem url final) não verifica', async () => {
+    expect((await criarBuscar(comUrlFinal('https://qualquer.com/'))('https://x.furg.br')).tipo).toBe('html');
+    expect((await criarBuscar(comUrlFinal(''))('https://x.furg.br', dominios)).tipo).toBe('html');
+  });
+});
 
 describe('criarBuscar', () => {
   it('envia User-Agent e devolve html', async () => {

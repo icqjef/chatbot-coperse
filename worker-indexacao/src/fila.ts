@@ -105,7 +105,7 @@ export async function enfileirar(
   const elevar = new Map<string, number>();
   const marcarLista = new Set<string>();
   for (const bruto of itens) {
-    const url = normalizarUrl(bruto.url);
+    const url = normalizarUrl(bruto.url)?.replace(/^http:/, 'https:'); // os chamadores só passam hosts permitidos
     if (!url) continue;
     if (bruto.lista) estado.listas.add(url);
     if (estado.naFila.has(url)) {
