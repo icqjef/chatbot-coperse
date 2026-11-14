@@ -234,6 +234,22 @@ describe('conversa', () => {
     ]);
   });
 
+  it('M4: a assinatura da resposta volta no histórico, inclusive depois de recarregar a página', async () => {
+    montarCom(vi.fn().mockResolvedValue({ ...ok, assinatura: 'SIG' }));
+    digitar('A');
+    clicarEnviar();
+    await pronto();
+    document.body.replaceChildren();
+    const env = montarCom(vi.fn().mockResolvedValue(ok));
+    digitar('B');
+    clicarEnviar();
+    await pronto();
+    expect(env).toHaveBeenLastCalledWith('B', [
+      { papel: 'usuario', texto: 'A' },
+      { papel: 'modelo', texto: 'Resp [1]', assinatura: 'SIG' },
+    ]);
+  });
+
   it('salva e restaura conversa e estado aberto no sessionStorage', async () => {
     montarCom(vi.fn().mockResolvedValue(ok));
     digitar('A');
