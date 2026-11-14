@@ -1,0 +1,13 @@
+# Avisos de atualização de dependências (M5 da revisão de segurança). As PRs passam pelos testes como qualquer outra.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday, timezone: America/Sao_Paulo }
+    open-pull-requests-limit: 5
+    groups:
+      desenvolvimento: { dependency-type: development }
+      producao: { dependency-type: production }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

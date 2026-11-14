@@ -204,3 +204,8 @@ Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo:
 - `extrairPdf` lê no máximo 300 páginas e para ao passar de 2 milhões de caracteres (o texto é cortado nesse ponto). A leitura inteira tem prazo de 60 s: ao estourar, o item vira erro ("PDF inválido") e a fila segue. Junto com o teto de 15 MB do download, um PDF malicioso ou defeituoso não trava mais a execução.
 - As páginas são lidas uma a uma, montando o texto exatamente como o `extractText` do unpdf; um teste compara os dois no edital real, para os PDFs já indexados não mudarem de hash nem serem reprocessados.
 - O documento do pdf.js agora é destruído ao fim de cada leitura (antes ficava em memória até o fim da execução).
+## 2026-11-14 — Segurança M5 e N6: dependências atualizadas
+
+- vitest 2.1 → 5.1 em todos os pacotes (corrige tinypool, vite e esbuild apontados pelo `npm audit`), esbuild do widget 0.21 → 0.28 (exigência do vite 8) e fast-xml-parser 4.5 → 5.12 (N6). `npm audit` agora: 0 vulnerabilidades.
+- O vitest 5 deixou de ignorar a pasta `dist` por padrão; os scripts de teste passaram a `vitest run --dir test`. Mesma contagem de testes antes e depois.
+- Dependabot ligado (`.github/dependabot.yml`): npm toda segunda, agrupado em desenvolvimento e produção, e GitHub Actions uma vez por mês. As PRs dele passam pelos mesmos testes e pelo ramo protegido.
