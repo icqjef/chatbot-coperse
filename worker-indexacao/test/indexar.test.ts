@@ -118,6 +118,24 @@ describe('indexarDocumento', () => {
     expect(await indexarDocumento({ ...doc, processo: 'vestibular', ano: 2027, titulo: 'Outro título', tipo: 'pdf' }, deps)).toBe('igual');
   });
 
+  it('HTML vira trechos de até 1600 caracteres; PDF continua em até 3200', async () => {
+    const texto = paragrafos(8);
+    const html = montar();
+    await indexarDocumento({ ...doc, texto }, html.deps);
+    expect(Math.max(...html.f.trechos().map((t) => String(t.texto).length))).toBeLessThanOrEqual(1600);
+    const pdf = montar();
+    await indexarDocumento({ ...doc, tipo: 'pdf', texto }, pdf.deps);
+    expect(pdf.f.trechos().length).toBeLessThan(html.f.trechos().length);
+    expect(Math.max(...pdf.f.trechos().map((t) => String(t.texto).length))).toBeGreaterThan(1600);
+  });
+
+  it('HTML indexado com o hash antigo (sem versão dos trechos) é redividido na revisita', async () => {
+    const { f, deps } = montar();
+    await indexarDocumento(doc, deps);
+    f.paginas.get(doc.url)!.hash = 'hash-da-divisao-antiga';
+    expect(await indexarDocumento(doc, deps)).toBe('alterada');
+  });
+
   it('mesmo documento de novo é igual e não escreve nada', async () => {
     const { f, deps } = montar();
     await indexarDocumento(doc, deps);
@@ -204,11 +222,11 @@ describe('teto de vetores', () => {
     const { f, deps, consumos } = montar({}, t);
     expect(dividirEmTrechos(paragrafos(4))).toHaveLength(2);
     expect(dividirEmTrechos(paragrafos(5))).toHaveLength(3);
-    await indexarDocumento({ ...doc, texto: paragrafos(4) }, deps);
+    await indexarDocumento({ ...doc, tipo: 'pdf', texto: paragrafos(4) }, deps);
     const antes = f.trechos().length;
     consumos.length = 0;
     t.restante = 1;
-    expect(await indexarDocumento({ ...doc, texto: paragrafos(5) + '\n\n' + paragrafos(1, 'Extra') }, deps)).toBe('alterada');
+    expect(await indexarDocumento({ ...doc, tipo: 'pdf', texto: paragrafos(5) + '\n\n' + paragrafos(1, 'Extra') }, deps)).toBe('alterada');
     const depois = f.trechos().length;
     expect(depois - antes).toBe(1);
     expect(consumos).toEqual([1]);

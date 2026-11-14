@@ -416,6 +416,32 @@ describe('responderPergunta', () => {
   });
 });
 
+describe('mensagens sociais', () => {
+  it('saudação responde sem Gemini nem cota, mas passa pelo limite do visitante', async () => {
+    const { env, chamadas, limites } = montar({});
+    let consumiu = 0;
+    env.COTA = { consumir: async () => (consumiu++, true) };
+    const r = await pedir(env, { pergunta: 'Oi, tudo bem?' });
+    expect(r.status).toBe(200);
+    const corpo = (await r.json()) as { resposta: string; fontes: unknown[] };
+    expect(corpo.resposta).toMatch(/^Olá! Tudo bem/);
+    expect(corpo.fontes).toEqual([]);
+    expect(chamadas).toHaveLength(0);
+    expect(consumiu).toBe(0);
+    expect(limites).toHaveLength(1);
+  });
+  it('visitante barrado não recebe nem a resposta social', async () => {
+    const { env } = montar({ permitir: false });
+    expect((await pedir(env, { pergunta: 'obrigado' })).status).toBe(429);
+  });
+  it('saudação com pergunta segue para o Gemini', async () => {
+    const { env, chamadas } = montar({});
+    const r = await pedir(env, { pergunta: 'Bom dia, qual o prazo?' });
+    expect(r.status).toBe(200);
+    expect(chamadas.length).toBeGreaterThan(0);
+  });
+});
+
 describe('cota diária', () => {
   it('cota esgotada -> 429 sem chamar o Gemini', async () => {
     const { env, chamadas } = montar({});
