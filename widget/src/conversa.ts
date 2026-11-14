@@ -43,17 +43,21 @@ export function criarEnviar(api: string, fetchFn: typeof fetch = (...a) => fetch
     } finally {
       clearTimeout(relogio);
     }
-    const c = (corpo ?? {}) as { erro?: unknown; resposta?: unknown; fontes?: unknown };
+    const c = (corpo ?? {}) as { erro?: unknown; resposta?: unknown; fontes?: unknown; assinatura?: unknown };
     if (!resp.ok) {
       throw new ErroWidget(typeof c.erro === 'string' && c.erro ? c.erro : MSG_REDE);
     }
     if (typeof c.resposta !== 'string') throw new ErroWidget(MSG_REDE);
-    return { resposta: c.resposta, fontes: filtrarFontes(c.fontes) };
+    const r = { resposta: c.resposta, fontes: filtrarFontes(c.fontes) };
+    return typeof c.assinatura === 'string' ? { ...r, assinatura: c.assinatura } : r;
   };
 }
 
 // Últimas 8 mensagens, em pares completos, começando por `usuario`.
 export function historicoParaEnvio(trocas: Mensagem[]): Mensagem[] {
-  const fim = trocas.slice(-8).map(({ papel, texto }) => ({ papel, texto: texto.slice(0, MAX_TEXTO_HISTORICO) }));
+  const fim = trocas.slice(-8).map(({ papel, texto, assinatura }): Mensagem => {
+    const m: Mensagem = { papel, texto: texto.slice(0, MAX_TEXTO_HISTORICO) };
+    return papel === 'modelo' && assinatura ? { ...m, assinatura } : m;
+  });
   return fim[0]?.papel === 'modelo' ? fim.slice(1) : fim;
 }

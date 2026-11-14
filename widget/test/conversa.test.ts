@@ -84,3 +84,17 @@ describe('tempo limite', () => {
     expect(e.mensagem).toContain('Não consegui falar');
   });
 });
+
+describe('assinatura das respostas (M4)', () => {
+  it('criarEnviar devolve a assinatura quando o servidor manda', async () => {
+    const f = vi.fn().mockResolvedValue(resp(200, { resposta: 'ok', fontes: [], assinatura: 'abc' }));
+    expect(await criarEnviar('https://w', f)('oi', [])).toEqual({ resposta: 'ok', fontes: [], assinatura: 'abc' });
+  });
+  it('historicoParaEnvio reenvia a assinatura só nas falas do modelo', () => {
+    const h = historicoParaEnvio([
+      { papel: 'usuario', texto: 'a', assinatura: 'nao-vai' },
+      { papel: 'modelo', texto: 'b', assinatura: 'sig' },
+    ]);
+    expect(h).toEqual([{ papel: 'usuario', texto: 'a' }, { papel: 'modelo', texto: 'b', assinatura: 'sig' }]);
+  });
+});
