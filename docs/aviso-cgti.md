@@ -8,7 +8,7 @@ Este aviso é só informativo. Não pede nenhuma alteração ao CGTI.
 
 Prezados,
 
-A COPERSE vai colar, em módulo HTML personalizado do Joomla (autorizado pelo CGTI), uma linha de script nos sites coperse.furg.br e sisu3.furg.br. Para o vestibular.furg.br, o pedido será feito à pessoa que administra esse site. Informamos abaixo o que o script faz. Nenhuma ação é solicitada ao CGTI.
+A COPERSE vai colar, em módulo HTML personalizado do Joomla (autorizado pelo CGTI), uma linha de script nos sites coperse.furg.br e sisu.furg.br. Para o vestibular.furg.br, o pedido será feito à pessoa que administra esse site. Informamos abaixo o que o script faz. Nenhuma ação é solicitada ao CGTI.
 
 **O que é.** Um assistente virtual que responde perguntas de candidatos sobre o Vestibular e o SiSU, usando apenas o conteúdo publicado nesses sites, e sempre indica a página de origem.
 

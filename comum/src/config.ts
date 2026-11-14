@@ -12,7 +12,7 @@ export function carregarSites(json: unknown): Site[] {
   return json.map((bruto, i) => {
     const pos = `Site #${i + 1}`;
     if (!ehObjeto(bruto)) throw new Error(`${pos}: deve ser um objeto.`);
-    const { id, nome, base, feed, paginas_chave, profundidade, dominios_permitidos, processo_padrao, excluir } = bruto;
+    const { id, nome, base, feed, paginas_chave, profundidade, dominios_permitidos, processo_padrao, excluir, hosts_antigos } = bruto;
     if (typeof id !== 'string' || id === '') throw new Error(`${pos}: campo "id" obrigatório.`);
     if (ids.has(id)) throw new Error(`${pos}: "id" repetido: ${id}.`);
     ids.add(id);
@@ -36,6 +36,8 @@ export function carregarSites(json: unknown): Site[] {
         }
       }
     }
+    if (hosts_antigos !== undefined && !listaDeTextos(hosts_antigos))
+      throw new Error(`Site ${id}: "hosts_antigos" deve ser uma lista de textos.`);
     const prof = profundidade ?? 2;
     if (typeof prof !== 'number' || !Number.isInteger(prof) || prof < 0)
       throw new Error(`Site ${id}: "profundidade" deve ser um inteiro maior ou igual a 0.`);
@@ -43,6 +45,7 @@ export function carregarSites(json: unknown): Site[] {
     if (feed !== undefined) site.feed = feed;
     if (excluir !== undefined) site.excluir = excluir;
     if (processo_padrao !== undefined) site.processo_padrao = processo_padrao;
+    if (hosts_antigos !== undefined) site.hosts_antigos = hosts_antigos;
     return site;
   });
 }

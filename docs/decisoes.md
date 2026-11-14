@@ -174,3 +174,9 @@ Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo:
 ## 2026-11-14 — Token restrito da indexação
 
 - O workflow `indexar` passa a usar só o segredo `CLOUDFLARE_API_TOKEN_INDEXACAO` (D1 Edit + Vectorize Edit, restrito à conta), criado pelo Jeferson. O `CLOUDFLARE_API_TOKEN`, que também publica Workers, fica só no `publicar.yml`. Motivo: revisão de segurança, item I2. Etapa 8 aceita pelo Jeferson nesta data.
+
+## 2026-11-14 — SiSU mudou de sisu3.furg.br para sisu.furg.br
+
+- Constatado na indexação manual 43629516728: `sisu.furg.br` tem o conteúdo do SiSU (feed, edital 2026, perguntas frequentes) e `sisu3.furg.br` virou um Joomla em branco ("Site de Exemplo"), com 404 nos PDFs. Como três 404 seguidos apagam a página, o SiSU sairia do índice em cerca de 6 horas.
+- `config/sites.json`: o site `sisu` passou para `https://sisu.furg.br`, e `dominios_permitidos` agora traz só `sisu.furg.br`. O novo campo `hosts_antigos: ["sisu3.furg.br"]` diz ao indexador para migrar. A migração http→https virou `migrarUrls`: o que está indexado ou na fila num host antigo, ou em http, sai e entra na fila com a URL nova. Motivo: reaproveitar a migração já testada, sem código fixo para o sisu.
+- `origens.json` mantém `https://sisu3.furg.br` enquanto o endereço responder.

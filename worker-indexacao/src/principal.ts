@@ -256,34 +256,69 @@ async function limparExcluidas(sites: Site[], ctx: Contexto, total: Contagem): P
 }
 
 /**
- * Linhas antigas com http://: tira do índice e enfileira a versão https (a menos que já esteja ok ou na fila).
- * Falha por URL não derruba a execução; só contagens vão ao log.
+ * Para onde uma URL antiga migra: http:// vira https:// e host listado em `hosts_antigos` vira o host de `base`.
+ * Devolve null se a URL já está no lugar certo ou não pertence a nenhum site.
  */
-async function migrarHttp(sites: Site[], ctx: Contexto, total: Contagem): Promise<void> {
+function destinoMigracao(url: string, sites: Site[]): { url: string; site: Site } | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const site = sites.find((s) => s.dominios_permitidos.includes(u.hostname) || s.hosts_antigos?.includes(u.hostname));
+  if (!site) return null; // sem site correspondente não há para onde migrar
+  if (site.hosts_antigos?.includes(u.hostname)) u.hostname = new URL(site.base).hostname;
+  u.protocol = 'https:';
+  const novo = u.toString();
+  return novo === url ? null : { url: novo, site };
+}
+
+/**
+ * Linhas antigas com http:// ou em host antigo (sisu3): tira do índice e da fila e enfileira a URL nova
+ * (a menos que já esteja ok ou na fila). Falha por URL não derruba a execução; só contagens vão ao log.
+ */
+async function migrarUrls(sites: Site[], ctx: Contexto, total: Contagem): Promise<void> {
   const { deps, estado } = ctx;
   const agora = deps.agora();
   let removidas = 0;
   let falhas = 0;
-  // Primeiro enfileira as versões https; só remove as http depois que a fila aceitou (falha = tudo fica para a próxima).
+  // Primeiro enfileira as URLs novas; só remove as antigas depois que a fila aceitou (falha = tudo fica para a próxima).
   const migrar: string[] = [];
-  const novos: NovoItem[] = [];
-  for (const [url, vista] of [...estado.paginas]) {
-    if (!url.startsWith('http://') || vista.status === 'removida') continue;
-    const https = url.replace(/^http:/, 'https:');
-    const site = sites.find((s) => hostPermitido(url, s));
-    if (!site) continue; // sem site correspondente não há para onde migrar
-    migrar.push(url);
-    if (estado.paginas.get(https)?.status === 'ok' || estado.naFila.has(https)) continue;
-    novos.push({
-      url: https, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_CHAVE,
+  const daFila: string[] = [];
+  const novos = new Map<string, NovoItem>();
+  const novo = (url: string, site: Site) => {
+    if (estado.paginas.get(url)?.status === 'ok' || estado.naFila.has(url) || novos.has(url)) return;
+    novos.set(url, {
+      url, site: site.id, profundidade: 0, origem: null, prioridade: PRIORIDADE_CHAVE,
       titulo: null, processo: null, ano: null, data: null,
     });
+  };
+  for (const [url, vista] of [...estado.paginas]) {
+    if (vista.status === 'removida') continue;
+    const d = destinoMigracao(url, sites);
+    if (!d) continue;
+    migrar.push(url);
+    novo(d.url, d.site);
+  }
+  for (const url of [...estado.naFila]) {
+    const d = destinoMigracao(url, sites);
+    if (!d) continue;
+    daFila.push(url);
+    novo(d.url, d.site);
   }
   try {
-    await enfileirar(deps.cf, estado, novos, { agora, forcar: true });
+    await enfileirar(deps.cf, estado, [...novos.values()], { agora, forcar: true });
   } catch {
-    if (migrar.length > 0) console.error(`Falha ao migrar ${migrar.length} página(s) http://; tentará de novo na próxima execução.`);
+    if (migrar.length + daFila.length > 0) console.error(`Falha ao migrar ${migrar.length + daFila.length} URL(s) antiga(s); tentará de novo na próxima execução.`);
     return;
+  }
+  for (const url of daFila) {
+    try {
+      await concluir(deps.cf, estado, url);
+    } catch {
+      falhas++;
+    }
   }
   for (const url of migrar) {
     try {
@@ -296,8 +331,8 @@ async function migrarHttp(sites: Site[], ctx: Contexto, total: Contagem): Promis
     removidas++;
   }
   total.removida += removidas;
-  if (removidas > 0) console.error(`Páginas http:// removidas e reenfileiradas como https://: ${removidas}`);
-  if (falhas > 0) console.error(`Falha ao migrar ${falhas} página(s) http://; tentará de novo na próxima execução.`);
+  if (removidas + daFila.length > 0) console.error(`URLs antigas (http:// ou host antigo) migradas: ${removidas} do índice, ${daFila.length} da fila`);
+  if (falhas > 0) console.error(`Falha ao migrar ${falhas} URL(s) antiga(s); tentará de novo na próxima execução.`);
 }
 
 async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void> {
@@ -371,7 +406,7 @@ export async function executar(
   let tetoAtingido = false;
   try {
     await limparExcluidas(opcoes.sites, ctx, total);
-    await migrarHttp(opcoes.sites, ctx, total);
+    await migrarUrls(opcoes.sites, ctx, total);
     for (const site of opcoes.sites) await semear(site, ctx, total);
 
     laco: for (;;) {
