@@ -77,17 +77,17 @@ A cada edital novo:
 4. Mantenha `conferido_por_jeferson` verdadeiro só depois de conferir você mesmo. Se estiver falso, o teste sempre termina com aviso.
 5. Mude o arquivo por pull request.
 
-## 7. Token do Cloudflare restrito para a indexação (pendência de segurança)
+## 7. Token do Cloudflare restrito para a indexação
 
-A revisão de segurança ([revisao-seguranca-2026-11.md](revisao-seguranca-2026-11.md), item I2) pediu que a leitura dos sites use um token que só altere o banco D1 e o índice Vectorize. Isto depende de você:
+A revisão de segurança ([revisao-seguranca-2026-11.md](revisao-seguranca-2026-11.md), item I2) pediu que a leitura dos sites use um token que só altere o banco D1 e o índice Vectorize. Esse token foi criado em 14/11/2026 com o nome `indexacao-chatbot`. Se precisar trocá-lo:
 
-1. No painel do Cloudflare, abra o perfil e vá em API Tokens, Create Token, token personalizado.
-2. Dê só duas permissões na conta: D1 Edit e Vectorize Edit. Limite o token à conta da COPERSE.
+1. Abra https://dash.cloudflare.com/profile/api-tokens e clique em Create Token. Em Token name, escreva `indexacao-chatbot`.
+2. Em Policies, clique em Start from scratch e depois em Start with an Account policy. Troque "All accounts" pela conta da COPERSE. Na busca de permissões, digite `D1` e marque Edit; depois digite `Vectorize` e marque Edit. Clique em Continue to summary e confira que aparecem só D1 Edit e Vectorize Edit.
 3. Copie o token mostrado uma única vez. Não cole em chat, e-mail ou arquivo.
-4. No site do GitHub, no repositório: Settings, Secrets and variables, Actions, New repository secret.
-5. Nome do segredo: `CLOUDFLARE_API_TOKEN_INDEXACAO`. Cole o token no campo de valor e salve.
+4. Abra https://github.com/icqjef/chatbot-coperse/settings/secrets/actions. Para trocar, clique no lápis ao lado de `CLOUDFLARE_API_TOKEN_INDEXACAO`; para criar, clique em New repository secret com esse nome.
+5. Cole o token no campo de valor e salve.
 6. Rode a indexação (seção 3) e confira que terminou com sucesso.
-7. Avise quem mantém o código: depois disso, o trecho provisório de `.github/workflows/indexar.yml` que ainda aceita `CLOUDFLARE_API_TOKEN` é removido por pull request.
+7. No site da Cloudflare, apague só o token de indexação substituído (três pontos ao lado dele, Delete). Não apague o token de publicação.
 
 ## 8. Limites e o que o candidato vê
 

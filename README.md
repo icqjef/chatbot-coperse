@@ -45,7 +45,7 @@ Dois arquivos em `config/` controlam como cada documento é marcado. Os padrões
 
 Em JSON a barra invertida é escrita dobrada (`"\\bsisu\\b"`). Os testes (`npm test`) conferem que os arquivos carregam.
 
-Para rodar na hora: GitHub, aba Actions, workflow `indexar`, Run workflow, e informe `limite` (itens) e `minutos` se quiser outros valores. Os segredos `CLOUDFLARE_API_TOKEN_INDEXACAO` (token só de D1 e Vectorize; enquanto não existir, o workflow usa `CLOUDFLARE_API_TOKEN`) e `GEMINI_API_KEY` e as variáveis `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID` e `VECTORIZE_INDICE` ficam nas configurações do repositório. Um segundo job (`workflow-keepalive`) evita que o GitHub desligue o agendamento por inatividade.
+Para rodar na hora: GitHub, aba Actions, workflow `indexar`, Run workflow, e informe `limite` (itens) e `minutos` se quiser outros valores. Os segredos `CLOUDFLARE_API_TOKEN_INDEXACAO` (token só de D1 e Vectorize) e `GEMINI_API_KEY` e as variáveis `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID` e `VECTORIZE_INDICE` ficam nas configurações do repositório. Um segundo job (`workflow-keepalive`) evita que o GitHub desligue o agendamento por inatividade.
 
 ## Worker de resposta
 
