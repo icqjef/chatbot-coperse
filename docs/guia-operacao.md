@@ -95,7 +95,7 @@ A revisão de segurança ([revisao-seguranca-2026-11.md](revisao-seguranca-2026-
 - No total: 1.000 perguntas por dia, zerando à meia-noite de Brasília. Acima disso todos veem "O assistente atingiu o limite de perguntas de hoje. Tente de novo amanhã ou escreva para coperse@furg.br."
 - Quando não encontra a informação, o assistente orienta a consultar o edital oficial ou escrever para coperse@furg.br. Não opina sobre situação individual (homologação, recurso, nota) e recusa assuntos fora dos processos seletivos da FURG.
 - Em semana de inscrição ou resultado, acompanhe o uso: se a cota diária esgotar, os candidatos ficam sem o assistente até o dia seguinte. Os valores ficam em `worker-resposta/wrangler.toml` (`LIMITE_POR_MINUTO`, `LIMITE_DIARIO_VISITANTE`, `COTA_DIARIA`) e são mudados por pull request.
-- O plano gratuito da Cloudflare tem 100 mil requisições por dia. Um ataque de volume pode esgotá-las. Ative um alerta de uso no painel do Cloudflare.
+- O plano gratuito da Cloudflare tem 100 mil requisições por dia. Uma enxurrada de pedidos de um mesmo endereço é barrada por um filtro da própria Cloudflare (20 por minuto) antes de chegar ao contador de limites, então não trava o assistente para os outros. Mesmo barrados, esses pedidos contam nas 100 mil, e isso não tem como ser evitado no código. Em semana de inscrição ou resultado, confira o uso no site da Cloudflare: Workers e Pages, chatbot-coperse, aba de métricas. Se chegar perto de 100 mil num dia, avise o responsável técnico.
 
 ## 9. O que o assistente guarda
 

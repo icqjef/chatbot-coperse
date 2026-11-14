@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Contadores, consumirCota, criarLimites, diaSaoPaulo, Limites } from '../src/limites';
+import { comFiltro, Contadores, consumirCota, criarLimites, diaSaoPaulo, Limites } from '../src/limites';
 
 function armazemFalso() {
   const m = new Map<string, unknown>();
@@ -147,5 +147,28 @@ describe('Limites (Durable Object) e criarLimites', () => {
       get: () => ({ fetch: async () => new Response(null, { status: 500 }) }),
     } as unknown as DurableObjectNamespace;
     await expect(criarLimites(ns, {}).cota.consumir()).rejects.toThrow();
+  });
+});
+
+describe('comFiltro (M6)', () => {
+  const doFalso = () => {
+    const chamadas: string[] = [];
+    return { chamadas, limitador: { limit: async ({ key }: { key: string }) => (chamadas.push(key), { success: true }) } };
+  };
+  it('sem filtro devolve o próprio limitador', () => {
+    const { limitador } = doFalso();
+    expect(comFiltro(undefined, limitador)).toBe(limitador);
+  });
+  it('filtro negando: 429 de minuto sem chegar ao Durable Object', async () => {
+    const d = doFalso();
+    const r = await comFiltro({ limit: async () => ({ success: false }) }, d.limitador).limit({ key: 'k', diario: true });
+    expect(r).toEqual({ success: false, motivo: 'minuto' });
+    expect(d.chamadas).toHaveLength(0);
+  });
+  it('filtro liberando ou falhando: decide o Durable Object, com a mesma chave', async () => {
+    const d = doFalso();
+    await comFiltro({ limit: async () => ({ success: true }) }, d.limitador).limit({ key: 'a' });
+    await comFiltro({ limit: async () => { throw new Error('x'); } }, d.limitador).limit({ key: 'b' });
+    expect(d.chamadas).toEqual(['a', 'b']);
   });
 });

@@ -2,7 +2,7 @@ import { carregarOrigens } from '@chatbot/comum';
 import origensJson from '../../config/origens.json';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { tratarReindexar, tratarSaude } from './operacao';
-import { criarLimites, type CotaDiaria } from './limites';
+import { comFiltro, criarLimites, type CotaDiaria, type FiltroNativo } from './limites';
 import { tratarPerguntar, type RateLimit } from './perguntar';
 import { WIDGET } from './widget-gerado';
 import { DEMO_HTML } from './demo';
@@ -12,6 +12,8 @@ export interface Env {
   VECTORIZE: VectorizeIndex;
   /** Durable Object dos limites (produção). Sem ele (testes), valem LIMITADOR e COTA do próprio env. */
   LIMITES?: DurableObjectNamespace;
+  /** Limitador nativo da Cloudflare, antes do DO (M6). */
+  FILTRO?: FiltroNativo;
   LIMITADOR: RateLimit;
   COTA?: CotaDiaria;
   LIMITE_POR_MINUTO?: string;
@@ -39,7 +41,7 @@ export default {
     let env = envBruto;
     if (envBruto.LIMITES) {
       const { limitador, cota } = criarLimites(envBruto.LIMITES, envBruto);
-      env = { ...envBruto, LIMITADOR: limitador, COTA: cota };
+      env = { ...envBruto, LIMITADOR: comFiltro(envBruto.FILTRO, limitador), COTA: cota };
     }
     const url = new URL(req.url);
 
