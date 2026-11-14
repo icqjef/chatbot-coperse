@@ -401,7 +401,7 @@ async function main(): Promise<void> {
   };
 
   const resumo = await executar({ maxItens: limite, prazoMs: prazoMinutos * 60_000, sites, regras, tetoVetores }, deps);
-  const falhas = (await cf.d1("SELECT url, erro FROM paginas WHERE status = 'erro'")).map((r) => ({ url: r.url, erro: r.erro }));
+  const falhas = (await cf.d1("SELECT url, erro FROM paginas WHERE erro IS NOT NULL AND status IN ('erro', 'ok')")).map((r) => ({ url: r.url, erro: r.erro }));
   console.log(JSON.stringify({ ...resumo, limite, urls_com_erro: falhas }));
   if (resumo.teto_atingido) console.error(`Teto de ${tetoVetores} vetores atingido: a indexação parou. Ver docs/decisoes.md.`);
   process.exitCode = codigoSaida(resumo);
