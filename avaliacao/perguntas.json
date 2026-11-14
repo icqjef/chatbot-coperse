@@ -109,13 +109,14 @@
       "id": "vest-gabarito",
       "categoria": "datas-vagas-prazos",
       "pergunta": "Quando sai o gabarito do Vestibular 2027 e até quando posso recorrer?",
-      "resposta_esperada": "Gabarito em 23/11/2026; recurso em 24/11/2026, pelo e-mail coperse@furg.br.",
+      "resposta_esperada": "Gabarito em 23/11/2026; recurso em 24/11/2026, pelo e-mail coperse@furg.br. O edital também diz: recurso em até 24 horas após a divulgação (equivale a 24/11).",
       "fatos": [
         [
           "23/11"
         ],
         [
-          "24/11"
+          "24/11",
+          "24 horas"
         ]
       ],
       "fonte": "vestibular"
