@@ -5,6 +5,14 @@ export class ErroHttp extends Error {
   }
 }
 
+/** Redirecionamento para host fora de `dominios_permitidos`: erro permanente, nada é indexado. */
+export class ErroForaDoDominio extends Error {
+  constructor(url: string, final: string) {
+    super(`redirecionou para fora do domínio: ${url} -> ${final}`);
+    this.name = 'ErroForaDoDominio';
+  }
+}
+
 export interface Resposta {
   tipo: 'html' | 'pdf' | 'outro';
   texto?: string;
@@ -49,13 +57,25 @@ async function lerCorpo(resp: Response): Promise<Uint8Array> {
   return bytes;
 }
 
-export function criarBuscar(fetchFn: typeof fetch = fetch): (url: string) => Promise<Resposta> {
-  return async (url) => {
+export function criarBuscar(fetchFn: typeof fetch = fetch): (url: string, dominiosPermitidos?: string[]) => Promise<Resposta> {
+  return async (url, dominiosPermitidos) => {
     const resp = await fetchFn(url, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(60000),
     });
     if (!resp.ok) throw new ErroHttp(resp.status, url);
+    if (dominiosPermitidos && resp.url) {
+      let host = '';
+      try {
+        host = new URL(resp.url).hostname;
+      } catch {
+        // url final ilegível: tratada como fora do domínio
+      }
+      if (!dominiosPermitidos.includes(host)) {
+        await resp.body?.cancel();
+        throw new ErroForaDoDominio(url, resp.url);
+      }
+    }
     const ct = (resp.headers.get('content-type') ?? '').toLowerCase();
     const incerto = !ct || ct.includes('octet-stream') || ct.includes('download');
     let tipo: Resposta['tipo'] = ct.includes('application/pdf')

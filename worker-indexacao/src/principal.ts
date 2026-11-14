@@ -8,7 +8,7 @@ import { criarEmbedder, ErroAutenticacaoProvedor } from '@chatbot/comum/provedor
 import type { Site, TipoDocumento } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
-import { criarBuscar, criarCabecalho, ErroHttp, type Resposta } from './http.js';
+import { criarBuscar, criarCabecalho, ErroForaDoDominio, ErroHttp, type Resposta } from './http.js';
 import { ehGenerico, extrairPagina } from './extrair.js';
 import { extrairPdf } from './pdf.js';
 import {
@@ -38,7 +38,7 @@ export interface OpcoesExecucao {
 }
 
 export interface DepsExecucao extends DepsIndexacao {
-  buscar: (url: string) => Promise<Resposta>;
+  buscar: (url: string, dominiosPermitidos?: string[]) => Promise<Resposta>;
   extrairPdf: (b: Uint8Array) => Promise<{ texto: string; paginas: number }>;
   /** HEAD: Last-Modified sem baixar o corpo (listas em PDF) */
   cabecalho: (url: string) => Promise<{ ultimaModificacao?: string }>;
@@ -129,7 +129,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     }
 
     await ctx.esperar(PAUSA_MS);
-    const resp = await deps.buscar(item.url);
+    const resp = await deps.buscar(item.url, site.dominios_permitidos);
 
     if (resp.tipo === 'outro') return 'ignorada';
 
@@ -186,6 +186,11 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     return r;
   } catch (e) {
     if (e instanceof ErroAutenticacaoProvedor) throw e; // nada de registrarErro/adiar: a fila fica intacta
+    if (e instanceof ErroForaDoDominio) {
+      // Permanente: não repete na fila e nada é indexado.
+      console.error(e.message);
+      return 'ignorada';
+    }
     const msg = e instanceof Error ? e.message : String(e);
     let falhas = 0;
     try {
@@ -247,7 +252,7 @@ async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void>
   if (site.feed) {
     try {
       await ctx.esperar(PAUSA_MS);
-      const resp = await deps.buscar(site.feed);
+      const resp = await deps.buscar(site.feed, site.dominios_permitidos);
       if (resp.texto === undefined) throw new Error(`resposta do tipo ${resp.tipo}, não um feed`);
       for (const it of lerFeed(resp.texto)) {
         const url = normalizarUrl(it.url);

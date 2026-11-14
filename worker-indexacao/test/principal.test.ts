@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { Site, Embedder } from '@chatbot/comum/tipos';
 import { carregarRegras } from '@chatbot/comum/classificar';
 import { executar, codigoSaida, type OpcoesExecucao } from '../src/principal.js';
-import { ErroHttp, type Resposta } from '../src/http.js';
+import { ErroForaDoDominio, ErroHttp, type Resposta } from '../src/http.js';
 import { criarCfFalso } from './fakes.js';
 import { ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import { carregarEstado, enfileirar } from '../src/fila.js';
@@ -229,6 +229,15 @@ describe('executar: rastreamento pela fila', () => {
     }
     expect(m.f.paginas.get(u)?.status).toBe('erro');
     expect(m.f.paginas.get(u)?.falhas).toBe(3);
+  });
+
+  it('redirecionou para fora do domínio: ignorada, nada indexado nem adiado', async () => {
+    const u = `${V}/desvia`;
+    const m = montar({ paginas: { [u]: new ErroForaDoDominio(u, 'https://evil.example.com/') } });
+    const o = m.opcoes({ sites: [site({ paginas_chave: [u] })] });
+    const r = await executar(o, m.deps);
+    expect(r).toMatchObject({ ignorada: 1, erro: 0 });
+    expect(m.f.trechos().filter((t) => t.url === u)).toHaveLength(0);
   });
 
   it('PDF escaneado vira vazia; PDF grande demais vira erro e é adiado', async () => {

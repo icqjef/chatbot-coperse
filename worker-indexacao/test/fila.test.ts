@@ -42,6 +42,17 @@ describe('deveIgnorar / ehPdf', () => {
   });
 });
 
+describe('enfileirar: http', () => {
+  it('sobe http:// para https:// e não duplica com a versão https', async () => {
+    const f = criarCfFalso();
+    const estado = estadoVazio();
+    const n = await enfileirar(f.cf, estado, [item('http://coperse.furg.br/a'), item('https://coperse.furg.br/a')], { agora: AGORA });
+    expect(n).toBe(1);
+    expect([...estado.naFila]).toEqual(['https://coperse.furg.br/a']);
+    expect((await proximos(f.cf, 10, AGORA)).map((i) => i.url)).toEqual(['https://coperse.furg.br/a']);
+  });
+});
+
 describe('enfileirar', () => {
   // O fake não divide em lotes: prova só que não há consulta por item e que as 150 linhas chegam juntas a
   // inserirLinhas. O cliente real (cloudflare.ts) divide em INSERTs de no máximo 100 parâmetros.
