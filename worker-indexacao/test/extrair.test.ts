@@ -31,6 +31,31 @@ const processo = readFileSync(new URL('./fixtures/coperse-processo.html', import
 const vestibular = readFileSync(new URL('./fixtures/vestibular-inicio.html', import.meta.url), 'utf8');
 const URL_PROCESSO = 'https://coperse.furg.br/processos-seletivos/quilombolas';
 
+describe('extrairPagina: perguntas frequentes (JSON-LD FAQPage)', () => {
+  const ld = (obj: unknown) => `<html><head><script type="application/ld+json">${JSON.stringify(obj)}</script></head><body><main><p>Conteúdo da página inicial do vestibular.</p></main></body></html>`;
+  const faq = {
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: [
+      { '@type': 'Question', name: 'Participação no Vestibular e no SISU', acceptedAnswer: { '@type': 'Answer', text: 'O candidato pode participar dos dois processos. Se for aprovado em ambos, deverá escolher <b>apenas uma</b> vaga.' } },
+      { '@type': 'Question', name: 'Sem resposta' },
+    ],
+  };
+  it('cada pergunta com resposta vira "Pergunta: …\nResposta: …", sem tags', () => {
+    const p = extrairPagina(ld(faq), 'https://vestibular.furg.br/');
+    expect(p.perguntas).toEqual([
+      'Pergunta: Participação no Vestibular e no SISU\nResposta: O candidato pode participar dos dois processos. Se for aprovado em ambos, deverá escolher apenas uma vaga.',
+    ]);
+    expect(p.texto).not.toContain('FAQPage');
+  });
+  it('acha FAQPage dentro de @graph e ignora JSON-LD inválido', () => {
+    const html = ld({ '@graph': [{ '@type': 'WebSite' }, faq] }).replace('</head>', '<script type="application/ld+json">{quebrado</script></head>');
+    expect(extrairPagina(html, 'https://vestibular.furg.br/').perguntas).toHaveLength(1);
+  });
+  it('página sem FAQPage não traz o campo', () => {
+    expect(extrairPagina(ld({ '@type': 'WebSite' }), 'https://vestibular.furg.br/').perguntas).toBeUndefined();
+  });
+});
+
 describe('extrairPagina: links', () => {
   it('coleta o link do edital com título, em URL absoluta', () => {
     const { links } = extrairPagina(processo, URL_PROCESSO);

@@ -7,7 +7,7 @@
     "feed": "https://sisu.furg.br/index.php?format=feed&type=rss",
     "paginas_chave": ["https://sisu.furg.br/"], "profundidade": 10, "dominios_permitidos": ["sisu.furg.br"],
     "hosts_antigos": ["sisu3.furg.br"],
-    "excluir": ["/anos-anteriores/"] },
+    "excluir": ["/anos-anteriores/", "/images/stories/20(0\\d|1\\d|2[0-4])"] },
   { "id": "vestibular", "nome": "Vestibular FURG", "processo_padrao": "vestibular", "base": "https://vestibular.furg.br",
     "paginas_chave": ["https://vestibular.furg.br/"], "profundidade": 10,
     "dominios_permitidos": ["vestibular.furg.br"], "excluir": [] }

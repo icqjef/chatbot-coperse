@@ -136,6 +136,20 @@ describe('indexarDocumento', () => {
     expect(await indexarDocumento(doc, deps)).toBe('alterada');
   });
 
+  it('seções (perguntas frequentes) viram trechos próprios no fim, só em HTML; mudar as seções reindexa', async () => {
+    const { f, deps } = montar();
+    const secao = 'Pergunta: Posso fazer Vestibular e SiSU?\nResposta: Sim; se aprovado nos dois, escolhe uma vaga.';
+    await indexarDocumento({ ...doc, secoes: [secao] }, deps);
+    const textos = f.trechos().map((t) => String(t.texto));
+    expect(textos.at(-1)).toBe(secao);
+    expect(f.fts().length).toBe(textos.length);
+    expect(await indexarDocumento({ ...doc, secoes: [secao] }, deps)).toBe('igual');
+    expect(await indexarDocumento({ ...doc, secoes: [secao + ' Mudou.'] }, deps)).toBe('alterada');
+    const lista = montar();
+    await indexarDocumento({ ...doc, tipo: 'lista', secoes: [secao] }, lista.deps);
+    expect(lista.f.trechos().map((t) => String(t.texto))).not.toContain(secao);
+  });
+
   it('mesmo documento de novo é igual e não escreve nada', async () => {
     const { f, deps } = montar();
     await indexarDocumento(doc, deps);

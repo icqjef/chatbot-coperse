@@ -32,6 +32,8 @@ export interface PaginaExtraida {
   /** ISO 8601, quando a página informa a data de publicação */
   data?: string;
   links: LinkEncontrado[];
+  /** Perguntas frequentes do JSON-LD (FAQPage), cada uma "Pergunta: …\nResposta: …"; viram trechos próprios. */
+  perguntas?: string[];
 }
 
 export type TipoEmbedding = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';
@@ -74,4 +76,6 @@ export interface Documento {
   processo: string;
   ano: number;
   texto: string;
+  /** Trechos prontos que entram depois da divisão do texto (perguntas frequentes da página). */
+  secoes?: string[];
 }

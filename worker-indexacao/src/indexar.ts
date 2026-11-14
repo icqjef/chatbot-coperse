@@ -98,8 +98,11 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
 
     // Classificação e título entram no hash: mudar as regras ou o título força um novo embedding.
     // HTML leva também a versão da divisão em trechos: mudar o tamanho redivide as páginas na revisita.
+    // Perguntas frequentes só em HTML (lista nunca leva conteúdo além do resumo).
+    const secoes = doc.tipo === 'html' ? (doc.secoes ?? []).map((s) => s.trim()).filter(Boolean) : [];
     const partes: unknown[] = [doc.tipo, processo, ano, titulo, texto];
     if (doc.tipo === 'html') partes.push(TRECHOS_HTML.versao);
+    if (secoes.length) partes.push(secoes);
     const hash = sha256(JSON.stringify(partes));
     const anterior = (await cf.d1('SELECT hash, status FROM paginas WHERE url = ?', [url]))[0];
     if (anterior && anterior.hash === hash && anterior.status === 'ok') {
@@ -108,7 +111,7 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
     }
 
     // Primeiro calcula trechos e embeddings; só depois troca o que já existe.
-    const trechos = dividirEmTrechos(texto, doc.tipo === 'html' ? TRECHOS_HTML : {});
+    const trechos = [...dividirEmTrechos(texto, doc.tipo === 'html' ? TRECHOS_HTML : {}), ...secoes];
     const antigos = (await cf.d1('SELECT id FROM trechos WHERE url = ?', [url])).map((r) => r.id as string);
     const delta = trechos.length - antigos.length;
     if (teto && delta > teto.restante()) return 'teto';
