@@ -467,6 +467,16 @@ describe('consultaDeBusca', () => {
       { pergunta: 'e de Medicina?', historico: hist },
       { buscar, gerador: { gerar: async () => '' }, agora: () => new Date() },
     );
-    expect(buscar).toHaveBeenCalledWith('Quantas vagas de Direito tem no Vestibular 2027?\ne de Medicina?');
+    expect(buscar).toHaveBeenCalledWith('Quantas vagas de Direito tem no Vestibular 2027?\ne de Medicina?', 'vestibular');
+  });
+
+  it.each([
+    ['Quando é a prova de redação do processo seletivo para estudantes transgêneros?', 'transgeneros'],
+    ['Como funciona a seleção pelo SiSU na FURG?', 'sisu'],
+    ['Quando começam as aulas?', null],
+  ])('responderPergunta passa o processo inferido: %s', async (pergunta, esperado) => {
+    const buscar = vi.fn(async () => ({ trechos: [] as Trecho[], melhorSimilaridade: 0 }));
+    await responderPergunta({ pergunta, historico: [] }, { buscar, gerador: { gerar: async () => '' }, agora: () => new Date() });
+    expect(buscar).toHaveBeenCalledWith(pergunta, esperado);
   });
 });

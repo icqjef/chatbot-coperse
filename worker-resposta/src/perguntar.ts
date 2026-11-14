@@ -1,3 +1,6 @@
+import { carregarRegras, inferirProcesso } from '@chatbot/comum/classificar';
+import listasJson from '../../config/listas.json';
+import processosJson from '../../config/processos.json';
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type Trecho } from './busca';
@@ -41,12 +44,14 @@ export interface EntradaPergunta {
 }
 
 export interface DepsResposta {
-  buscar: (pergunta: string) => Promise<{ trechos: Trecho[]; melhorSimilaridade: number }>;
+  buscar: (pergunta: string, processo: string | null) => Promise<{ trechos: Trecho[]; melhorSimilaridade: number }>;
   gerador: Gerador;
   agora: () => Date;
 }
 
 const MAX_SEGUIMENTO = 60;
+// Compiladas uma vez, no carregamento do módulo (orçamento de CPU curto).
+const REGRAS = carregarRegras(processosJson, listasJson);
 
 /**
  * Consulta usada na busca vetorial. Um seguimento curto ("e de Medicina?") não tem contexto
@@ -68,7 +73,8 @@ export async function responderPergunta(
   entrada: EntradaPergunta,
   deps: DepsResposta,
 ): Promise<{ resposta: string; fontes: Fonte[] }> {
-  const { trechos } = await deps.buscar(consultaDeBusca(entrada.pergunta, entrada.historico));
+  const consulta = consultaDeBusca(entrada.pergunta, entrada.historico);
+  const { trechos } = await deps.buscar(consulta, inferirProcesso([consulta], REGRAS));
   if (trechos.length === 0) return { resposta: SEM_BASE, fontes: [] };
   let bruta: string;
   try {
@@ -210,11 +216,11 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
     const gerador = criarGerador(env);
     const limiar = Number(env.LIMIAR_SIMILARIDADE);
     const resultado = await responderPergunta(entrada, {
-      buscar: (p) =>
+      buscar: (p, processo) =>
         buscarTrechos(
           p,
           { embedder, vectorize: env.VECTORIZE, db: env.DB, agora },
-          { limiar: Number.isFinite(limiar) && env.LIMIAR_SIMILARIDADE ? limiar : LIMIAR_PADRAO },
+          { limiar: Number.isFinite(limiar) && env.LIMIAR_SIMILARIDADE ? limiar : LIMIAR_PADRAO, processo },
         ),
       gerador,
       agora,
