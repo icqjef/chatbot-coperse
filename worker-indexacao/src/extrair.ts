@@ -73,8 +73,45 @@ function dataPublicada(raiz: cheerio.Cheerio<any>): string | undefined {
   return undefined;
 }
 
+const MAX_PERGUNTAS = 40;
+const MAX_TAM_PERGUNTA = 1500;
+
+/** Texto de um campo do JSON-LD, sem tags HTML. */
+function textoLd(v: unknown): string {
+  const s = typeof v === 'string' ? v : typeof v === 'object' && v !== null && typeof (v as any).text === 'string' ? (v as any).text : '';
+  return limpa(cheerio.load(`<div>${s}</div>`)('div').text());
+}
+
+/** Pares pergunta/resposta de blocos JSON-LD do tipo FAQPage (schema.org), inclusive dentro de @graph. */
+function perguntasFrequentes($: cheerio.CheerioAPI): string[] {
+  const saida: string[] = [];
+  const visitar = (no: unknown): void => {
+    if (saida.length >= MAX_PERGUNTAS || typeof no !== 'object' || no === null) return;
+    if (Array.isArray(no)) return no.forEach(visitar);
+    const o = no as Record<string, unknown>;
+    const tipos = ([] as unknown[]).concat(o['@type'] ?? []);
+    if (tipos.includes('Question')) {
+      const pergunta = textoLd(o.name);
+      const resposta = textoLd(([] as unknown[]).concat(o.acceptedAnswer ?? [])[0]);
+      if (pergunta && resposta) saida.push(`Pergunta: ${pergunta}\nResposta: ${resposta}`.slice(0, MAX_TAM_PERGUNTA));
+      return;
+    }
+    if (tipos.includes('FAQPage')) return visitar(o.mainEntity);
+    if (o['@graph']) visitar(o['@graph']);
+  };
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      visitar(JSON.parse($(el).text()));
+    } catch {
+      // JSON-LD inválido: ignora o bloco
+    }
+  });
+  return saida;
+}
+
 export function extrairPagina(html: string, urlPagina: string): PaginaExtraida {
   const $ = cheerio.load(html);
+  const perguntas = perguntasFrequentes($);
   $('script, style, noscript').remove();
   // Links antes de remover nav/header/footer: os menus levam às páginas de processo.
   const links = coletarLinks($, urlPagina);
@@ -99,5 +136,5 @@ export function extrairPagina(html: string, urlPagina: string): PaginaExtraida {
     .trim();
   const tituloEl = $('.item-page h1, .item-page h2').first();
   const titulo = limpa(tituloEl.length ? tituloEl.text() : $('title').first().text());
-  return { titulo, texto: out, data, links };
+  return perguntas.length ? { titulo, texto: out, data, links, perguntas } : { titulo, texto: out, data, links };
 }

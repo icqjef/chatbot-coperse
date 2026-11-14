@@ -164,7 +164,8 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     tipo = lista ? 'lista' : 'html';
     saida.tipo = tipo;
     const r = await indexarDocumento(
-      { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo, processo: c.processo, ano: c.ano, texto: pagina.texto }, deps,
+      { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo, processo: c.processo, ano: c.ano, texto: pagina.texto,
+        ...(pagina.perguntas ? { secoes: pagina.perguntas } : {}) }, deps,
     );
     if (r === 'teto') return r;
 

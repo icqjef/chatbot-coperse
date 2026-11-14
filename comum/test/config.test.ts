@@ -46,7 +46,7 @@ describe('carregarSites: excluir', () => {
   it('o sites.json real traz os padrões de edições antigas', () => {
     const [c, s, v] = carregarSites(lerJson('sites.json'));
     expect(c?.excluir).toEqual(['/anos-anteriores/', '/images/Editais/20(0\\d|1\\d|2[0-4])/']);
-    expect(s?.excluir).toEqual(['/anos-anteriores/']);
+    expect(s?.excluir).toEqual(['/anos-anteriores/', '/images/stories/20(0\\d|1\\d|2[0-4])']);
     expect(v?.excluir).toEqual([]);
   });
 });
