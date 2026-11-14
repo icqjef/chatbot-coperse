@@ -44,4 +44,19 @@ describe("verificar", () => {
     expect(verificar(p, ok("escreva para coperse@furg.br", [])).ok).toBe(true);
     expect(verificar(p, ok("o período é 10 a 20/03")).ok).toBe(false);
   });
+  describe("fatos numéricos", () => {
+    const casa = (forma, texto) => verificar({ fatos: [[forma]], fonte: "" }, ok(texto)).ok;
+    it("não casa dentro de horas e datas", () => {
+      expect(casa("30", "A prova começa às 19h30.")).toBe(false);
+      expect(casa("30", "Prazo até 30/11.")).toBe(false);
+      expect(casa("10", "Edital 10/2026.")).toBe(false);
+    });
+    it("casa em contexto limpo", () => {
+      expect(casa("34", "São 34 vagas.")).toBe(true);
+      expect(casa("85", "A taxa é R$ 85,00.")).toBe(true);
+      expect(casa("1063", "Há 1.063 vagas.")).toBe(true);
+      expect(casa("1.063", "Há 1063 vagas.")).toBe(true);
+      expect(casa("85", "R$ 85,50")).toBe(false);
+    });
+  });
 });

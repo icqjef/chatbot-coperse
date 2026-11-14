@@ -213,9 +213,15 @@ async function limparExcluidas(sites: Site[], ctx: Contexto, total: Contagem): P
   const { deps, estado } = ctx;
   const barrada = (url: string) => sites.some((s) => hostPermitido(url, s) && urlExcluida(url, s));
   let n = 0;
+  let falhas = 0;
   for (const [url, vista] of estado.paginas) {
     if (vista.status === 'removida' || !barrada(url)) continue;
-    await removerPagina(url, deps);
+    try {
+      await removerPagina(url, deps);
+    } catch {
+      falhas++;
+      continue; // fica para a próxima execução
+    }
     estado.paginas.set(url, { ...vista, status: 'removida' });
     n++;
   }
@@ -226,6 +232,7 @@ async function limparExcluidas(sites: Site[], ctx: Contexto, total: Contagem): P
   }
   total.removida += n;
   if (n > 0) console.error(`Edições antigas excluídas do índice e da fila: ${n}`);
+  if (falhas > 0) console.error(`Falha ao remover ${falhas} página(s) excluída(s); tentará de novo na próxima execução.`);
 }
 
 async function semear(site: Site, ctx: Contexto, total: Contagem): Promise<void> {
@@ -341,7 +348,11 @@ export async function executar(
     }
   } catch (e) {
     if (e instanceof ErroAutenticacaoProvedor) {
-      await depsBase.cf.d1('UPDATE execucoes SET fim = ?, paginas = ?, erros = ? WHERE id = ?', [deps.agora(), processados, total.erro, id]);
+      try {
+        await depsBase.cf.d1('UPDATE execucoes SET fim = ?, paginas = ?, erros = ? WHERE id = ?', [deps.agora(), processados, total.erro, id]);
+      } catch {
+        // o erro de autenticação original é o que importa
+      }
     }
     throw e;
   }

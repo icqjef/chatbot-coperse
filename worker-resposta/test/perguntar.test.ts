@@ -440,6 +440,21 @@ describe('consultaDeBusca', () => {
     );
   });
 
+  it('não junta pergunta nova que cita o processo', () => {
+    const h = [{ papel: 'usuario' as const, texto: 'Qual a nota de corte do SiSU?' }];
+    expect(consultaDeBusca('Quando é a prova do Vestibular?', h)).toBe('Quando é a prova do Vestibular?');
+  });
+
+  it('junta pergunta curta sem palavra de processo', () => {
+    expect(consultaDeBusca('Quantas vagas tem?', hist)).toBe(
+      'Quantas vagas de Direito tem no Vestibular 2027?\nQuantas vagas tem?',
+    );
+  });
+
+  it('junta elo "e ..." mesmo citando o processo', () => {
+    expect(consultaDeBusca('e no SiSU?', hist)).toBe('Quantas vagas de Direito tem no Vestibular 2027?\ne no SiSU?');
+  });
+
   it('mantém a pergunta com 60 ou mais caracteres ou sem histórico', () => {
     const longa = 'x'.repeat(60);
     expect(consultaDeBusca(longa, hist)).toBe(longa);

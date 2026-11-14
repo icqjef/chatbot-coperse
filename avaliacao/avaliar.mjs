@@ -14,6 +14,11 @@ const so = opcao("--so")?.split(",");
 const ESPERA_MS = 11000;
 
 const conjunto = JSON.parse(readFileSync(join(aqui, "perguntas.json"), "utf8"));
+const desconhecidos = (so ?? []).filter((id) => !conjunto.perguntas.some((p) => p.id === id));
+if (desconhecidos.length > 0) {
+  console.error(`ERRO: --so com id inexistente: ${desconhecidos.join(", ")}`);
+  process.exit(2);
+}
 const perguntas = conjunto.perguntas.filter((p) => !so || so.includes(p.id));
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -25,7 +30,7 @@ async function perguntar(p) {
         "Content-Type": "application/json",
         Origin: "https://chatbot-coperse.coperse-furg.workers.dev",
       },
-      body: JSON.stringify({ pergunta: p.pergunta, historico: [] }),
+      body: JSON.stringify({ pergunta: p.pergunta, historico: p.historico ?? [] }),
     });
     const corpo = await res.json().catch(() => ({}));
     if (res.status !== 200) return { erro: corpo.erro ?? "", status: res.status };
@@ -62,7 +67,10 @@ console.log(`\nResultados gravados em ${arquivo}`);
 
 let codigo = 0;
 const g = porCategoria["datas-vagas-prazos"];
-if (g && g.ok < g.total) {
+if (!g) {
+  console.error("Portão não avaliado (execução parcial)");
+  if (!so) codigo = 1;
+} else if (g.ok < g.total) {
   console.error("PORTÃO: perguntas de datas, vagas e prazos falharam. Não publicar.");
   codigo = 1;
 }

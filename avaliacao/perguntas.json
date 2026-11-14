@@ -1,7 +1,7 @@
 {
   "versao": 1,
   "conferido_por_jeferson": true,
-  "nota": "Rascunho de 2026-11-13 montado a partir dos trechos indexados. 'fatos': cada item é uma lista de formas aceitas; a resposta precisa conter ao menos uma forma de cada item (sem diferenciar maiúsculas nem acentos). 'fonte': trecho da URL que precisa aparecer nas fontes. 'sem_fontes': a resposta não pode trazer fontes. 'proibidos': textos que não podem aparecer.",
+  "nota": "Rascunho de 2026-11-13 montado a partir dos trechos indexados. 'fatos': cada item é uma lista de formas aceitas; a resposta precisa conter ao menos uma forma de cada item (sem diferenciar maiúsculas nem acentos). 'fonte': trecho da URL que precisa aparecer nas fontes. 'sem_fontes': a resposta não pode trazer fontes. 'proibidos': textos que não podem aparecer. 'historico': lista opcional de mensagens anteriores ({papel, texto}), enviada como está na requisição (testa seguimentos como 'e de Medicina?').",
   "perguntas": [
     {
       "id": "vest-prova-data",
@@ -38,7 +38,7 @@
           "07/10"
         ]
       ],
-      "fonte": ""
+      "fonte": "vestibular"
     },
     {
       "id": "vest-taxa-valor",
@@ -176,7 +176,7 @@
           "31/08"
         ]
       ],
-      "fonte": ""
+      "fonte": "vestibular"
     },
     {
       "id": "trans-vagas",
@@ -305,6 +305,28 @@
           "2 questões discursivas",
           "duas",
           "2 discursivas"
+        ]
+      ],
+      "fonte": "vestibular.furg.br"
+    },
+    {
+      "id": "vest-seguimento-medicina",
+      "categoria": "datas-vagas-prazos",
+      "pergunta": "e de Medicina?",
+      "historico": [
+        {
+          "papel": "usuario",
+          "texto": "Quantas vagas de Direito diurno tem no Vestibular 2027?"
+        },
+        {
+          "papel": "modelo",
+          "texto": "No Vestibular 2027, Direito diurno tem 22 vagas [1]."
+        }
+      ],
+      "resposta_esperada": "34 vagas (Câmpus da Saúde).",
+      "fatos": [
+        [
+          "34"
         ]
       ],
       "fonte": "vestibular.furg.br"
