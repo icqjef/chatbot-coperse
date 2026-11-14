@@ -74,7 +74,7 @@ export async function responderPergunta(
   deps: DepsResposta,
 ): Promise<{ resposta: string; fontes: Fonte[] }> {
   const consulta = consultaDeBusca(entrada.pergunta, entrada.historico);
-  const { trechos } = await deps.buscar(consulta, inferirProcesso([consulta], REGRAS));
+  const { trechos } = await deps.buscar(consulta, inferirProcesso([entrada.pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS));
   if (trechos.length === 0) return { resposta: SEM_BASE, fontes: [] };
   let bruta: string;
   try {
