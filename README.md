@@ -98,4 +98,9 @@ Abra `https://chatbot-coperse.coperse-furg.workers.dev/demo`: é uma página só
 
 - Projeto: [docs/superpowers/specs/2026-11-12-chatbot-coperse-design.md](docs/superpowers/specs/2026-11-12-chatbot-coperse-design.md)
 - Decisões: [docs/decisoes.md](docs/decisoes.md)
+- Instalação nas páginas (Joomla): [docs/guia-instalacao.md](docs/guia-instalacao.md)
+- Operação do dia a dia (COPERSE): [docs/guia-operacao.md](docs/guia-operacao.md)
+- Aviso ao CGTI (só informativo): [docs/aviso-cgti.md](docs/aviso-cgti.md)
+- Pedido ao vestibular.furg.br: [docs/pedido-vestibular.md](docs/pedido-vestibular.md)
+- Revisão de segurança: [docs/revisao-seguranca-2026-11.md](docs/revisao-seguranca-2026-11.md)
 - Briefing original: [CLAUDE.md](CLAUDE.md)
