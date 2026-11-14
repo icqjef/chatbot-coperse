@@ -146,3 +146,7 @@ A primeira carga indexou com nomes de candidatos dois PDFs de locais de prova (`
 - O edital do Vestibular 2027 ainda não está no índice (falhou pela chave); o PDF indexado de vestibular.furg.br é o programa de prova. O edital 2027 dos indígenas também falta.
 - PDFs do Vestibular 2027 guardados na pasta `Vestibular-2026` recebem ano 2026 quando o título não tem ano. Correção na etapa 7: o ano vem do texto do documento antes da pasta.
 - Sem duplicatas `?Itemid=`, http/https nem sisu3/sisu.
+
+## 2026-11-14 — Listas com nomes que escaparam da regra
+
+Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo: eliminados do Processo Próprio, eliminados e ausentes do PS EaD. O link dizia "candidatos que não obtiveram pontuação mínima" e "não compareceram", termos que não estavam nos padrões. Entraram nos padrões de lista: `eliminad`, `compareceram`, `ausentes`, `pontuacao minima`, `nota minima`. As três páginas foram reprocessadas e ficaram só com o resumo. Pendência para a etapa 8: conferir também o início do texto do PDF (cabeçalho "Nº INSCRIÇÃO NOME"), não só o link.
