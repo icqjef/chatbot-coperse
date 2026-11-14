@@ -5,6 +5,7 @@ import { carregarRegras } from '@chatbot/comum/classificar';
 import { executar, codigoSaida, type OpcoesExecucao } from '../src/principal.js';
 import { ErroHttp, type Resposta } from '../src/http.js';
 import { criarCfFalso } from './fakes.js';
+import { ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import { carregarEstado, enfileirar } from '../src/fila.js';
 
 const json = (p: string) => JSON.parse(readFileSync(new URL(`../../config/${p}`, import.meta.url), 'utf8'));
@@ -473,5 +474,20 @@ describe('codigoSaida', () => {
     expect(codigoSaida({ ...z, erro: 3, teto: 1 })).toBe(0);
     expect(codigoSaida({ ...z, erro: 3, removida: 1 })).toBe(0);
     expect(codigoSaida(z)).toBe(0);
+  });
+});
+
+describe('executar: chave do Gemini recusada', () => {
+  it('interrompe sem registrar erro nem penalizar a fila, e rejeita', async () => {
+    const chaves = [`${V}/a`, `${V}/b`, `${V}/c`];
+    const paginas: Record<string, Resposta> = Object.fromEntries(chaves.map((u) => [u, { tipo: 'html', texto: pagina(`P ${u}`) } as Resposta]));
+    const m = montar({ paginas });
+    m.deps.embedder = { async embed() { throw new ErroAutenticacaoProvedor('Chave do Gemini recusada pelo provedor'); } };
+    const o = m.opcoes({ sites: [site({ paginas_chave: chaves })] });
+    await expect(executar(o, m.deps)).rejects.toBeInstanceOf(ErroAutenticacaoProvedor);
+    expect(m.f.registro.eventos).not.toContain('paginas:erro');
+    expect(m.f.paginas.size).toBe(0);
+    expect(chaves.map((u) => m.f.fila.get(u)?.tentativas)).toEqual([0, 0, 0]);
+    expect(m.f.registro.execucoes[0]?.fim).toBeTruthy();
   });
 });

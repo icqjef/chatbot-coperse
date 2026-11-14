@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { criarEmbedder } from '../src/provedores/embeddings';
+import { criarEmbedder, ErroAutenticacaoProvedor } from '../src/provedores/embeddings';
 
 const CHAVE = 'CHAVE-SECRETA-123';
 const env2 = { PROVEDOR_LLM: 'gemini', GEMINI_API_KEY: 'CHAVE-SECRETA-123', DIMENSAO_EMBEDDING: '2' };
@@ -88,5 +88,30 @@ describe('criarEmbedder', () => {
   it('DIMENSAO_EMBEDDING inválida -> erro na criação', () => {
     expect(() => criarEmbedder({ ...env, DIMENSAO_EMBEDDING: 'abc' })).toThrow(/DIMENSAO_EMBEDDING/);
     expect(() => criarEmbedder({ ...env, DIMENSAO_EMBEDDING: '-5' })).toThrow(/DIMENSAO_EMBEDDING/);
+  });
+});
+
+describe('criarEmbedder: autenticação recusada', () => {
+  const resp = (status: number, corpo: string) =>
+    (async () => new Response(corpo, { status })) as unknown as typeof fetch;
+  const invalida = '{"error":{"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT"}}';
+
+  it.each([
+    [400, invalida],
+    [401, '{"error":{"message":"nao autenticado"}}'],
+    [403, '{"error":{"message":"proibido"}}'],
+  ])('HTTP %i lança ErroAutenticacaoProvedor sem a chave na mensagem', async (status, corpo) => {
+    const p = criarEmbedder(env, resp(status, corpo)).embed(['a'], 'RETRIEVAL_DOCUMENT');
+    await expect(p).rejects.toBeInstanceOf(ErroAutenticacaoProvedor);
+    await p.catch((e) => expect(e.message).not.toContain(CHAVE));
+  });
+  it('400 sem indício de chave inválida continua Error comum', async () => {
+    const p = criarEmbedder(env, resp(400, '{"error":{"message":"texto grande demais"}}')).embed(['a'], 'RETRIEVAL_DOCUMENT');
+    await expect(p).rejects.not.toBeInstanceOf(ErroAutenticacaoProvedor);
+  });
+  it.each([429, 500])('HTTP %i continua Error comum', async (status) => {
+    const p = criarEmbedder(env, resp(status, '{"error":{"message":"x"}}')).embed(['a'], 'RETRIEVAL_DOCUMENT');
+    await expect(p).rejects.toThrow(Error);
+    await expect(p).rejects.not.toBeInstanceOf(ErroAutenticacaoProvedor);
   });
 });

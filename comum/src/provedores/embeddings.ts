@@ -15,6 +15,14 @@ function normalizar(v: number[]): number[] {
   return norma === 0 ? v : v.map((x) => x / norma);
 }
 
+/** Chave recusada pelo provedor (401, 403 ou 400 "API key not valid"): repetir não adianta. */
+export class ErroAutenticacaoProvedor extends Error {
+  constructor(mensagem = 'Chave do Gemini recusada pelo provedor') {
+    super(mensagem);
+    this.name = 'ErroAutenticacaoProvedor';
+  }
+}
+
 export function criarEmbedder(env: EnvEmbeddings, fetchFn: typeof fetch = fetch): Embedder {
   if (env.PROVEDOR_LLM !== 'gemini') throw new Error(`PROVEDOR_LLM desconhecido: ${env.PROVEDOR_LLM}`);
   const modelo = env.MODELO_EMBEDDING || 'gemini-embedding-001';
@@ -42,6 +50,10 @@ export function criarEmbedder(env: EnvEmbeddings, fetchFn: typeof fetch = fetch)
         });
         if (!resp.ok) {
           const bruto = ((await resp.json().catch(() => ({}))) as any)?.error?.message;
+          const recusada =
+            resp.status === 401 || resp.status === 403 ||
+            (resp.status === 400 && typeof bruto === 'string' && /API key not valid|API_KEY_INVALID/.test(bruto));
+          if (recusada) throw new ErroAutenticacaoProvedor(`Chave do Gemini recusada pelo provedor (HTTP ${resp.status})`);
           const msg = typeof bruto === 'string' ? bruto.split(env.GEMINI_API_KEY).join('[chave]').slice(0, 300) : '';
           throw new Error(`Falha nos embeddings do Gemini: HTTP ${resp.status}${msg ? ' — ' + msg : ''}`);
         }

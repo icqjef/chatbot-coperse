@@ -4,7 +4,7 @@ import { carregarSites } from '@chatbot/comum';
 import {
   carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, type RegrasClassificacao,
 } from '@chatbot/comum/classificar';
-import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
+import { criarEmbedder, ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import type { Site, TipoDocumento } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
@@ -180,6 +180,7 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
     }
     return r;
   } catch (e) {
+    if (e instanceof ErroAutenticacaoProvedor) throw e; // nada de registrarErro/adiar: a fila fica intacta
     const msg = e instanceof Error ? e.message : String(e);
     let falhas = 0;
     try {
@@ -274,47 +275,54 @@ export async function executar(
   const ctx: Contexto = { opcoes, deps, estado, esperar, doFeed: new Set() };
   const sites = new Map(opcoes.sites.map((s) => [s.id, s]));
 
-  for (const site of opcoes.sites) await semear(site, ctx, total);
-
   let processados = 0;
   let tetoAtingido = false;
-  laco: for (;;) {
-    const lote = await proximos(deps.cf, LOTE, deps.agora());
-    if (lote.length === 0) break;
-    for (const item of lote) {
-      if (processados >= opcoes.maxItens || relogio() - inicio >= opcoes.prazoMs) break laco;
-      processados++;
-      const site = sites.get(item.site);
-      if (!site) {
-        // site saiu da configuração
-        await concluir(deps.cf, estado, item.url);
-        total.ignorada++;
-        continue;
-      }
-      const { r, tipo } = await processarItem(item, site, ctx);
-      total[r]++;
-      if (r === 'teto') {
-        tetoAtingido = true;
-        break laco; // o item fica na fila
-      }
-      if (r === 'erro') {
-        await adiar(deps.cf, estado, item, deps.agora());
-        // Marca o erro com as falhas atuais: se o item acabou de sair da fila (5ª tentativa), links de volta
-        // não o enfileiram de novo nesta execução (erro permanente usa a janela de 30 dias).
-        let falhas = item.tentativas + 1;
-        try {
-          falhas = Math.max(falhas, Number((await deps.cf.d1('SELECT falhas FROM paginas WHERE url = ?', [item.url]))[0]?.falhas ?? 0));
-        } catch {
-          // fica a contagem da fila
+  try {
+    for (const site of opcoes.sites) await semear(site, ctx, total);
+
+    laco: for (;;) {
+      const lote = await proximos(deps.cf, LOTE, deps.agora());
+      if (lote.length === 0) break;
+      for (const item of lote) {
+        if (processados >= opcoes.maxItens || relogio() - inicio >= opcoes.prazoMs) break laco;
+        processados++;
+        const site = sites.get(item.site);
+        if (!site) {
+          // site saiu da configuração
+          await concluir(deps.cf, estado, item.url);
+          total.ignorada++;
+          continue;
         }
-        estado.paginas.set(item.url, { dataVista: deps.agora(), status: 'erro', tipo, falhas });
-      } else {
-        await concluir(deps.cf, estado, item.url);
-        // Marca como visto agora: links de volta para esta URL não a enfileiram de novo nesta execução.
-        const status = r === 'vazia' || r === 'removida' || r === 'ignorada' ? r : 'ok';
-        estado.paginas.set(item.url, { dataVista: deps.agora(), status, tipo });
+        const { r, tipo } = await processarItem(item, site, ctx);
+        total[r]++;
+        if (r === 'teto') {
+          tetoAtingido = true;
+          break laco; // o item fica na fila
+        }
+        if (r === 'erro') {
+          await adiar(deps.cf, estado, item, deps.agora());
+          // Marca o erro com as falhas atuais: se o item acabou de sair da fila (5ª tentativa), links de volta
+          // não o enfileiram de novo nesta execução (erro permanente usa a janela de 30 dias).
+          let falhas = item.tentativas + 1;
+          try {
+            falhas = Math.max(falhas, Number((await deps.cf.d1('SELECT falhas FROM paginas WHERE url = ?', [item.url]))[0]?.falhas ?? 0));
+          } catch {
+            // fica a contagem da fila
+          }
+          estado.paginas.set(item.url, { dataVista: deps.agora(), status: 'erro', tipo, falhas });
+        } else {
+          await concluir(deps.cf, estado, item.url);
+          // Marca como visto agora: links de volta para esta URL não a enfileiram de novo nesta execução.
+          const status = r === 'vazia' || r === 'removida' || r === 'ignorada' ? r : 'ok';
+          estado.paginas.set(item.url, { dataVista: deps.agora(), status, tipo });
+        }
       }
     }
+  } catch (e) {
+    if (e instanceof ErroAutenticacaoProvedor) {
+      await depsBase.cf.d1('UPDATE execucoes SET fim = ?, paginas = ?, erros = ? WHERE id = ?', [deps.agora(), processados, total.erro, id]);
+    }
+    throw e;
   }
 
   const filaRestante = Number((await deps.cf.d1('SELECT COUNT(*) AS n FROM fila'))[0]?.n ?? 0);
@@ -367,7 +375,7 @@ async function main(): Promise<void> {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   main().catch((e) => {
-    console.error(`Falha na indexação: ${e instanceof Error ? e.message : String(e)}`);
+    console.error(e instanceof ErroAutenticacaoProvedor ? 'Chave do Gemini recusada pelo provedor' : `Falha na indexação: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
   });
 }

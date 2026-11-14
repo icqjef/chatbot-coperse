@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Site, Embedder, VetorTrecho, Documento, TipoDocumento } from '@chatbot/comum/tipos';
 import { dividirEmTrechos, prefixarTrecho } from '@chatbot/comum/trechos';
+import { ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import type { ClienteCloudflare } from './cloudflare.js';
 
 export type ResultadoIndexacao = 'nova' | 'alterada' | 'igual' | 'vazia' | 'erro' | 'teto';
@@ -134,6 +135,7 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
     teto?.consumir(delta);
     return anterior ? 'alterada' : 'nova';
   } catch (err) {
+    if (err instanceof ErroAutenticacaoProvedor) throw err;
     const msg = err instanceof Error ? err.message : String(err);
     try {
       await registrarErro({ site: doc.site, url, titulo, data: dataValida, tipo: doc.tipo, processo, ano }, msg, deps);
