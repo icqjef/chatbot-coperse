@@ -45,9 +45,12 @@ const SQL_UPSERT_OK = `INSERT INTO paginas (url, site, titulo, tipo, processo, a
     ano=excluded.ano, data_publicacao=excluded.data_publicacao, data_vista=excluded.data_vista, hash=excluded.hash,
     status=excluded.status, falhas=0, erro=NULL`;
 
+// Falha passageira não esconde página já indexada: se a linha era 'ok', continua 'ok' (trechos e hash intactos);
+// só conta a falha e guarda o erro. Página nova ou não ok vira 'erro'.
 const SQL_UPSERT_ERRO = `INSERT INTO paginas (url, site, titulo, tipo, processo, ano, data_publicacao, data_vista, hash, status, falhas, erro)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-  ON CONFLICT(url) DO UPDATE SET titulo=COALESCE(NULLIF(excluded.titulo, ''), paginas.titulo), data_vista=excluded.data_vista, status=excluded.status,
+  ON CONFLICT(url) DO UPDATE SET titulo=COALESCE(NULLIF(excluded.titulo, ''), paginas.titulo), data_vista=excluded.data_vista,
+    status=CASE WHEN paginas.status = 'ok' THEN 'ok' ELSE excluded.status END,
     falhas=paginas.falhas + 1, erro=excluded.erro
   RETURNING falhas`;
 

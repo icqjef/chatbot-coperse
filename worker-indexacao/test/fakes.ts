@@ -42,7 +42,7 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         const falhas = status === 'erro' ? (ant ? (ant.falhas as number) + 1 : 1) : 0;
         // erro sem título conhecido não apaga o título anterior (COALESCE(NULLIF(...)))
         const tit = status === 'erro' && !titulo ? (ant?.titulo ?? titulo) : titulo;
-        paginas.set(url, { url, site, titulo: tit, tipo, processo, data_publicacao, ano, data_vista, hash: status === 'erro' ? (ant?.hash ?? null) : hash, status, falhas, erro });
+        paginas.set(url, { url, site, titulo: tit, tipo, processo, data_publicacao, ano, data_vista, hash: status === 'erro' ? (ant?.hash ?? null) : hash, status: status === 'erro' && ant?.status === 'ok' ? 'ok' : status, falhas, erro });
         return [{ falhas }];
       }
       if (/^DELETE FROM trechos_fts/i.test(s)) {

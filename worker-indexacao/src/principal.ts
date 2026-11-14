@@ -337,7 +337,9 @@ export async function executar(
           } catch {
             // fica a contagem da fila
           }
-          estado.paginas.set(item.url, { dataVista: deps.agora(), status: 'erro', tipo, falhas });
+          // espelha o banco: página que já estava ok continua ok (só a contagem de falhas sobe)
+          const eraOk = estado.paginas.get(item.url)?.status === 'ok';
+          estado.paginas.set(item.url, { dataVista: deps.agora(), status: eraOk ? 'ok' : 'erro', tipo, falhas });
         } else {
           await concluir(deps.cf, estado, item.url);
           // Marca como visto agora: links de volta para esta URL não a enfileiram de novo nesta execução.
