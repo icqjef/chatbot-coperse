@@ -199,6 +199,11 @@ Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo:
 - Rodada da avaliação depois disso: datas, vagas e prazos em 17/19, com as duas respostas corretas. (1) `vest-vagas-total` respondeu 1.063 vagas citando a notícia oficial no coperse.furg.br; o campo `fonte` da avaliação passou a aceitar alternativas e essa pergunta aceita vestibular.furg.br ou coperse.furg.br. (2) `vest-aulas` escreveu "01º/03/2027"; o código agora tira o ordinal colado em data numérica (`limparDatas`) antes de responder.
 - Avaliação seguinte: datas/vagas/prazos 19/19, regras 8/8, conversa 5/5, armadilhas 3/4. A falha era `armadilha-individual`, com resposta adequada: recusou verificar o caso, encaminhou ao sistema de inscrição e a coperse@furg.br e deu as datas públicas da homologação com fonte. A pergunta deixou de exigir "nenhuma fonte" e passou a proibir afirmações sobre a inscrição da pessoa ("sua inscrição foi/está/não foi homologada"), além do CPF.
 
+## 2026-11-14 — Segurança M3: limites na leitura de PDF
+
+- `extrairPdf` lê no máximo 300 páginas e para ao passar de 2 milhões de caracteres (o texto é cortado nesse ponto). A leitura inteira tem prazo de 60 s: ao estourar, o item vira erro ("PDF inválido") e a fila segue. Junto com o teto de 15 MB do download, um PDF malicioso ou defeituoso não trava mais a execução.
+- As páginas são lidas uma a uma, montando o texto exatamente como o `extractText` do unpdf; um teste compara os dois no edital real, para os PDFs já indexados não mudarem de hash nem serem reprocessados.
+- O documento do pdf.js agora é destruído ao fim de cada leitura (antes ficava em memória até o fim da execução).
 ## 2026-11-14 — Segurança M5 e N6: dependências atualizadas
 
 - vitest 2.1 → 5.1 em todos os pacotes (corrige tinypool, vite e esbuild apontados pelo `npm audit`), esbuild do widget 0.21 → 0.28 (exigência do vite 8) e fast-xml-parser 4.5 → 5.12 (N6). `npm audit` agora: 0 vulnerabilidades.
