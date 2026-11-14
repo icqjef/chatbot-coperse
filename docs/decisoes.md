@@ -170,3 +170,7 @@ Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo:
 - Documentação: o guia de instalação deixou de sugerir mudar os filtros de texto do Joomla; se o script sumir, não se altera nada e se avisa a COPERSE. O aviso ao CGTI registra, sem pedir ação, que um eventual Content-Security-Policy dos sites precisaria liberar o domínio do Worker. A troca da chave do Gemini só apaga a antiga depois de testar a nova.
 - Situação da revisão de segurança: I1, I3, M1 e M2 corrigidos; I2 corrigido no código e pendente do token restrito do Jeferson; M3 a M6 adiados (ver `revisao-seguranca-2026-11.md`).
 - Medição depois da publicação da etapa 8 (31 perguntas, `wrangler tail`): CPU por pergunta p50 8 ms, máximo 22 ms (antes: 15 e 32), todas com resultado `ok`. Portão 19/19 depois de aceitar "recurso em até 24 horas após a divulgação" como equivalente a 24/11 (o edital diz isso; o cronograma diz 24/11). Uma pergunta deu 503 passageiro do Gemini e passou ao repetir.
+
+## 2026-11-14 — Token restrito da indexação
+
+- O workflow `indexar` passa a usar só o segredo `CLOUDFLARE_API_TOKEN_INDEXACAO` (D1 Edit + Vectorize Edit, restrito à conta), criado pelo Jeferson. O `CLOUDFLARE_API_TOKEN`, que também publica Workers, fica só no `publicar.yml`. Motivo: revisão de segurança, item I2. Etapa 8 aceita pelo Jeferson nesta data.

@@ -46,7 +46,7 @@ Contagem: Crítica 0 · Importante 3 · Menor 6 · Informativa 9.
 | id | situação |
 |---|---|
 | I1 | Corrigido: limite diário por visitante e chave IPv6 por /64 (commit `4497d65`). Depois da revisão final, o limite diário ficou em 150 por visitante (não 50) e só `/perguntar` o gasta. |
-| I2 | Corrigido no código (commit `7194854`: o `indexar.yml` usa `CLOUDFLARE_API_TOKEN_INDEXACAO`). Pendente: o Jeferson criar o token restrito e gravá-lo no GitHub (guia-operacao, seção 7); só então sai o trecho provisório que ainda aceita o token antigo. |
+| I2 | Corrigido. Token restrito (D1 Edit + Vectorize Edit, só a conta) criado em 14/11/2026 e gravado no GitHub como `CLOUDFLARE_API_TOKEN_INDEXACAO`; o `indexar.yml` deixou de aceitar `CLOUDFLARE_API_TOKEN`. |
 | I3 | Corrigido: o token só aparece nos passos que usam o `wrangler` (commit `7194854`). |
 | M1 | Corrigido: ações fixadas por SHA (commit `7194854`). |
 | M2 | Corrigido: indexador sobe `http` para `https` e barra redirecionamento para fora do domínio (commit `06de3d8`). |
