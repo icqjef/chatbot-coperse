@@ -180,3 +180,7 @@ Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo:
 - Constatado na indexação manual 43629516728: `sisu.furg.br` tem o conteúdo do SiSU (feed, edital 2026, perguntas frequentes) e `sisu3.furg.br` virou um Joomla em branco ("Site de Exemplo"), com 404 nos PDFs. Como três 404 seguidos apagam a página, o SiSU sairia do índice em cerca de 6 horas.
 - `config/sites.json`: o site `sisu` passou para `https://sisu.furg.br`, e `dominios_permitidos` agora traz só `sisu.furg.br`. O novo campo `hosts_antigos: ["sisu3.furg.br"]` diz ao indexador para migrar. A migração http→https virou `migrarUrls`: o que está indexado ou na fila num host antigo, ou em http, sai e entra na fila com a URL nova. Motivo: reaproveitar a migração já testada, sem código fixo para o sisu.
 - `origens.json` mantém `https://sisu3.furg.br` enquanto o endereço responder.
+
+## 2026-11-14 — Limite diário vira à meia-noite de Brasília
+
+- A chave do visitante (hash do IP + dia) usava a data UTC; os contadores já usavam o dia de São Paulo. Com isso, às 21h de Brasília a chave mudava e o visitante ganhava outras 150 perguntas. Agora a chave usa `diaSaoPaulo`, o mesmo dia dos contadores e da cota global.

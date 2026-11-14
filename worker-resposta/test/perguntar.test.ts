@@ -361,14 +361,23 @@ describe('chave do limite', () => {
 
   it('mesmo IP no mesmo dia -> mesma chave; não contém o IP', async () => {
     const a = await chaveLimite('203.0.113.7', new Date('2026-11-12T10:00:00Z'));
-    const b = await chaveLimite('203.0.113.7', new Date('2026-11-12T23:59:00Z'));
-    const c = await chaveLimite('203.0.113.7', new Date('2026-11-13T00:01:00Z'));
+    const b = await chaveLimite('203.0.113.7', new Date('2026-11-13T02:59:00Z')); // 23h59 em Brasília
+    const c = await chaveLimite('203.0.113.7', new Date('2026-11-13T03:01:00Z')); // 00h01 do dia 13
     const d = await chaveLimite('203.0.113.8', new Date('2026-11-12T10:00:00Z'));
     expect(a).toBe(b);
     expect(a).not.toBe(c);
     expect(a).not.toBe(d);
     expect(a).toMatch(/^[0-9a-f]{64}$/);
     expect(a).not.toContain('203');
+  });
+
+  it('a chave vira à meia-noite de Brasília, não às 21h (meia-noite UTC)', async () => {
+    const ip = '203.0.113.7';
+    const as20h = await chaveLimite(ip, new Date('2026-11-12T23:00:00Z')); // 20h em Brasília
+    const as22h = await chaveLimite(ip, new Date('2026-11-13T01:00:00Z')); // 22h, mesmo dia em Brasília
+    const madrugada = await chaveLimite(ip, new Date('2026-11-13T03:01:00Z')); // 00h01 do dia 13
+    expect(as22h).toBe(as20h);
+    expect(madrugada).not.toBe(as20h);
   });
 
   it('a rota usa a chave derivada de CF-Connecting-IP', async () => {
