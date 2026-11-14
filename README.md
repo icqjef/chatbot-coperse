@@ -58,7 +58,7 @@ Rotas:
 - `POST /reindexar`: com `Authorization: Bearer <REINDEX_TOKEN>`, dispara o workflow de indexação no GitHub (resposta 202). Exemplo: `curl -X POST -H "Authorization: Bearer $SENHA" https://<worker>/reindexar`.
 - `GET /widget.js`: o script do widget.
 
-Variáveis (em `worker-resposta/wrangler.toml`): `PROVEDOR_LLM`, `MODELO_RESPOSTA`, `MODELO_EMBEDDING`, `DIMENSAO_EMBEDDING`, `LIMIAR_SIMILARIDADE`, `GITHUB_REPO`, `GITHUB_WORKFLOW`, `LIMITE_POR_MINUTO` (padrão 6), `COTA_DIARIA` (padrão 1000).
+Variáveis (em `worker-resposta/wrangler.toml`): `PROVEDOR_LLM`, `MODELO_RESPOSTA`, `MODELO_EMBEDDING`, `DIMENSAO_EMBEDDING`, `LIMIAR_SIMILARIDADE`, `GITHUB_REPO`, `GITHUB_WORKFLOW`, `LIMITE_POR_MINUTO` (padrão 6), `LIMITE_DIARIO_VISITANTE` (padrão 40 perguntas por visitante por dia), `COTA_DIARIA` (padrão 1000).
 
 Segredos: `GEMINI_API_KEY`, `REINDEX_TOKEN` (senha longa, no mínimo 32 caracteres; se faltar ou for menor, a rota `/reindexar` fica desativada e responde 503) e `GITHUB_TOKEN`. Cadastre-os no painel do Cloudflare: Workers & Pages, chatbot-coperse, Settings, Variables and Secrets, tipo Secret. Nunca coloque segredos no código nem no chat.
 
