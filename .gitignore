@@ -5,3 +5,4 @@ dist/
 *.tsbuildinfo
 .dev.vars
 .env*
+avaliacao/resultados/
