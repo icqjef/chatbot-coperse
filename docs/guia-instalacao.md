@@ -1,6 +1,6 @@
 # Guia de instalação do assistente nas páginas
 
-Para quem edita o site como Administrator do Joomla (coperse.furg.br e sisu3.furg.br). Não precisa instalar nada: é uma única linha de código colada num módulo.
+Para quem edita o site como Administrator do Joomla (coperse.furg.br e sisu.furg.br). Não precisa instalar nada: é uma única linha de código colada num módulo.
 
 ## A linha que será colada
 
@@ -11,17 +11,17 @@ Para quem edita o site como Administrator do Joomla (coperse.furg.br e sisu3.fur
 `data-cor` é opcional e define a cor do botão e do cabeçalho.
 
 - coperse.furg.br: use `data-cor="#8b0000"` (vinho).
-- sisu3.furg.br: tire o `data-cor`; o assistente fica no azul padrão (`#1f5fbf`).
+- sisu.furg.br: tire o `data-cor`; o assistente fica no azul padrão (`#1f5fbf`).
 - Se a cor for inválida ou clara demais para o texto branco, o assistente usa o azul padrão.
 
 ## Antes de começar: teste sem mexer em site nenhum
 
 Abra `https://chatbot-coperse.coperse-furg.workers.dev/demo`. É uma página só com o assistente.
 
-## Colar no coperse.furg.br e no sisu3.furg.br
+## Colar no coperse.furg.br e no sisu.furg.br
 
 1. Entre no painel do Joomla como Administrator.
-2. Abra a lista de módulos: no menu de Módulos (Conteúdo → Módulos do Site, ou Extensões → Módulos, conforme a versão). No sisu3 (Joomla 3) o caminho é Extensões → Módulos.
+2. Abra a lista de módulos: no menu de Módulos (Conteúdo → Módulos do Site, ou Extensões → Módulos, conforme a versão). No site do SiSU (Joomla 3, conferido quando ainda era sisu3) o caminho é Extensões → Módulos.
 3. Clique em Novo e escolha o tipo "Personalizado" (HTML personalizado / Custom).
 4. Dê o título `Assistente COPERSE` e, em "Mostrar título", escolha "Ocultar".
 5. Antes de colar, deixe a caixa de texto em código puro, de um destes jeitos:
@@ -48,12 +48,8 @@ Se o `<script>` desaparecer depois de salvar o módulo, não mude mais nada no J
 
 O vestibular.furg.br é administrado por outra pessoa. O texto pronto para pedir a ela está em [pedido-vestibular.md](pedido-vestibular.md).
 
-## Quando o sisu3 virar sisu (sisu.furg.br)
+## Mudança do sisu3 para o sisu (feita em 2026-11-14)
 
-Isto é feito no repositório, por pull request:
+O SiSU passou a ser publicado em `sisu.furg.br`; `sisu3.furg.br` virou um Joomla em branco. Em `config/sites.json`, o site `sisu` aponta para `https://sisu.furg.br` e lista `sisu3.furg.br` em `hosts_antigos`: o indexador tira do índice e da fila tudo o que estava no host antigo e enfileira o mesmo caminho no host novo. O script colado no Joomla não muda (ele aponta para o Worker). `https://sisu3.furg.br` continua em `config/origens.json` enquanto o endereço antigo responder.
 
-1. Em `config/sites.json`, no site `sisu`, troque `base`, `feed` e `paginas_chave` de `https://sisu3.furg.br` para `https://sisu.furg.br`. O domínio `sisu.furg.br` já consta em `dominios_permitidos`.
-2. Em `config/origens.json`, confira que `https://sisu.furg.br` está na lista (já está). Mantenha `https://sisu3.furg.br` enquanto o endereço antigo ainda responder.
-3. Abra o pull request, espere os testes passarem e faça o merge. A publicação é automática.
-4. Reindexe (ver [guia-operacao.md](guia-operacao.md)).
-5. O script colado no módulo do Joomla não muda: ele aponta para o Worker, não para o site.
+Se outro site mudar de endereço, faça o mesmo: troque `base`, `feed`, `paginas_chave` e `dominios_permitidos` e ponha o host antigo em `hosts_antigos`.

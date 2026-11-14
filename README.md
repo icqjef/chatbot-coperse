@@ -1,6 +1,6 @@
 # Chatbot COPERSE
 
-Chatbot de perguntas e respostas (padrão RAG) para candidatos de processos seletivos da FURG. Responde apenas com base no conteúdo publicado em coperse.furg.br, vestibular.furg.br e sisu3.furg.br, sempre citando a página de origem, e indexa sozinho as publicações novas. Roda na Cloudflare (plano gratuito) com Gemini; o widget é um único script colado nas páginas.
+Chatbot de perguntas e respostas (padrão RAG) para candidatos de processos seletivos da FURG. Responde apenas com base no conteúdo publicado em coperse.furg.br, vestibular.furg.br e sisu.furg.br (antigo sisu3), sempre citando a página de origem, e indexa sozinho as publicações novas. Roda na Cloudflare (plano gratuito) com Gemini; o widget é um único script colado nas páginas.
 
 ## Estrutura
 
@@ -28,7 +28,7 @@ npm run typecheck   # tsc -b
 
 O workflow `.github/workflows/indexar.yml` roda a cada 2 horas e rastreia os três sites de `config/sites.json` por uma fila no banco D1 (tabela `fila`):
 
-- **Sementes:** os itens do feed RSS de cada site (coperse e sisu3) e as `paginas_chave` (a página inicial de cada site) entram na fila em toda execução.
+- **Sementes:** os itens do feed RSS de cada site (coperse e sisu) e as `paginas_chave` (a página inicial de cada site) entram na fila em toda execução.
 - **Rastreamento:** cada página lida tem seus links do mesmo domínio enfileirados, até `profundidade` níveis (10). Páginas HTML são revisitadas depois de 20 horas e PDFs depois de 30 dias; o que não mudou não é reprocessado. PDFs são lidos com o `unpdf` (até 15 MB; PDF escaneado fica como `vazia`).
 - **Orçamento por execução:** no máximo `LIMITE` itens (padrão 400) e `PRAZO_MINUTOS` minutos (padrão 25). O que sobrar continua na fila e é processado nas execuções seguintes.
 - **Teto de vetores:** a indexação para ao chegar a `TETO_VETORES` vetores no índice (6000). O resumo mostra `teto_atingido: true`; veja em [docs/decisoes.md](docs/decisoes.md) o que fazer.

@@ -51,6 +51,19 @@ describe('carregarSites: excluir', () => {
   });
 });
 
+describe('carregarSites: hosts_antigos', () => {
+  it('aceita lista de hosts e recusa o que não for lista de textos', () => {
+    expect(carregarSites([site({ hosts_antigos: ['velho.furg.br'] })])[0]?.hosts_antigos).toEqual(['velho.furg.br']);
+    expect(() => carregarSites([site({ hosts_antigos: 'velho.furg.br' })])).toThrow(/hosts_antigos/);
+  });
+  it('o sites.json real usa sisu.furg.br e migra o sisu3', () => {
+    const s = carregarSites(lerJson('sites.json')).find((x) => x.id === 'sisu');
+    expect(s?.base).toBe('https://sisu.furg.br');
+    expect(s?.dominios_permitidos).toEqual(['sisu.furg.br']);
+    expect(s?.hosts_antigos).toEqual(['sisu3.furg.br']);
+  });
+});
+
 describe('carregarOrigens', () => {
   it('aceita o origens.json real', () => {
     expect(carregarOrigens(lerJson('origens.json'))).toHaveLength(7);

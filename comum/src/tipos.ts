@@ -9,6 +9,8 @@ export interface Site {
   dominios_permitidos: string[];
   /** expressões regulares aplicadas à URL completa: o que casar não é indexado (edições antigas) */
   excluir?: string[];
+  /** hosts de onde o site se mudou (ex.: sisu3.furg.br): o que estiver indexado ou na fila neles migra para o host de `base` */
+  hosts_antigos?: string[];
 }
 
 export interface ItemFeed {

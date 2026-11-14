@@ -568,6 +568,27 @@ describe('executar: ajustes da revisão final', () => {
     expect(m.buscados).toEqual([`${V}/`]);
   });
 
+  it('host antigo (sisu3): página ok sai do índice e a versão no host novo é indexada; item da fila muda de host', async () => {
+    const S = 'https://sisu.furg.br';
+    const sisu = site({ id: 'sisu', base: S, paginas_chave: [`${S}/`], dominios_permitidos: ['sisu.furg.br'], hosts_antigos: ['sisu3.furg.br'] });
+    const velha = 'https://sisu3.furg.br/edital.pdf';
+    const naFila = 'http://sisu3.furg.br/faq';
+    const m = montar({ paginas: {
+      [`${S}/`]: { tipo: 'html', texto: pagina('Início') },
+      [`${S}/edital.pdf`]: { tipo: 'pdf', bytes: new TextEncoder().encode('Edital SiSU: inscrições em janeiro.') },
+      [`${S}/faq`]: { tipo: 'html', texto: pagina('Perguntas') },
+    } });
+    m.f.paginas.set(velha, { ...linhaOk(velha), site: 'sisu' });
+    m.f.fila.set(naFila, { url: naFila, site: 'sisu', profundidade: 1, prioridade: 1, tentativas: 0, lista: 0, proxima_tentativa: null });
+    const r = await executar(m.opcoes({ sites: [sisu] }), m.deps);
+    expect(m.f.paginas.get(velha)?.status).toBe('removida');
+    expect(m.f.paginas.get(`${S}/edital.pdf`)?.status).toBe('ok');
+    expect(m.f.paginas.get(`${S}/faq`)?.status).toBe('ok');
+    expect(m.buscados.some((u) => u.includes('sisu3'))).toBe(false);
+    expect(m.f.fila.has(naFila)).toBe(false);
+    expect(r.removida).toBeGreaterThanOrEqual(1);
+  });
+
   it('PDF tratado como lista pelo conteúdo: registra só a URL, sem o texto', async () => {
     const texto = 'Nº INSCRIÇÃO NOME\n329 ALINE DAIANE SCHEIBLER\n300 ANA CARLA PEREIRA\n87 CINTIA LEVI DE FARIA';
     const m = montar({ paginas: {
