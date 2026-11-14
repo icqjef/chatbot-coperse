@@ -50,8 +50,10 @@ export function verificar(p, r) {
       motivos.push(`fato ausente: ${formas.join(" | ")}`);
     }
   }
-  if (p.fonte && !fontes.some((f) => String(f.url).toLowerCase().includes(p.fonte.toLowerCase()))) {
-    motivos.push(`fonte ausente: ${p.fonte}`);
+  // `fonte` aceita um texto ou uma lista de alternativas (qualquer uma serve).
+  const alternativas = [].concat(p.fonte || []).filter(Boolean).map((x) => x.toLowerCase());
+  if (alternativas.length && !fontes.some((f) => alternativas.some((a) => String(f.url).toLowerCase().includes(a)))) {
+    motivos.push(`fonte ausente: ${alternativas.join(" | ")}`);
   }
   if (p.sem_fontes && fontes.length > 0) {
     motivos.push("fontes presentes, mas esperava nenhuma");

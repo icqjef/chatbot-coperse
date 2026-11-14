@@ -18,6 +18,12 @@ describe("verificar", () => {
     expect(r.ok).toBe(false);
     expect(r.motivos.join()).toContain("fato");
   });
+  it("fonte com alternativas: qualquer uma serve", () => {
+    const p = { fatos: [["1.063"]], fonte: ["vestibular.furg.br", "coperse.furg.br"] };
+    expect(verificar(p, ok("São 1.063 vagas [1].", [{ url: "https://coperse.furg.br/noticia" }])).ok).toBe(true);
+    expect(verificar(p, ok("São 1.063 vagas [1].", [{ url: "https://sisu.furg.br/x" }])).ok).toBe(false);
+  });
+
   it("falha quando a fonte falta", () => {
     const p = { fatos: [], fonte: "Cronograma_retificado" };
     const r = verificar(p, ok("x"));

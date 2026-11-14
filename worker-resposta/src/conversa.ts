@@ -69,6 +69,11 @@ export function semSaudacaoDoModelo(resposta: string): string {
   return resposta.replace(/^\s*(?:ol[áa]|oi|bom dia|boa tarde|boa noite)\s*[!,.]*\s*/i, '');
 }
 
+/** "01º/03/2027" -> "01/03/2027": o modelo às vezes leva o ordinal de "1º de março" para a data numérica. */
+export function limparDatas(resposta: string): string {
+  return resposta.replace(/(?<!\d)(\d{1,2})\s*[º°ªo]\s*\/(?=\d{1,2}\/)/g, (_m, d: string) => `${d.padStart(2, '0')}/`);
+}
+
 export const APRESENTACAO =
   'Sou o assistente virtual da COPERSE, a Comissão Permanente do Processo Seletivo da FURG. ' +
   'Respondo dúvidas sobre o Vestibular, o SiSU e os outros processos seletivos da FURG com base nas páginas oficiais, sempre indicando a fonte. ' +

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { respostaSocial, intencoesSociais, dataPorExtenso, horaBr, APRESENTACAO } from '../src/conversa';
+import { respostaSocial, intencoesSociais, dataPorExtenso, horaBr, APRESENTACAO, limparDatas } from '../src/conversa';
 
 // sábado, 14/11/2026, 16h05 em Brasília (UTC-3)
 const AGORA = new Date('2026-11-14T19:05:00Z');
@@ -67,6 +67,16 @@ describe('respostaSocial', () => {
   ])('pergunta real segue para a busca: "%s"', (m) => {
     expect(respostaSocial(m, AGORA)).toBeNull();
     expect(intencoesSociais(m)).toBeNull();
+  });
+});
+
+describe('limparDatas', () => {
+  it('tira o ordinal colado em data numérica', () => {
+    expect(limparDatas('O início das aulas será em 01º/03/2027 [1].')).toBe('O início das aulas será em 01/03/2027 [1].');
+    expect(limparDatas('em 1º/03/2027 e 2°/04/2027')).toBe('em 01/03/2027 e 02/04/2027');
+  });
+  it('não mexe em ordinal fora de data nem em data normal', () => {
+    expect(limparDatas('1º de março de 2027; 22/11/2026; 3º lugar')).toBe('1º de março de 2027; 22/11/2026; 3º lugar');
   });
 });
 

@@ -79,7 +79,10 @@
           "1.063"
         ]
       ],
-      "fonte": "vestibular.furg.br"
+      "fonte": [
+        "vestibular.furg.br",
+        "coperse.furg.br"
+      ]
     },
     {
       "id": "vest-vagas-medicina",
