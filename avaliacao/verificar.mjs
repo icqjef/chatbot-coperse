@@ -22,12 +22,27 @@ export function contemFato(texto, forma) {
   );
 }
 
+const MESES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const dd = (d) => d.padStart(2, "0");
+
+// Acrescenta as datas por extenso também em dd/mm ("13 a 31 de agosto de 2026" -> "13/08 a 31/08/2026").
+export function comDatasNumericas(texto) {
+  const mes = `(${MESES.join("|")})`;
+  const conv = texto
+    .replace(new RegExp(`(\\d{1,2})[oº]? (a|e) (\\d{1,2})[oº]? de ${mes}`, "g"), (_m, a, sep, b, m) => `${a} ${sep} ${b} de ${m} [${dd(a)}/${dd(String(MESES.indexOf(m) + 1))}]`)
+    .replace(new RegExp(`(\\d{1,2})[oº]? de ${mes}(?: de (\\d{4}))?`, "g"), (_m, d, m, ano) => {
+      const n = `${dd(d)}/${dd(String(MESES.indexOf(m) + 1))}`;
+      return ano ? `${n}/${ano}` : n;
+    });
+  return conv === texto ? texto : `${texto} ${conv}`;
+}
+
 export function verificar(p, r) {
   if (r.erro !== undefined || (r.status !== undefined && r.status !== 200)) {
     return { ok: false, motivos: [`HTTP ${r.status}: ${r.erro ?? ""}`.trim()] };
   }
   const motivos = [];
-  const texto = normalizar(r.resposta);
+  const texto = comDatasNumericas(normalizar(r.resposta));
   const fontes = r.fontes ?? [];
 
   for (const formas of p.fatos ?? []) {

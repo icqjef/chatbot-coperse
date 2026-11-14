@@ -60,3 +60,18 @@ describe("verificar", () => {
     });
   });
 });
+
+import { comDatasNumericas } from "../verificar.mjs";
+
+describe("datas por extenso", () => {
+  it("convertem para dd/mm", () => {
+    expect(comDatasNumericas("de 13 de agosto a 07 de outubro de 2026")).toContain("13/08 a 07/10/2026");
+    expect(comDatasNumericas("de 13 a 31 de agosto de 2026")).toContain("13/08");
+    expect(comDatasNumericas("de 13 a 31 de agosto de 2026")).toContain("31/08");
+    expect(comDatasNumericas("em 1º de marco de 2027")).toContain("01/03/2027");
+  });
+  it("verificar aceita data por extenso para fato dd/mm", () => {
+    const p = { categoria: "datas-vagas-prazos", fatos: [["31/08"]], fonte: "" };
+    expect(verificar(p, { resposta: "Foi de 13 a 31 de agosto de 2026.", fontes: [] }).ok).toBe(true);
+  });
+});
