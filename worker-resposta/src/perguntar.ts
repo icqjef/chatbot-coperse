@@ -5,7 +5,7 @@ import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type Trecho } from './busca';
 import { diaSaoPaulo } from './limites';
-import { respostaSocial } from './conversa';
+import { respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, type Fonte } from './regras';
 
@@ -73,6 +73,16 @@ export function consultaDeBusca(pergunta: string, historico: Mensagem[]): string
 }
 
 export async function responderPergunta(
+  entrada: EntradaPergunta,
+  deps: DepsResposta,
+): Promise<{ resposta: string; fontes: Fonte[] }> {
+  const r = await responderSemSaudacao(entrada, deps);
+  const saudacao = saudacaoInicial(entrada.pergunta);
+  const corpo = semSaudacaoDoModelo(r.resposta);
+  return { ...r, resposta: saudacao ? `${saudacao} ${corpo}` : corpo };
+}
+
+async function responderSemSaudacao(
   entrada: EntradaPergunta,
   deps: DepsResposta,
 ): Promise<{ resposta: string; fontes: Fonte[] }> {

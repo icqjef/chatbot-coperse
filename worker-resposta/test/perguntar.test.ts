@@ -416,6 +416,26 @@ describe('responderPergunta', () => {
   });
 });
 
+describe('responderPergunta: saudação decidida no código', () => {
+  const deps = (texto: string) => ({
+    buscar: async () => ({ trechos: [trecho(1)], melhorSimilaridade: 0.9 }),
+    gerador: { gerar: async () => texto },
+    agora: () => new Date('2026-11-12T12:00:00Z'),
+  });
+  it('pergunta sem saudação: tira o "Olá!" que o modelo pôs', async () => {
+    const r = await responderPergunta({ pergunta: 'Quando é a prova?', historico: [] }, deps('Olá! \n\nA prova é dia 22/11/2026 [1].'));
+    expect(r.resposta).toBe('A prova é dia 22/11/2026 [1].');
+  });
+  it('pergunta com "bom dia": responde "Bom dia!" mesmo se o modelo não cumprimentou', async () => {
+    const r = await responderPergunta({ pergunta: 'Bom dia, quando é a prova?', historico: [] }, deps('A prova é dia 22/11/2026 [1].'));
+    expect(r.resposta).toBe('Bom dia! A prova é dia 22/11/2026 [1].');
+  });
+  it('sem duplicar quando o modelo também cumprimentou', async () => {
+    const r = await responderPergunta({ pergunta: 'oi, quando é a prova?', historico: [] }, deps('Oi! A prova é dia 22/11/2026 [1].'));
+    expect(r.resposta).toBe('Olá! A prova é dia 22/11/2026 [1].');
+  });
+});
+
 describe('mensagens sociais', () => {
   it('saudação responde sem Gemini nem cota, mas passa pelo limite do visitante', async () => {
     const { env, chamadas, limites } = montar({});
