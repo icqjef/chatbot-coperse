@@ -54,6 +54,21 @@ export function intencoesSociais(mensagem: string): { intencoes: Set<Intencao>; 
   return intencoes.size ? { intencoes, saudacao } : null;
 }
 
+/**
+ * Saudação com que a pessoa abriu uma mensagem que também traz pergunta ("Bom dia, quando é a prova?"):
+ * devolve a resposta à saudação ("Bom dia!") ou '' se não abriu cumprimentando.
+ */
+export function saudacaoInicial(mensagem: string): string {
+  const s = normalizar(mensagem);
+  const m = REGEX[0]![1].exec(s);
+  return m ? saudar(m[0].trim()) : '';
+}
+
+/** Tira um cumprimento que o modelo tenha posto no início da resposta (a saudação é decidida aqui, não pelo modelo). */
+export function semSaudacaoDoModelo(resposta: string): string {
+  return resposta.replace(/^\s*(?:ol[áa]|oi|bom dia|boa tarde|boa noite)\s*[!,.]*\s*/i, '');
+}
+
 export const APRESENTACAO =
   'Sou o assistente virtual da COPERSE, a Comissão Permanente do Processo Seletivo da FURG. ' +
   'Respondo dúvidas sobre o Vestibular, o SiSU e os outros processos seletivos da FURG com base nas páginas oficiais, sempre indicando a fonte. ' +
