@@ -108,9 +108,32 @@ export function fundir(
  * literalmente o que foi perguntado ("semestres", "Medicina") e que a vetorial não pôs entre as 20.
  * Ele entra como um trecho a mais, sem tirar ninguém: tomar o lugar do 8º tirou a página do
  * vestibular.furg.br com o horário da prova (teste de 15/11).
+ *
+ * No máximo `MAX_POR_PAGINA` trechos de uma mesma página: a listagem de notícias do Vestibular no
+ * coperse ocupava 4 dos 8 lugares com trechos parecidos e empurrava para o 8º a página do
+ * vestibular.furg.br que era a 1ª da busca vetorial (diagnóstico de 15/11). Se faltar trecho de
+ * outras páginas, os que passaram do limite completam a lista.
  */
-export function escolher(fundidos: { id: string }[], primeiroTextual: string | undefined, maximo: number): string[] {
-  const ids = fundidos.slice(0, maximo).map((f) => f.id);
+export function escolher(
+  fundidos: { id: string }[],
+  primeiroTextual: string | undefined,
+  maximo: number,
+  urlDe: (id: string) => string = (id) => id,
+): string[] {
+  const ids: string[] = [];
+  const sobra: string[] = [];
+  const porPagina = new Map<string, number>();
+  for (const { id } of fundidos) {
+    if (ids.length >= maximo) break;
+    const n = porPagina.get(urlDe(id)) ?? 0;
+    if (n >= MAX_POR_PAGINA) {
+      sobra.push(id);
+      continue;
+    }
+    porPagina.set(urlDe(id), n + 1);
+    ids.push(id);
+  }
+  ids.push(...sobra.slice(0, maximo - ids.length));
   if (primeiroTextual && !ids.includes(primeiroTextual)) ids.push(primeiroTextual);
   return ids;
 }
@@ -152,6 +175,7 @@ export interface LinhaDiagnostico {
 }
 
 const MAX_DIAGNOSTICO = 15;
+const MAX_POR_PAGINA = 2;
 
 export async function buscarTrechos(
   pergunta: string,
@@ -194,7 +218,7 @@ export async function buscarTrechos(
     opcoes.processo,
     anoDaPergunta(pergunta),
   );
-  const trechos: Trecho[] = escolher(fundidos, textuaisValidos[0]?.id, maximo).map((id) => {
+  const trechos: Trecho[] = escolher(fundidos, textuaisValidos[0]?.id, maximo, (id) => linhas.get(id)!.url).map((id) => {
     const l = linhas.get(id)!;
     return {
       id,
