@@ -3,7 +3,7 @@
   "conferido_por_jeferson": true,
   "edicoes": { "vestibular": 2027, "sisu": 2026, "transgeneros": 2027, "quilombolas": 2027, "indigenas": 2027, "vagas-complementares": 2026 },
   "nota_edicoes": "Edição de cada processo que estas perguntas conferem. O resumo semanal avisa quando aparecem no índice páginas de uma edição mais nova; aí as perguntas daquele processo precisam ser revistas (docs/guia-operacao.md, seção 6).",
-  "nota": "Rascunho de 2026-11-13 montado a partir dos trechos indexados. 'fatos': cada item é uma lista de formas aceitas; a resposta precisa conter ao menos uma forma de cada item (sem diferenciar maiúsculas nem acentos). 'fonte': trecho da URL que precisa aparecer nas fontes. 'sem_fontes': a resposta não pode trazer fontes. 'proibidos': textos que não podem aparecer. 'historico': lista opcional de mensagens anteriores ({papel, texto}), enviada como está na requisição (testa seguimentos como 'e de Medicina?'). 'datas_antigas': datas da edição passada que não podem aparecer sem o ano.",
+  "nota": "Rascunho de 2026-11-13 montado a partir dos trechos indexados. 'fatos': cada item é uma lista de formas aceitas; a resposta precisa conter ao menos uma forma de cada item (sem diferenciar maiúsculas nem acentos). 'fonte': trecho da URL que precisa aparecer nas fontes. 'sem_fontes': a resposta não pode trazer fontes. 'proibidos': textos que não podem aparecer. 'historico': lista opcional de mensagens anteriores ({papel, texto}), enviada como está na requisição (testa seguimentos como 'e de Medicina?'). 'datas_antigas': datas da edição passada que não podem aparecer sem o ano. 'origem': de onde a pergunta saiu e se falta conferir.",
   "perguntas": [
     {
       "id": "vest-prova-data",
@@ -578,6 +578,108 @@
       ],
       "sem_fontes": true,
       "fonte": ""
+    },
+    {
+      "id": "curso-medicina-duracao",
+      "categoria": "cursos-vida-academica",
+      "pergunta": "Quantos semestres dura o curso de Medicina da FURG?",
+      "resposta_esperada": "12 semestres, em turno integral.",
+      "fatos": [
+        [
+          "12 semestres",
+          "doze semestres",
+          "6 anos",
+          "seis anos"
+        ]
+      ],
+      "fonte": "furg.br/graduacao/medicina",
+      "origem": "Tirada de furg.br em 15/11/2026; a conferir pelo Jeferson."
+    },
+    {
+      "id": "curso-engcivil-turno",
+      "categoria": "cursos-vida-academica",
+      "pergunta": "Engenharia Civil na FURG é em qual turno?",
+      "resposta_esperada": "Integral, no Campus Carreiros, 10 semestres.",
+      "fatos": [
+        [
+          "integral"
+        ]
+      ],
+      "fonte": "furg.br/graduacao/engenharia-civil",
+      "origem": "Tirada de furg.br em 15/11/2026; a conferir pelo Jeferson."
+    },
+    {
+      "id": "curso-medicina-vagas-ano",
+      "categoria": "cursos-vida-academica",
+      "pergunta": "Quantas vagas por ano tem o curso de Medicina da FURG?",
+      "resposta_esperada": "74 vagas por ano, somando todos os processos seletivos.",
+      "fatos": [
+        [
+          "74"
+        ]
+      ],
+      "fonte": "furg.br/graduacao/medicina",
+      "origem": "Tirada de furg.br em 15/11/2026; a conferir pelo Jeferson."
+    },
+    {
+      "id": "curso-medicina-contato",
+      "categoria": "cursos-vida-academica",
+      "pergunta": "Qual o e-mail da coordenação do curso de Medicina?",
+      "resposta_esperada": "medicina@furg.br",
+      "fatos": [
+        [
+          "medicina@furg.br"
+        ]
+      ],
+      "fonte": "furg.br/graduacao/medicina",
+      "origem": "Tirada de furg.br em 15/11/2026; a conferir pelo Jeferson."
+    },
+    {
+      "id": "vida-ru-preco",
+      "categoria": "cursos-vida-academica",
+      "pergunta": "Quanto custa a refeição no restaurante universitário da FURG?",
+      "resposta_esperada": "R$ 3,00 para todos os estudantes.",
+      "fatos": [
+        [
+          "R$ 3,00",
+          "R$3,00",
+          "3 reais",
+          "três reais"
+        ]
+      ],
+      "fonte": "furg.br/estudantes",
+      "origem": "Tirada de furg.br em 15/11/2026; a conferir pelo Jeferson."
+    },
+    {
+      "id": "vida-trote",
+      "categoria": "cursos-vida-academica",
+      "pergunta": "Tem trote para os calouros na FURG?",
+      "resposta_esperada": "O trote organizado é proibido (resolução 008/2004); os calouros são recebidos pela Acolhida Cidadã.",
+      "fatos": [
+        [
+          "proib"
+        ],
+        [
+          "Acolhida Cidadã",
+          "Acolhida Cidada"
+        ]
+      ],
+      "fonte": "furg.br/estudantes/acolhida-cidada",
+      "origem": "Tirada de furg.br em 15/11/2026; a conferir pelo Jeferson."
+    },
+    {
+      "id": "vida-campus-carreiros",
+      "categoria": "cursos-vida-academica",
+      "pergunta": "Qual é o tamanho do Campus Carreiros?",
+      "resposta_esperada": "250 hectares de área verde.",
+      "fatos": [
+        [
+          "250 hectares",
+          "250 ha"
+        ]
+      ],
+      "fonte": "furg.br/campus-carreiros",
+      "origem": "Tirada de furg.br em 15/11/2026; a conferir pelo Jeferson."
     }
   ]
 }

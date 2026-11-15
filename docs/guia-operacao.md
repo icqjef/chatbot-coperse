@@ -39,6 +39,14 @@ Pelo GitHub:
 
 Pelo endereço `/reindexar` (para quem tem a senha): é um pedido `POST` com a senha no cabeçalho `Authorization: Bearer <senha>`; responde 202 quando o GitHub aceita. Se a senha (`REINDEX_TOKEN`, mínimo de 32 caracteres) ou o token do GitHub não estiverem cadastrados no Cloudflare, a rota fica desligada e responde 503. A senha nunca vai em chat.
 
+### Páginas do portal furg.br
+
+Além dos sites da COPERSE, do SiSU e do Vestibular, o assistente lê uma lista fechada de páginas do furg.br: as páginas de cada curso de graduação (duração, campus, turno, grau, vagas por ano, contato da coordenação), formas de ingresso, documentação, Calendário Universitário, primeiros passos, assistência estudantil (restaurante, moradia, transporte), Acolhida Cidadã, ônibus interno e os quatro campi. Um curso novo publicado em furg.br/graduacao entra sozinho.
+
+- Para acrescentar uma página, coloque o endereço em `paginas_chave` e uma expressão que case com ele em `incluir`, no site `furg` de `config/sites.json`, por pull request. Página fora de `incluir` não é lida (e, se já estava no índice, sai).
+- Nas respostas, as páginas da COPERSE, do SiSU e do Vestibular valem mais que as do furg.br. Algumas páginas do furg.br sobre ingresso estão desatualizadas (por exemplo, "Formas de ingresso" ainda aponta para editais de 2025); se notar uma resposta errada por causa delas, peça à Secretaria de Comunicação que atualize a página.
+- As "Vagas" da página do curso são o total do ano; o assistente avisa isso e, quando houver, dá também as vagas do processo perguntado.
+
 ## 4. Trocar a chave do Gemini
 
 A chave fica em dois lugares, e os dois precisam receber a nova.

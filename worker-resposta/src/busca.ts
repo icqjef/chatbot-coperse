@@ -33,6 +33,12 @@ const MS_DIA = 86_400_000;
  */
 const PENALIDADE_EDICAO_ANTIGA = 0.04;
 const BONUS_ANO_PERGUNTADO = 0.02;
+/**
+ * Portal furg.br (cursos, calendário, assistência estudantil): sempre fica atrás das páginas da COPERSE,
+ * do SiSU e do Vestibular sobre o mesmo assunto, porque tem páginas desatualizadas sobre os processos.
+ */
+const SITES_SECUNDARIOS = new Set(['furg']);
+const PENALIDADE_SECUNDARIO = 0.01;
 
 /** Ano de edição citado na pergunta ("SiSU 2018", "nota de corte de 2020"), ou null. */
 export function anoDaPergunta(pergunta: string): number | null {
@@ -54,6 +60,7 @@ export function consultaFts(pergunta: string): string | null {
 
 export interface MetaFusao {
   data: string;
+  site?: string;
   ano: number | null;
   processo: string;
 }
@@ -86,6 +93,7 @@ export function fundir(
       if (m.ano !== null && anoPerguntado !== null && m.ano === anoPerguntado) bonus += BONUS_ANO_PERGUNTADO;
       else if (m.ano !== null && anoPerguntado === null && m.ano < anoAtual - 1) bonus -= PENALIDADE_EDICAO_ANTIGA;
       if (processo && m.processo === processo) bonus += BONUS_PROCESSO;
+      if (m.site && SITES_SECUNDARIOS.has(m.site)) bonus -= PENALIDADE_SECUNDARIO;
     }
     pont.set(id, p + bonus);
   }
@@ -146,7 +154,7 @@ export async function buscarTrechos(
   const linhas = new Map(r.results.map((l) => [l.id, l]));
 
   const meta = new Map<string, MetaFusao>();
-  for (const [id, l] of linhas) meta.set(id, { data: l.data_publicacao, ano: l.ano, processo: l.processo });
+  for (const [id, l] of linhas) meta.set(id, { data: l.data_publicacao, site: l.site, ano: l.ano, processo: l.processo });
   const simPorId = new Map(vetoriais.map((v) => [v.id, v.similaridade]));
 
   const fundidos = fundir(

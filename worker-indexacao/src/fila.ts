@@ -59,8 +59,12 @@ export function deveIgnorar(url: string): boolean {
   return IGNORAR.test(url);
 }
 
-/** URL de edição antiga (casa com alguma expressão de `site.excluir`): não é indexada nem seguida. */
+/**
+ * Não é indexada nem seguida: edição antiga (casa com `site.excluir`) ou, em site com lista fechada,
+ * fora de `site.incluir`.
+ */
 export function urlExcluida(url: string, site: Site): boolean {
+  if (site.incluir && !site.incluir.some((e) => new RegExp(e).test(url))) return true;
   return (site.excluir ?? []).some((e) => new RegExp(e).test(url));
 }
 

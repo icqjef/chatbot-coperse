@@ -73,6 +73,23 @@ describe('fundir', () => {
     );
     expect(r[0]!.id).toBe('a');
   });
+  it('portal furg.br fica atrás da página da COPERSE em posição equivalente', () => {
+    const m = new Map([
+      ['portal', { ...meta(2026), site: 'furg' }],
+      ['coperse', { ...meta(2026), site: 'coperse' }],
+    ]);
+    const r = fundir([{ id: 'portal', similaridade: 0.9 }, { id: 'coperse', similaridade: 0.89 }], [{ id: 'portal' }, { id: 'coperse' }], m, agora);
+    expect(r.map((x) => x.id)).toEqual(['coperse', 'portal']);
+  });
+  it('portal furg.br sozinho no topo das duas listas continua na frente', () => {
+    const m = new Map([
+      ['portal', { ...meta(2026), site: 'furg' }],
+      ['coperse', { ...meta(2026), site: 'coperse' }],
+    ]);
+    const lista = [{ id: 'portal', similaridade: 0.9 }, ...Array.from({ length: 8 }, (_, i) => ({ id: `x${i}`, similaridade: 0.5 })), { id: 'coperse', similaridade: 0.4 }];
+    const r = fundir(lista, [{ id: 'portal' }], m, agora);
+    expect(r[0]!.id).toBe('portal');
+  });
   it('recência decide entre ano igual e datas diferentes', () => {
     const m = new Map([
       ['x26', meta(2026)],

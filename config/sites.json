@@ -10,5 +10,31 @@
     "excluir": ["/anos-anteriores/", "/images/stories/20(0\\d|1\\d|2[0-4])"] },
   { "id": "vestibular", "nome": "Vestibular FURG", "processo_padrao": "vestibular", "base": "https://vestibular.furg.br",
     "paginas_chave": ["https://vestibular.furg.br/"], "profundidade": 10,
-    "dominios_permitidos": ["vestibular.furg.br"], "excluir": [] }
+    "dominios_permitidos": ["vestibular.furg.br"], "excluir": [] },
+  { "id": "furg", "nome": "Portal FURG", "base": "https://www.furg.br",
+    "paginas_chave": [
+      "https://www.furg.br/graduacao",
+      "https://www.furg.br/ingresso/formas-de-ingresso",
+      "https://www.furg.br/ingresso/documentacao-de-ingresso",
+      "https://www.furg.br/calendario-universitario",
+      "https://www.furg.br/estudantes/primeiros-passos",
+      "https://www.furg.br/estudantes/assistencia-basica",
+      "https://www.furg.br/estudantes/acolhida-cidada",
+      "https://www.furg.br/horarios-do-onibus-interno",
+      "https://www.furg.br/campus-carreiros",
+      "https://www.furg.br/campus-santo-antonio-patrulha",
+      "https://www.furg.br/campus-sao-lourenco-sul",
+      "https://www.furg.br/campus-santa-vitoria-palmar"
+    ],
+    "profundidade": 1, "dominios_permitidos": ["www.furg.br"],
+    "incluir": [
+      "^https://www\\.furg\\.br/graduacao(/[a-z0-9-]+)?$",
+      "^https://www\\.furg\\.br/ingresso/(formas-de-ingresso|documentacao-de-ingresso)$",
+      "^https://www\\.furg\\.br/arquivos/COPERSE/[^/]*QUADRO[^/]*\\.pdf$",
+      "^https://www\\.furg\\.br/calendario-universitario$",
+      "^https://www\\.furg\\.br/arquivos/[^?]*Calend[^/?]*Universit[^/?]*\\.pdf$",
+      "^https://www\\.furg\\.br/estudantes/(primeiros-passos|acolhida-cidada|assistencia-basica(/[a-z0-9-]+)?)$",
+      "^https://www\\.furg\\.br/horarios-do-onibus-interno$",
+      "^https://www\\.furg\\.br/campus-[a-z-]+$"
+    ] }
 ]
