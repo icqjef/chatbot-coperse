@@ -10,6 +10,8 @@ function montar(opcoes: { falhar?: boolean; filtro?: boolean } = {}) {
   const db = {
     prepare: () => ({
       bind: (...p: unknown[]) => ({
+        // SELECT url FROM paginas: só esta URL existe no índice
+        all: async () => ({ results: p.includes('https://sisu.furg.br/edital') ? [{ url: 'https://sisu.furg.br/edital' }] : [] }),
         run: async () => {
           if (opcoes.falhar) throw new Error('d1');
           gravados.push(p);
@@ -38,6 +40,13 @@ async function avaliar(env: Env, corpo: unknown, origem = ORIGEM) {
 }
 
 describe('POST /avaliar', () => {
+  it('guarda só as fontes que existem no índice', async () => {
+    const { env, gravados } = montar();
+    const resposta = 'R [1].';
+    const fontes = ['https://sisu.furg.br/edital', 'https://mal.example/x', 'javascript:alert(1)', 7];
+    expect((await avaliar(env, { util: false, resposta, fontes, assinatura: await assinar(resposta, CHAVE) })).status).toBe(200);
+    expect(gravados[0]![3]).toBe(JSON.stringify(['https://sisu.furg.br/edital']));
+  });
   it('grava dia, voto e resposta; nunca a pergunta nem o IP', async () => {
     const { env, gravados } = montar();
     const resposta = 'O prazo é 10/12/2026 [1].';
@@ -46,8 +55,8 @@ describe('POST /avaliar', () => {
     expect(r.status).toBe(200);
     expect(r.headers.get('Access-Control-Allow-Origin')).toBe(ORIGEM);
     expect(gravados).toHaveLength(1);
-    const [dia, util, guardada] = gravados[0]!;
-    expect(gravados[0]).toHaveLength(3);
+    const [dia, util, guardada, fontes] = gravados[0]!;
+    expect(fontes).toBeNull();
     expect(dia).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(util).toBe(0);
     expect(guardada).toBe(resposta);

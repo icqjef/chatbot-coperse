@@ -251,3 +251,11 @@ No teste do widget no sisu.furg.br, a resposta sobre lista de espera dizia "No S
 - Mostra total, taxa de aprovação, 👍 e 👎 no período (7, 30 ou 90 dias), avaliações por dia em barras empilhadas (com tabela equivalente para leitor de tela) e as últimas 50 respostas com 👎. Cores da paleta de referência (azul = ajudou, laranja = não ajudou), validadas nos modos claro e escuro.
 - Cabeçalhos: CSP só com script do próprio Worker, `noindex`, sem cache, sem `Referer`, sem incorporação em outros sites.
 
+## 2026-11-15 — Painel com perguntas sem resposta, páginas das respostas ruins e resumo semanal
+
+Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a resposta em fluxo contínuo).
+
+- Perguntas sem resposta: tabela `contagem_perguntas` (migration 0005) com um contador por dia e desfecho (`respondida`, `sem_base`, `recusa`, `conversa`). Só o número; o texto da pergunta continua sem ser gravado (decisão de 2026-11-12). Perguntas vindas de `*.workers.dev` (página `/demo` e `avaliar.mjs`) não contam, para os testes não se misturarem aos candidatos.
+- Páginas das respostas ruins: o widget manda, junto com o voto, os endereços das fontes da resposta; o Worker guarda em `avaliacoes.fontes` só os que existem na tabela `paginas`. O painel lista as páginas mais citadas nas respostas com 👎 e mostra as fontes de cada resposta.
+- Resumo semanal: workflow `resumo-semanal.yml` (segunda, 11h UTC = 8h de Brasília) lê o D1 com o mesmo token restrito da indexação, sem segredo novo, abre uma issue e fecha a da semana anterior. O aviso chega por e-mail pela notificação do GitHub; não há serviço de e-mail na Cloudflare sem domínio próprio. Como o repositório é público, a issue traz só números e páginas públicas, sem o texto das respostas.
+

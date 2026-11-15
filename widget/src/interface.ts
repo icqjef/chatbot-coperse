@@ -190,7 +190,7 @@ export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avalia
       item.avaliado = true;
       salvar();
       if (item.assinatura && deps.avaliar) {
-        void deps.avaliar({ util, resposta: item.texto, assinatura: item.assinatura });
+        void deps.avaliar({ util, resposta: item.texto, assinatura: item.assinatura, fontes: (item.fontes ?? []).map((f) => f.url) });
       }
       caixa.replaceChildren();
       const obrigado = el('span', undefined, 'Obrigado pela avaliação!');

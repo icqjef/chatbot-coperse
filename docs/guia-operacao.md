@@ -101,9 +101,22 @@ A revisão de segurança ([revisao-seguranca-2026-11.md](revisao-seguranca-2026-
 
 - Nada além da conversa na aba do navegador do candidato, que some ao fechar a aba.
 - O Worker não grava as perguntas. Para limitar o uso, ele guarda apenas um código derivado do endereço IP e da data, nunca o IP.
-- Quando o candidato clica em 👍 ou 👎 ("Esta resposta ajudou?"), o Worker guarda o dia, o voto e o começo da resposta do bot. Não guarda a pergunta nem nada que identifique a pessoa.
+- Quando o candidato clica em 👍 ou 👎 ("Esta resposta ajudou?"), o Worker guarda o dia, o voto, o começo da resposta do bot e os endereços das páginas citadas nela. Não guarda a pergunta nem nada que identifique a pessoa.
+- Para cada pergunta, o Worker soma 1 na contagem do dia (respondida, não encontrada, recusada ou conversa). Só o número, nunca o texto.
 
-Para acompanhar as avaliações, abra o painel https://chatbot-coperse.coperse-furg.workers.dev/painel e digite a mesma senha da reindexação manual (seção 3). Ele mostra o total, a taxa de aprovação, os votos por dia (em gráfico ou tabela) e as respostas marcadas como "não ajudou", nos últimos 7, 30 ou 90 dias. A senha fica guardada só naquela aba do navegador e some ao fechá-la; use "Sair" em computador compartilhado.
+### Resumo semanal
+
+Toda segunda-feira às 8h, o GitHub abre um aviso (issue) no repositório com o resumo da semana anterior: perguntas, perguntas sem resposta, avaliações, taxa de aprovação comparada com a semana anterior e as páginas mais citadas nas respostas com 👎. O aviso da semana anterior é fechado sozinho. O GitHub manda e-mail para quem acompanha o repositório (o dono acompanha por padrão; para conferir, botão "Watch" no topo do repositório).
+
+O repositório é público, então o resumo traz só números e páginas públicas dos sites, sem o texto das respostas (esse fica no painel). Para gerar um resumo fora de hora: aba Actions → `resumo-semanal` → "Run workflow". Para desligar: Actions → `resumo-semanal` → "..." → "Disable workflow".
+
+Para acompanhar as avaliações, abra o painel https://chatbot-coperse.coperse-furg.workers.dev/painel e digite a mesma senha da reindexação manual (seção 3). Ele mostra, nos últimos 7, 30 ou 90 dias:
+
+- quantas perguntas os candidatos fizeram e quantas ficaram sem resposta, separando as não encontradas nas páginas (falta página ou edital) das recusadas (fora do tema ou caso individual);
+- o total de avaliações, a taxa de aprovação e os votos por dia (em gráfico ou tabela);
+- as páginas mais citadas nas respostas com 👎 (as primeiras a revisar) e as próprias respostas com 👎.
+
+Só contam as perguntas feitas nos sites da FURG; os testes pela página `/demo` e a avaliação automática (`avaliar.mjs`) ficam de fora. A senha fica guardada só naquela aba do navegador e some ao fechá-la; use "Sair" em computador compartilhado.
 
 Também dá para consultar direto no banco (no site da Cloudflare: Storage & Databases, D1, chatbot-coperse, aba Console):
 

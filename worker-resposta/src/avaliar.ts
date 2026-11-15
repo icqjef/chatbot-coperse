@@ -1,6 +1,6 @@
 /**
- * POST /avaliar: "Esta resposta ajudou?" (👍/👎). Grava só o dia, o voto e o começo da resposta do
- * bot. A pergunta do candidato não é gravada (registro de perguntas desligado, decisão de 2026-11-12),
+ * POST /avaliar: "Esta resposta ajudou?" (👍/👎). Grava só o dia, o voto, o começo da resposta do
+ * bot e as páginas citadas nela (só URLs que existem no índice). A pergunta do candidato não é gravada (registro de perguntas desligado, decisão de 2026-11-12),
  * nem IP ou identificador. Só aceita resposta com a assinatura do Worker (M4): ninguém grava texto
  * inventado como se fosse do bot.
  */
@@ -20,6 +20,20 @@ export interface EnvAvaliar {
 const MAX_CORPO = 8 * 1024;
 const MAX_RESPOSTA = 2000;
 const GUARDA_RESPOSTA = 600;
+const MAX_FONTES = 8;
+
+/** URLs enviadas pelo widget que existem na tabela `paginas`; o resto é descartado. */
+async function fontesConhecidas(db: D1Database, x: unknown): Promise<string[]> {
+  if (!Array.isArray(x)) return [];
+  const urls = [...new Set(x.filter((u): u is string => typeof u === 'string' && u.length <= 500 && /^https:\/\//.test(u)))].slice(0, MAX_FONTES);
+  if (!urls.length) return [];
+  const r = await db
+    .prepare(`SELECT url FROM paginas WHERE url IN (${urls.map(() => '?').join(',')})`)
+    .bind(...urls)
+    .all<{ url: string }>();
+  const existem = new Set(r.results.map((l) => l.url));
+  return urls.filter((u) => existem.has(u));
+}
 
 export async function tratarAvaliar(req: Request, env: EnvAvaliar, origens: string[], agora = new Date()): Promise<Response> {
   const origem = req.headers.get('Origin');
@@ -42,7 +56,7 @@ export async function tratarAvaliar(req: Request, env: EnvAvaliar, origens: stri
   } catch {
     return json({ erro: 'Avaliação inválida.' }, 400, cors);
   }
-  const { util, resposta, assinatura } = c ?? {};
+  const { util, resposta, assinatura, fontes } = c ?? {};
   if (typeof util !== 'boolean' || typeof resposta !== 'string' || !resposta || resposta.length > MAX_RESPOSTA) {
     return json({ erro: 'Avaliação inválida.' }, 400, cors);
   }
@@ -50,8 +64,9 @@ export async function tratarAvaliar(req: Request, env: EnvAvaliar, origens: stri
     return json({ erro: 'Avaliação inválida.' }, 400, cors);
   }
   try {
-    await env.DB.prepare('INSERT INTO avaliacoes (dia, util, resposta) VALUES (?, ?, ?)')
-      .bind(diaSaoPaulo(agora), util ? 1 : 0, mascararDadosPessoais(resposta.slice(0, GUARDA_RESPOSTA)))
+    const urls = await fontesConhecidas(env.DB, fontes);
+    await env.DB.prepare('INSERT INTO avaliacoes (dia, util, resposta, fontes) VALUES (?, ?, ?, ?)')
+      .bind(diaSaoPaulo(agora), util ? 1 : 0, mascararDadosPessoais(resposta.slice(0, GUARDA_RESPOSTA)), urls.length ? JSON.stringify(urls) : null)
       .run();
   } catch {
     console.error('Falha ao gravar avaliação');

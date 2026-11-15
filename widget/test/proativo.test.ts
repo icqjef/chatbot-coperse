@@ -67,7 +67,7 @@ describe('depois da resposta', () => {
     abrirCom(vi.fn().mockResolvedValue({ resposta: 'R [1]', fontes: [fonte], assinatura: 'sig' }), { avaliar });
     await perguntar('Quando é a prova?');
     (todos('.voto')[1] as HTMLButtonElement).click();
-    expect(avaliar).toHaveBeenCalledWith({ util: false, resposta: 'R [1]', assinatura: 'sig' });
+    expect(avaliar).toHaveBeenCalledWith({ util: false, resposta: 'R [1]', assinatura: 'sig', fontes: ['https://coperse.furg.br/e'] });
     expect(q('.avaliacao').textContent).toContain('Obrigado pela avaliação!');
     expect(q('.avaliacao a')).not.toBeNull();
     document.body.replaceChildren();
@@ -154,7 +154,7 @@ describe('rede', () => {
   });
   it('criarAvaliar posta em /avaliar e engole falha de rede', async () => {
     const f = vi.fn().mockRejectedValue(new TypeError('rede'));
-    await expect(criarAvaliar('https://w', f)({ util: true, resposta: 'r', assinatura: 's' })).resolves.toBeUndefined();
+    await expect(criarAvaliar('https://w', f)({ util: true, resposta: 'r', assinatura: 's', fontes: [] })).resolves.toBeUndefined();
     expect(f.mock.calls[0]![0]).toBe('https://w/avaliar');
   });
 });
