@@ -13,7 +13,13 @@ describe('lerConfig', () => {
     expect(lerConfig(script('https://w.example/widget.js'))).toEqual({
       api: 'https://w.example',
       cor: '#1f5fbf',
+      convite: true,
     });
+  });
+  it('data-convite="nao" desliga o convite proativo', () => {
+    const s = script('https://w.example/widget.js');
+    s.setAttribute('data-convite', 'nao');
+    expect(lerConfig(s).convite).toBe(false);
   });
   it('aceita data-cor com contraste suficiente', () => {
     expect(lerConfig(script('https://w.example/widget.js', '#8b0000')).cor).toBe('#8b0000');

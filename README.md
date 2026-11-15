@@ -54,6 +54,8 @@ Para rodar na hora: GitHub, aba Actions, workflow `indexar`, Run workflow, e inf
 Rotas:
 
 - `POST /perguntar`: recebe `{ pergunta, historico }` do widget; só aceita as origens de `config/origens.json`. Responde 429 acima de `LIMITE_POR_MINUTO` perguntas por minuto do mesmo visitante, acima de `LIMITE_DIARIO_VISITANTE` perguntas por dia do mesmo visitante ou acima de `COTA_DIARIA` perguntas no dia (todos os visitantes somados, zera à meia-noite de Brasília). Os contadores ficam no Durable Object `Limites`. Só `/perguntar` gasta o limite diário do visitante; `/saude` e `/reindexar` passam apenas pelo limite por minuto.
+  A resposta traz `resposta`, `fontes`, `assinatura`, `sugestoes` (até 3 perguntas de seguimento, viram botões) e `contato` (verdadeiro quando o bot não achou base ou recusou; o widget oferece escrever para a COPERSE).
+- `POST /avaliar`: recebe `{ util, resposta, assinatura }` do 👍/👎 do widget; só aceita resposta assinada pelo Worker e grava o dia, o voto e o começo da resposta na tabela `avaliacoes` (nunca a pergunta).
 - `GET /saude`: `{ ok, ultima_indexacao: { inicio, fim, paginas, erros } | null, fila, paginas_ok }`; responde 503 `{ ok: false }` se o D1 falhar.
 - `POST /reindexar`: com `Authorization: Bearer <REINDEX_TOKEN>`, dispara o workflow de indexação no GitHub (resposta 202). Exemplo: `curl -X POST -H "Authorization: Bearer $SENHA" https://<worker>/reindexar`.
 - `GET /widget.js`: o script do widget.

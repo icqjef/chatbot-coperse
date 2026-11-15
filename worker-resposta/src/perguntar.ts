@@ -8,7 +8,7 @@ import { diaSaoPaulo } from './limites';
 import { assinar, paresAutenticos, type MensagemRecebida } from './historico';
 import { limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
 import { cabecalhosCors, origemPermitida } from './cors';
-import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, type Fonte } from './regras';
+import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes, type Fonte } from './regras';
 
 export interface RateLimit {
   limit(opcoes: { key: string; diario?: boolean }): Promise<{ success: boolean; motivo?: 'minuto' | 'dia' }>;
@@ -76,20 +76,30 @@ export function consultaDeBusca(pergunta: string, historico: Mensagem[]): string
 export async function responderPergunta(
   entrada: EntradaPergunta,
   deps: DepsResposta,
-): Promise<{ resposta: string; fontes: Fonte[] }> {
+): Promise<Resultado> {
   const r = await responderSemSaudacao(entrada, deps);
   const saudacao = saudacaoInicial(entrada.pergunta);
   const corpo = limparDatas(semSaudacaoDoModelo(r.resposta));
   return { ...r, resposta: saudacao ? `${saudacao} ${corpo}` : corpo };
 }
 
-async function responderSemSaudacao(
-  entrada: EntradaPergunta,
-  deps: DepsResposta,
-): Promise<{ resposta: string; fontes: Fonte[] }> {
+/**
+ * `sugestoes`: próximas perguntas prováveis (botões no widget). `contato`: o bot não respondeu com
+ * base nas páginas (sem base, recusa ou encaminhamento) e o widget oferece escrever para a COPERSE.
+ */
+export interface Resultado {
+  resposta: string;
+  fontes: Fonte[];
+  sugestoes: string[];
+  contato: boolean;
+}
+
+const NAO_ACHOU: Resultado = { resposta: SEM_BASE, fontes: [], sugestoes: [], contato: true };
+
+async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta): Promise<Resultado> {
   const consulta = consultaDeBusca(entrada.pergunta, entrada.historico);
   const { trechos } = await deps.buscar(consulta, inferirProcesso([entrada.pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS));
-  if (trechos.length === 0) return { resposta: SEM_BASE, fontes: [] };
+  if (trechos.length === 0) return NAO_ACHOU;
   let bruta: string;
   try {
     bruta = await deps.gerador.gerar(montarSistema(trechos, deps.agora()), [
@@ -97,19 +107,20 @@ async function responderSemSaudacao(
       { papel: 'usuario', texto: entrada.pergunta },
     ]);
   } catch (e) {
-    if (e instanceof RespostaBloqueada) return { resposta: SEM_BASE, fontes: [] };
+    if (e instanceof RespostaBloqueada) return NAO_ACHOU;
     throw e;
   }
-  const { resposta, fontes, citou } = extrairFontes(bruta, trechos);
+  const { texto, sugestoes } = separarSugestoes(bruta, entrada.pergunta);
+  const { resposta, fontes, citou } = extrairFontes(texto, trechos);
   if (fontes.length === 0) {
     // Recusa ou encaminhamento (regras 3 a 5): curta, sem citar número algum e apontando para a COPERSE.
     // Qualquer outra resposta sem citação vira SEM_BASE, para não passar conteúdo sem fonte.
     if (!citou && resposta.length <= MAX_RECUSA && resposta.includes('coperse@furg.br')) {
-      return { resposta, fontes: [] };
+      return { resposta, fontes: [], sugestoes: [], contato: true };
     }
-    return { resposta: SEM_BASE, fontes: [] };
+    return NAO_ACHOU;
   }
-  return { resposta, fontes };
+  return { resposta, fontes, sugestoes, contato: false };
 }
 
 /**
@@ -244,14 +255,14 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
 
   const segredo = env.GEMINI_API_KEY;
   const entrada = await prepararEntrada(recebida, segredo);
-  const responder = async (r: { resposta: string; fontes: Fonte[] }) =>
+  const responder = async (r: Resultado) =>
     json({ ...r, assinatura: await assinar(r.resposta, segredo) }, 200, cors);
   const agora = () => new Date();
   const negado = await aplicarLimite(req, env.LIMITADOR, cors, true);
   if (negado) return negado;
   // Saudação, agradecimento, "quem é você", data e hora: resposta pronta, sem gastar a cota do Gemini.
   const social = respostaSocial(entrada.pergunta, agora());
-  if (social) return responder({ resposta: social, fontes: [] });
+  if (social) return responder({ resposta: social, fontes: [], sugestoes: [], contato: false });
   if (env.COTA) {
     let liberada = false;
     try {

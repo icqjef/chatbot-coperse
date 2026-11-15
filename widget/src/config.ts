@@ -1,6 +1,7 @@
 export const COR_PADRAO = '#1f5fbf';
 
-export type Config = { api: string; cor: string };
+/** `convite`: false com data-convite="nao" no script (desliga o convite proativo). */
+export type Config = { api: string; cor: string; convite?: boolean };
 
 function canal(c: number): number {
   const v = c / 255;
@@ -26,5 +27,6 @@ export function lerConfig(script: HTMLScriptElement | null): Config {
   }
   const cor = script.getAttribute('data-cor') ?? '';
   const valida = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(cor) && contraste(cor) >= 4.5;
-  return { api, cor: valida ? cor : COR_PADRAO };
+  const convite = script.getAttribute('data-convite') !== 'nao';
+  return { api, cor: valida ? cor : COR_PADRAO, convite };
 }

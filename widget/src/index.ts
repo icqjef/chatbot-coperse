@@ -1,5 +1,5 @@
 import { lerConfig } from './config';
-import { criarEnviar } from './conversa';
+import { criarAvaliar, criarEnviar } from './conversa';
 import { montar } from './interface';
 
 declare global {
@@ -16,9 +16,10 @@ if (!window.__chatbotCoperse) {
   if (config.api) {
     window.__chatbotCoperse = true;
     const enviar = criarEnviar(config.api);
+    const avaliar = criarAvaliar(config.api);
     // Frameworks (ex.: hidratação do React) podem remover o host do body: recoloca o mesmo host.
     const iniciar = (): void => {
-      const { host } = montar(config, { enviar });
+      const { host } = montar(config, { enviar, avaliar });
       const observador = new MutationObserver(() => {
         if (!window.__chatbotCoperse) observador.disconnect();
         else if (!host.isConnected) document.body.append(host);

@@ -601,3 +601,28 @@ describe('consultaDeBusca', () => {
     expect(buscar).toHaveBeenCalledWith(pergunta, esperado);
   });
 });
+
+describe('atendimento proativo', () => {
+  it('sugestões saem do texto e vão em `sugestoes`; contato falso quando há fonte', async () => {
+    const { env } = montar({
+      texto: 'O prazo é 10/12 [1].\nSugestões: Qual é o valor da inscrição? | Como peço isenção [1]? | qual o prazo?',
+    });
+    const j = (await (await pedir(env, { pergunta: 'qual o prazo?' })).json()) as Record<string, unknown>;
+    expect(j.resposta).toBe('O prazo é 10/12 [1].');
+    expect(j.sugestoes).toEqual(['Qual é o valor da inscrição?', 'Como peço isenção?']);
+    expect(j.contato).toBe(false);
+  });
+  it('sem base -> contato verdadeiro e sem sugestões', async () => {
+    const { env } = montar({ score: 0.1 });
+    expect(await (await pedir(env, { pergunta: 'receita de bolo' })).json()).toMatchObject({ sugestoes: [], contato: true });
+  });
+  it('recusa com sugestões: as sugestões não passam', async () => {
+    const texto = 'Não posso verificar a sua situação individual. Escreva para coperse@furg.br.';
+    const { env } = montar({ texto: `${texto}\nSugestões: Fui aprovado?` });
+    expect(await (await pedir(env, { pergunta: 'fui homologado?' })).json()).toMatchObject({ resposta: texto, sugestoes: [], contato: true });
+  });
+  it('saudação: sem sugestões e sem contato', async () => {
+    const { env } = montar({});
+    expect(await (await pedir(env, { pergunta: 'oi' })).json()).toMatchObject({ sugestoes: [], contato: false });
+  });
+});

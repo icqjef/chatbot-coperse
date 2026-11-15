@@ -22,7 +22,7 @@ describe('build do widget', () => {
     const linha = texto.split(String.fromCharCode(10))[1]!;
     const WIDGET = JSON.parse(linha.slice(linha.indexOf('= ') + 2, -1)) as string;
     expect(typeof WIDGET).toBe('string');
-    expect(Buffer.byteLength(WIDGET, 'utf8')).toBeLessThanOrEqual(15360);
+    expect(Buffer.byteLength(WIDGET, 'utf8')).toBeLessThanOrEqual(20480);
   });
   it('é determinístico', () => {
     expect(construir()).toBe(construir());

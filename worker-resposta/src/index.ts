@@ -4,6 +4,7 @@ import { cabecalhosCors, origemPermitida } from './cors';
 import { tratarReindexar, tratarSaude } from './operacao';
 import { comFiltro, criarLimites, type CotaDiaria, type FiltroNativo } from './limites';
 import { tratarPerguntar, type RateLimit } from './perguntar';
+import { tratarAvaliar } from './avaliar';
 import { WIDGET } from './widget-gerado';
 import { DEMO_HTML } from './demo';
 
@@ -66,8 +67,10 @@ export default {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
       });
     }
-    if (url.pathname === '/perguntar') {
-      if (req.method === 'POST') return tratarPerguntar(req, env, ORIGENS);
+    if (url.pathname === '/perguntar' || url.pathname === '/avaliar') {
+      if (req.method === 'POST') {
+        return url.pathname === '/avaliar' ? tratarAvaliar(req, env, ORIGENS) : tratarPerguntar(req, env, ORIGENS);
+      }
       if (req.method === 'OPTIONS') {
         const origem = req.headers.get('Origin');
         const cors = cabecalhosCors(origem, ORIGENS);

@@ -221,3 +221,17 @@ Três PDFs de 2026 com nomes de candidatos foram indexados com o texto completo:
 - Novo binding `FILTRO` (`[[ratelimits]]` no `wrangler.toml`): limitador nativo da Cloudflare, 20 chamadas por minuto por visitante, com a mesma chave anônima do limite (hash do IP com a data). Ele roda antes do Durable Object em `/perguntar`, `/saude` e `/reindexar`. Uma enxurrada de um mesmo endereço recebe 429 sem chegar ao DO único, que segue atendendo os outros visitantes. O limite exato (6 por minuto e 150 por dia) continua no DO; se o filtro falhar, decide o DO.
 - O que não muda: cada pedido, mesmo barrado, conta nas 100 mil requisições diárias do plano gratuito. Isso não é evitável no código em `workers.dev` (regras de WAF exigem domínio próprio na Cloudflare). O guia de operação diz onde acompanhar o uso.
 - `/saude` continua aceitando chamadas sem `Origin`: é aberta direto no navegador pelo Jeferson, e o navegador não manda `Origin` nesse caso.
+
+## 2026-11-15 — Atendimento proativo
+
+Pedido do Jeferson: perfil de atendimento parecido com o dos assistentes de grandes empresas. Busca no GitHub (regra de método): os widgets mais avaliados (JiteshGaikwad/Chatbot-Widget, ConvoStack, sendbird/chat-ai-widget, todos MIT) são presos a outras plataformas (Rasa, React, Sendbird) e trariam peso e perda da acessibilidade já testada. Adotamos só os padrões deles no nosso widget:
+
+- Perguntas de seguimento: o Gemini escreve na mesma chamada uma linha "Sugestões: a | b | c" (regra 13), que o Worker separa da resposta (`separarSugestoes`) e devolve em `sugestoes`; o widget mostra como botões. Sem chamada extra ao Gemini. Sugestões com link, dado pessoal ou mais de 80 caracteres são descartadas; recusas e "não encontrei" não trazem sugestões.
+- Aviso de prazo (regra 12): se os trechos têm prazo ainda por vir ligado ao assunto, a resposta termina com "Fique atento:" e a data citada.
+- Encaminhamento: quando o bot não acha base ou recusa, o Worker devolve `contato: true` e o widget mostra o botão "Escrever para a COPERSE" (e-mail, só com o assunto preenchido) e os assuntos frequentes.
+- Avaliação "Esta resposta ajudou?" (👍/👎) em `POST /avaliar`, tabela `avaliacoes` (migration 0004). Grava só o dia, o voto e o começo da resposta do bot (mascarada). A pergunta do candidato não é gravada, porque o registro de perguntas segue desligado (decisão de 2026-11-12). Só aceita resposta com a assinatura do Worker (M4) e passa pelo filtro nativo de 20 por minuto, sem gastar o limite de perguntas.
+- Boas-vindas, assuntos e convite conforme o site (sisu.furg.br, vestibular.furg.br, demais).
+- Convite proativo: balão acima do botão depois de 15 s, uma vez por sessão, só se a pessoa ainda não conversou; não rouba o foco e fecha com ✕ ou Esc. `data-convite="nao"` no script desliga.
+- Botão "Nova conversa" e indicador de digitação (pontos animados; o leitor de tela ouve "Pensando…").
+- Teto do widget passa de 15 KB para 20 KB (ficou em cerca de 18 KB).
+- Fora por ora: resposta em fluxo contínuo (streaming), que exigiria trocar a extração de fontes e gastaria mais CPU no plano gratuito.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema } from '../src/regras';
+import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes } from '../src/regras';
 import type { Trecho } from '../src/busca';
 
 function trecho(n: number, extra: Partial<Trecho> = {}): Trecho {
@@ -194,5 +194,20 @@ describe('extrairFontes: linha de fontes do modelo', () => {
   });
   it('sem citação: citou = false', () => {
     expect(extrairFontes('Escreva para coperse@furg.br.', ts).citou).toBe(false);
+  });
+});
+
+describe('separarSugestoes', () => {
+  it('sem a linha: texto intacto', () => {
+    expect(separarSugestoes('O prazo é 10/12 [1].')).toEqual({ texto: 'O prazo é 10/12 [1].', sugestoes: [] });
+  });
+  it('linha com negrito e lista em linhas; máximo de 3', () => {
+    const r = separarSugestoes('Resposta [1].\n\n**Sugestões:**\n- Qual o valor?\n- Onde é a prova?\n- Tem cotas?\n- Quarta?');
+    expect(r.texto).toBe('Resposta [1].');
+    expect(r.sugestoes).toEqual(['Qual o valor?', 'Onde é a prova?', 'Tem cotas?']);
+  });
+  it('descarta link, dado pessoal, longa demais e repetida da pergunta', () => {
+    const r = separarSugestoes(`R [1].\nSugestões: Veja https://x.furg.br | Meu CPF 123.456.789-09 vale? | ${'a'.repeat(90)} | Qual o PRAZO? | Tem taxa?`, 'qual o prazo')
+    expect(r.sugestoes).toEqual(['Veja', 'Tem taxa?']);
   });
 });

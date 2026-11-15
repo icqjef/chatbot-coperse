@@ -1,4 +1,4 @@
-import type { Enviar, Fonte, Mensagem } from './tipos';
+import type { Avaliar, Enviar, Fonte, Mensagem, Resposta } from './tipos';
 
 export class ErroWidget extends Error {
   mensagem: string;
@@ -43,13 +43,38 @@ export function criarEnviar(api: string, fetchFn: typeof fetch = (...a) => fetch
     } finally {
       clearTimeout(relogio);
     }
-    const c = (corpo ?? {}) as { erro?: unknown; resposta?: unknown; fontes?: unknown; assinatura?: unknown };
+    const c = (corpo ?? {}) as Record<string, unknown>;
     if (!resp.ok) {
       throw new ErroWidget(typeof c.erro === 'string' && c.erro ? c.erro : MSG_REDE);
     }
     if (typeof c.resposta !== 'string') throw new ErroWidget(MSG_REDE);
-    const r = { resposta: c.resposta, fontes: filtrarFontes(c.fontes) };
-    return typeof c.assinatura === 'string' ? { ...r, assinatura: c.assinatura } : r;
+    const r: Resposta = { resposta: c.resposta, fontes: filtrarFontes(c.fontes) };
+    if (typeof c.assinatura === 'string') r.assinatura = c.assinatura;
+    const sugestoes = filtrarSugestoes(c.sugestoes);
+    if (sugestoes.length) r.sugestoes = sugestoes;
+    if (c.contato === true) r.contato = true;
+    return r;
+  };
+}
+
+/** Até 3 textos curtos: viram botões que enviam a pergunta. */
+export function filtrarSugestoes(x: unknown): string[] {
+  if (!Array.isArray(x)) return [];
+  return x.filter((s): s is string => typeof s === 'string' && s.trim().length > 0 && s.length <= 80).slice(0, 3);
+}
+
+/** Avaliação 👍/👎: falha de rede não incomoda a pessoa. */
+export function criarAvaliar(api: string, fetchFn: typeof fetch = (...a) => fetch(...a)): Avaliar {
+  return async (dados) => {
+    try {
+      await fetchFn(`${api}/avaliar`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(dados),
+      });
+    } catch {
+      // sem avaliação; segue a conversa
+    }
   };
 }
 

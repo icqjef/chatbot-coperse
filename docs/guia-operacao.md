@@ -101,6 +101,16 @@ A revisão de segurança ([revisao-seguranca-2026-11.md](revisao-seguranca-2026-
 
 - Nada além da conversa na aba do navegador do candidato, que some ao fechar a aba.
 - O Worker não grava as perguntas. Para limitar o uso, ele guarda apenas um código derivado do endereço IP e da data, nunca o IP.
+- Quando o candidato clica em 👍 ou 👎 ("Esta resposta ajudou?"), o Worker guarda o dia, o voto e o começo da resposta do bot. Não guarda a pergunta nem nada que identifique a pessoa.
+
+Para ver as avaliações (no site da Cloudflare: Storage & Databases, D1, chatbot-coperse, aba Console):
+
+```sql
+SELECT dia, SUM(util) AS ajudou, COUNT(*) - SUM(util) AS nao_ajudou FROM avaliacoes GROUP BY dia ORDER BY dia DESC;
+SELECT dia, resposta FROM avaliacoes WHERE util = 0 ORDER BY id DESC LIMIT 20;
+```
+
+As respostas com 👎 mostram onde o assistente precisa melhorar (página que falta, edital desatualizado).
 - O painel avisa o candidato para não digitar CPF, nome ou outros dados pessoais.
 
 ## 10. Em caso de dúvida ou problema
