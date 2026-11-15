@@ -50,9 +50,10 @@ describe('montar', () => {
       'Olá! Tire dúvidas sobre o Vestibular, o SiSU e os processos seletivos específicos da FURG. Eu respondo com base nas páginas oficiais e mostro de onde veio cada informação.',
     );
     expect([...w.raiz.querySelectorAll('.sugestoes button')].map((b) => b.textContent)).toEqual([
-      'Quando são as inscrições?',
+      'O que está com inscrição aberta agora?',
+      'Quando são as inscrições do Vestibular?',
       'Como funciona o SiSU?',
-      'Quem pode participar do PS Transgênero?',
+      'Quais são as formas de ingresso?',
     ]);
     expect(q('.nota').textContent).toBe('Pode conter erros. Confira sempre o edital oficial.');
     expect(q<HTMLTextAreaElement>('textarea').placeholder).toBe('Escreva sua pergunta…');
@@ -176,7 +177,7 @@ describe('conversa', () => {
     const env = montarCom(vi.fn().mockResolvedValue(ok));
     q<HTMLButtonElement>('.sugestoes button').click();
     await pronto();
-    expect(env).toHaveBeenCalledWith('Quando são as inscrições?', []);
+    expect(env).toHaveBeenCalledWith('O que está com inscrição aberta agora?', []);
   });
 
   it('pergunta só com espaços não é enviada', () => {

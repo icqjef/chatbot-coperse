@@ -14,6 +14,8 @@ Para quem edita o site como Administrator do Joomla (coperse.furg.br e sisu.furg
 - sisu.furg.br: tire o `data-cor`; o assistente fica no azul padrão (`#1f5fbf`).
 - Se a cor for inválida ou clara demais para o texto branco, o assistente usa o azul padrão.
 
+`data-convite="nao"` é opcional e desliga o balão de convite ("Dúvidas sobre...? Posso ajudar.") que aparece uma vez por visita, 15 segundos depois de a página abrir.
+
 ## Antes de começar: teste sem mexer em site nenhum
 
 Abra `https://chatbot-coperse.coperse-furg.workers.dev/demo`. É uma página só com o assistente.
