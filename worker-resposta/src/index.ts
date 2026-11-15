@@ -28,6 +28,7 @@ export interface Env {
   DIMENSAO_EMBEDDING: string;
   LIMIAR_SIMILARIDADE: string;
   GEMINI_API_KEY: string;
+  REGISTRAR_PERGUNTAS?: string;
   REINDEX_TOKEN?: string;
   GITHUB_TOKEN?: string;
   GITHUB_REPO: string;

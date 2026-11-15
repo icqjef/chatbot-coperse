@@ -1,11 +1,17 @@
 /**
- * Contagem das perguntas por dia e desfecho, para o painel e o resumo semanal. Guarda só o número:
- * o texto da pergunta não é gravado (registro de perguntas desligado, decisão de 2026-11-12).
+ * Contagem das perguntas por dia e desfecho, e registro do texto das perguntas (ligado pelo Jeferson em
+ * 2026-11-15 com REGISTRAR_PERGUNTAS="true"). O texto chega aqui já com CPF, e-mail e telefone
+ * mascarados, não leva IP nem identificador e é apagado depois de 90 dias.
  */
 import { diaSaoPaulo } from './limites';
 import { SEM_BASE } from './regras';
 
-export type TipoPergunta = 'respondida' | 'sem_base' | 'recusa' | 'conversa';
+/** `limite`: barrada porque a cota diária do assistente acabou. */
+export type TipoPergunta = 'respondida' | 'sem_base' | 'recusa' | 'conversa' | 'limite';
+
+export const DIAS_REGISTRO = 90;
+const MAX_TEXTO = 500;
+const MS_DIA = 86_400_000;
 
 export function tipoDaResposta(r: { resposta: string; fontes: unknown[]; contato: boolean }, social: boolean): TipoPergunta {
   if (social) return 'conversa';
@@ -25,13 +31,30 @@ export function contaNoPainel(origem: string): boolean {
   }
 }
 
-/** Soma 1 no dia e tipo. Falha no D1 não atrapalha a resposta ao candidato. */
-export async function contarPergunta(db: D1Database, tipo: TipoPergunta, agora: Date): Promise<void> {
+/**
+ * Soma 1 no dia e tipo e, com `registrar`, guarda o texto (menos saudações e conversa) e apaga o que
+ * passou de 90 dias, tudo num lote só. Falha no D1 não atrapalha a resposta ao candidato.
+ */
+export async function contarPergunta(
+  db: D1Database,
+  tipo: TipoPergunta,
+  agora: Date,
+  registro?: { pergunta: string },
+): Promise<void> {
+  const dia = diaSaoPaulo(agora);
   try {
-    await db
-      .prepare('INSERT INTO contagem_perguntas (dia, tipo, n) VALUES (?, ?, 1) ON CONFLICT (dia, tipo) DO UPDATE SET n = n + 1')
-      .bind(diaSaoPaulo(agora), tipo)
-      .run();
+    const lote = [
+      db
+        .prepare('INSERT INTO contagem_perguntas (dia, tipo, n) VALUES (?, ?, 1) ON CONFLICT (dia, tipo) DO UPDATE SET n = n + 1')
+        .bind(dia, tipo),
+    ];
+    if (registro && tipo !== 'conversa') {
+      lote.push(
+        db.prepare('INSERT INTO perguntas_registro (dia, tipo, pergunta) VALUES (?, ?, ?)').bind(dia, tipo, registro.pergunta.slice(0, MAX_TEXTO)),
+        db.prepare('DELETE FROM perguntas_registro WHERE dia < ?').bind(diaSaoPaulo(new Date(agora.getTime() - DIAS_REGISTRO * MS_DIA))),
+      );
+    }
+    await db.batch(lote);
   } catch {
     console.error('Falha ao contar a pergunta');
   }

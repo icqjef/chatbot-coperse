@@ -13,6 +13,7 @@ const MIN_SENHA = 32;
 const PERIODOS = new Set([7, 30, 90]);
 const MAX_NEGATIVAS = 50;
 const MAX_PAGINAS_RUINS = 10;
+const MAX_SEM_RESPOSTA = 100;
 const MS_DIA = 86_400_000;
 
 const CABECALHOS_PAGINA = {
@@ -79,7 +80,8 @@ export async function tratarPainelDados(req: Request, env: Env, agora = new Date
   const fim = diaSaoPaulo(agora);
   const inicio = diaSaoPaulo(new Date(agora.getTime() - (dias - 1) * MS_DIA));
   try {
-    const [porDia, negativas, perguntas, fontesNegativas] = await Promise.all([
+    const registro = env.REGISTRAR_PERGUNTAS === 'true';
+    const [porDia, negativas, perguntas, fontesNegativas, semResposta] = await Promise.all([
       env.DB.prepare(
         'SELECT dia, SUM(util) AS ajudou, COUNT(*) - SUM(util) AS nao FROM avaliacoes WHERE dia >= ? GROUP BY dia ORDER BY dia',
       )
@@ -94,6 +96,13 @@ export async function tratarPainelDados(req: Request, env: Env, agora = new Date
       env.DB.prepare('SELECT fontes FROM avaliacoes WHERE util = 0 AND dia >= ? AND fontes IS NOT NULL')
         .bind(inicio)
         .all<{ fontes: string }>(),
+      registro
+        ? env.DB.prepare(
+            `SELECT dia, tipo, pergunta FROM perguntas_registro WHERE tipo IN ('sem_base', 'recusa', 'limite') AND dia >= ? ORDER BY id DESC LIMIT ${MAX_SEM_RESPOSTA}`,
+          )
+            .bind(inicio)
+            .all<{ dia: string; tipo: string; pergunta: string }>()
+        : Promise.resolve({ results: [] as { dia: string; tipo: string; pergunta: string }[] }),
     ]);
     const top = contarUrls(fontesNegativas.results.map((l) => l.fontes));
     const titulos = await tituloDasPaginas(env.DB, [...top.map(([u]) => u), ...negativas.results.flatMap((n) => lerFontes(n.fontes))]);
@@ -104,6 +113,9 @@ export async function tratarPainelDados(req: Request, env: Env, agora = new Date
         dias,
         porDia: porDia.results,
         perguntas: perguntas.results,
+        cota: Number(env.COTA_DIARIA) || 1000,
+        registro,
+        semResposta: semResposta.results,
         paginasRuins: top.map(([url, n]) => ({ url, titulo: titulos.get(url) ?? url, n })),
         negativas: negativas.results.map((n) => ({
           dia: n.dia,
@@ -187,6 +199,9 @@ th { color: var(--texto-2); font-weight: 600; }
 .paginas li { display: flex; gap: 12px; align-items: baseline; }
 .paginas .n { min-width: 2.5em; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .ajuda { color: var(--texto-3); font-size: 13px; margin: 4px 0 8px; }
+.secao { margin-top: 12px; }
+.etiqueta { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--borda); color: var(--texto-2); margin-left: 6px; }
+.alerta { color: var(--erro); font-weight: 600; }
 .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
 @media (max-width: 720px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi .valor { font-size: 24px; } .duas { grid-template-columns: 1fr; } }
 </style>
@@ -231,6 +246,15 @@ th { color: var(--texto-2); font-weight: 600; }
       <button type="button" class="ver-tabela" data-alvo="perguntas" aria-expanded="false">Ver como tabela</button>
       <div class="grafico" id="grafico-perguntas"></div>
       <div id="tabela-perguntas" hidden></div>
+    </div>
+    <div class="duas">
+      <div class="cartao kpi"><div class="rotulo">Dia com mais perguntas</div><div class="valor" id="k-pico">–</div><div class="nota" id="k-pico-nota"></div></div>
+      <div class="cartao kpi"><div class="rotulo">Barradas pela cota diária</div><div class="valor" id="k-limite">–</div><div class="nota" id="k-limite-nota"></div></div>
+    </div>
+    <div class="cartao secao" id="cartao-sem-resposta">
+      <h2>Perguntas sem resposta</h2>
+      <p class="ajuda" id="ajuda-sem-resposta">As mais recentes primeiro (até 100). Perguntas que se repetem mostram o que falta nas páginas ou no edital. Dados pessoais aparecem como [removido].</p>
+      <ul class="lista" id="sem-resposta"></ul>
     </div>
 
     <h3>Avaliações das respostas</h3>
@@ -329,7 +353,8 @@ const PAINEL_JS = `(() => {
   }
 
   function desenhar() {
-    const perg = porDia(dados.perguntas.filter((l) => l.tipo !== 'conversa'), (acc, l) => {
+    const limite = dados.perguntas.filter((l) => l.tipo === 'limite').reduce((s, l) => s + Number(l.n), 0);
+    const perg = porDia(dados.perguntas.filter((l) => l.tipo !== 'conversa' && l.tipo !== 'limite'), (acc, l) => {
       const o = acc || { a: 0, b: 0, semBase: 0, recusa: 0 };
       const n = Number(l.n);
       if (l.tipo === 'respondida') o.a += n; else o.b += n;
@@ -348,6 +373,14 @@ const PAINEL_JS = `(() => {
     $('k-sem-base').textContent = num(semBase);
     $('k-recusa').textContent = num(recusa);
     grafico('perguntas', perg, ['Respondidas', 'Sem resposta'], 'Nenhuma pergunta no período.');
+    const pico = perg.reduce((m, d) => (d.a + d.b > m.n ? { n: d.a + d.b, dia: d.dia } : m), { n: 0, dia: '' });
+    $('k-pico').textContent = num(pico.n);
+    const usoPico = pico.n / dados.cota;
+    $('k-pico-nota').replaceChildren(pico.dia ? (brAno(pico.dia) + ': ' + pct(usoPico) + ' da cota de ' + num(dados.cota) + ' por dia') : 'cota de ' + num(dados.cota) + ' perguntas por dia');
+    if (usoPico >= 0.8) $('k-pico-nota').append(el('span', { class: 'alerta' }, ' Perto do limite.'));
+    $('k-limite').textContent = num(limite);
+    $('k-limite-nota').textContent = limite ? 'candidatos que receberam "limite de hoje atingido"' : 'nenhum candidato barrado';
+    semResposta();
 
     const aval = porDia(dados.porDia, (_acc, l) => ({ a: Number(l.ajudou), b: Number(l.nao) }));
     const sim = aval.reduce((s, d) => s + d.a, 0);
@@ -427,6 +460,24 @@ const PAINEL_JS = `(() => {
     });
     t.append(corpo);
     $('tabela-' + nome).replaceChildren(corpo.children.length ? t : el('p', { class: 'vazio' }, msgVazio));
+  }
+
+  const TIPOS = { sem_base: 'não encontrada', recusa: 'recusada', limite: 'cota esgotada' };
+  function semResposta() {
+    const ul = $('sem-resposta');
+    ul.replaceChildren();
+    if (!dados.registro) {
+      $('ajuda-sem-resposta').textContent = 'O registro de perguntas está desligado (REGISTRAR_PERGUNTAS).';
+      return;
+    }
+    if (!dados.semResposta.length) { ul.append(el('li', { class: 'vazio' }, 'Nenhuma pergunta sem resposta no período.')); return; }
+    for (const p of dados.semResposta) {
+      const li = el('li');
+      const dia = el('div', { class: 'dia' }, brAno(p.dia));
+      dia.append(el('span', { class: 'etiqueta' }, TIPOS[p.tipo] || p.tipo));
+      li.append(dia, el('p', {}, p.pergunta));
+      ul.append(li);
+    }
   }
 
   function paginas() {

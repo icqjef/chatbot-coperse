@@ -69,13 +69,21 @@ Rodar o teste (precisa de Node 22 e do repositório baixado):
 4. O resultado é gravado em `avaliacao/resultados/`.
 5. Se qualquer pergunta da categoria `datas-vagas-prazos` falhar, o programa termina com erro e escreve "PORTÃO: ... Não publicar". Corrija antes de divulgar. Para rodar só algumas, use `--so id1,id2`.
 
-A cada edital novo:
+### Quando sai uma edição nova (por exemplo, o SiSU 2027 em janeiro)
 
-1. Leia o edital oficial e escolha as datas, vagas, prazos e valores mais perguntados.
-2. Acrescente perguntas em `avaliacao/perguntas.json`, no mesmo formato das existentes, com a resposta conferida no edital.
-3. Se um edital substituir outro, atualize ou apague as perguntas antigas.
-4. Mantenha `conferido_por_jeferson` verdadeiro só depois de conferir você mesmo. Se estiver falso, o teste sempre termina com aviso.
-5. Mude o arquivo por pull request.
+O campo `edicoes`, no começo de `avaliacao/perguntas.json`, diz qual edição de cada processo as perguntas conferem (hoje: Vestibular 2027, SiSU 2026, PS Transgêneros, Quilombolas e Indígenas 2027, Vagas Complementares 2026). Quando aparecem no índice pelo menos 3 páginas de uma edição mais nova, o resumo semanal traz a seção "Edição nova no índice". Até as perguntas serem atualizadas, o teste de qualidade continua conferindo a edição antiga e pode falhar sem o bot estar errado.
+
+Roteiro:
+
+1. Leia o edital oficial da edição nova e anote as datas, vagas, prazos e valores mais perguntados: inscrição, taxa e isenção, prova ou chamadas, resultado, matrícula e número de vagas.
+2. Em `avaliacao/perguntas.json`, atualize as perguntas daquele processo: troque o ano na pergunta (por exemplo, "SiSU 2026" por "SiSU 2027"), a `resposta_esperada`, os `fatos` (cada fato é uma lista de formas aceitas, como `["22/01/2027", "22 de janeiro"]`) e a `fonte` (trecho do endereço da página do edital novo). Apague as perguntas que não valem mais.
+3. Troque o ano daquele processo em `edicoes`.
+4. Rode `node avaliacao/avaliar.mjs --so id1,id2` só com as perguntas mudadas. Se uma falhar, confira primeiro se a página do edital novo já foi lida (seção 3) e se o fato está escrito do jeito que o edital escreve.
+5. Rode o teste completo. Todas as perguntas de `datas-vagas-prazos` precisam passar.
+6. Mantenha `conferido_por_jeferson` verdadeiro só depois de conferir você mesmo no edital. Se estiver falso, o teste sempre termina com aviso.
+7. Mude o arquivo por pull request (ou peça ao Claude Code: "atualize as perguntas de referência do SiSU 2027 a partir do edital").
+
+Para um edital que só substitui outro na mesma edição (retificação), basta atualizar os fatos das perguntas afetadas.
 
 ## 7. Token do Cloudflare restrito para a indexação
 
@@ -94,25 +102,29 @@ A revisão de segurança ([revisao-seguranca-2026-11.md](revisao-seguranca-2026-
 - Por visitante: 6 perguntas por minuto e 150 por dia, só nas perguntas (consultar `/saude` não gasta o limite do dia). Acima disso o assistente avisa "Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo." ou "Você atingiu o limite de perguntas de hoje. Tente amanhã ou escreva para coperse@furg.br." Pessoas na mesma rede (campus, escola, celular) podem dividir o mesmo limite; a avaliação (`avaliar.mjs`, 31 perguntas) também conta.
 - No total: 1.000 perguntas por dia, zerando à meia-noite de Brasília. Acima disso todos veem "O assistente atingiu o limite de perguntas de hoje. Tente de novo amanhã ou escreva para coperse@furg.br."
 - Quando não encontra a informação, o assistente orienta a consultar o edital oficial ou escrever para coperse@furg.br. Não opina sobre situação individual (homologação, recurso, nota) e recusa assuntos fora dos processos seletivos da FURG.
-- Em semana de inscrição ou resultado, acompanhe o uso: se a cota diária esgotar, os candidatos ficam sem o assistente até o dia seguinte. Os valores ficam em `worker-resposta/wrangler.toml` (`LIMITE_POR_MINUTO`, `LIMITE_DIARIO_VISITANTE`, `COTA_DIARIA`) e são mudados por pull request.
+- Em semana de inscrição ou resultado, acompanhe o uso: se a cota diária esgotar, os candidatos ficam sem o assistente até o dia seguinte. O painel mostra o dia com mais perguntas (com a porcentagem da cota e o aviso "Perto do limite" a partir de 80%) e quantos candidatos foram barrados pela cota; o resumo semanal traz os mesmos números e um alerta.
+- Para aumentar a cota: confira antes, na página de limites do Google AI Studio, quantas chamadas por dia o modelo em uso aceita na sua conta (no nível gratuito o limite é por modelo; para sair dele é preciso vincular conta de cobrança e pré-pagar). Depois mude `COTA_DIARIA` em `worker-resposta/wrangler.toml` por pull request. Os outros valores ficam no mesmo arquivo (`LIMITE_POR_MINUTO`, `LIMITE_DIARIO_VISITANTE`).
 - O plano gratuito da Cloudflare tem 100 mil requisições por dia. Uma enxurrada de pedidos de um mesmo endereço é barrada por um filtro da própria Cloudflare (20 por minuto) antes de chegar ao contador de limites, então não trava o assistente para os outros. Mesmo barrados, esses pedidos contam nas 100 mil, e isso não tem como ser evitado no código. Em semana de inscrição ou resultado, confira o uso no site da Cloudflare: Workers e Pages, chatbot-coperse, aba de métricas. Se chegar perto de 100 mil num dia, avise o responsável técnico.
 
 ## 9. O que o assistente guarda
 
 - Nada além da conversa na aba do navegador do candidato, que some ao fechar a aba.
-- O Worker não grava as perguntas. Para limitar o uso, ele guarda apenas um código derivado do endereço IP e da data, nunca o IP.
+- Desde 15/11/2026, o Worker grava o texto das perguntas feitas nos sites da FURG (`REGISTRAR_PERGUNTAS = "true"` em `worker-resposta/wrangler.toml`, decisão do Jeferson). CPF, e-mail e telefone são trocados por [removido] antes de gravar; não há IP, nome de usuário nem identificador de quem perguntou; saudações não são gravadas; e cada pergunta é apagada depois de 90 dias. O aviso do assistente informa o candidato. Para desligar, mude para `"false"` por pull request; para apagar tudo, rode no Console do D1: `DELETE FROM perguntas_registro;`.
+- Para limitar o uso, o Worker guarda apenas um código derivado do endereço IP e da data, nunca o IP.
 - Quando o candidato clica em 👍 ou 👎 ("Esta resposta ajudou?"), o Worker guarda o dia, o voto, o começo da resposta do bot e os endereços das páginas citadas nela. Não guarda a pergunta nem nada que identifique a pessoa.
-- Para cada pergunta, o Worker soma 1 na contagem do dia (respondida, não encontrada, recusada ou conversa). Só o número, nunca o texto.
+- Para cada pergunta, o Worker soma 1 na contagem do dia (respondida, não encontrada, recusada, conversa ou barrada pela cota).
 
 ### Resumo semanal
 
-Toda segunda-feira às 8h, o GitHub abre um aviso (issue) no repositório com o resumo da semana anterior: perguntas, perguntas sem resposta, avaliações, taxa de aprovação comparada com a semana anterior e as páginas mais citadas nas respostas com 👎. O aviso da semana anterior é fechado sozinho. O GitHub manda e-mail para quem acompanha o repositório (o dono acompanha por padrão; para conferir, botão "Watch" no topo do repositório).
+Toda segunda-feira às 8h, o GitHub abre um aviso (issue) no repositório com o resumo da semana anterior: perguntas, perguntas sem resposta, avaliações, taxa de aprovação comparada com a semana anterior, o dia com mais perguntas frente à cota, a leitura dos sites (última leitura, páginas no índice, páginas com erro), edição nova no índice (seção 6) e as páginas mais citadas nas respostas com 👎. Os alertas vêm marcados com ⚠️. O aviso da semana anterior é fechado sozinho. O GitHub manda e-mail para quem acompanha o repositório (o dono acompanha por padrão; para conferir, botão "Watch" no topo do repositório).
 
-O repositório é público, então o resumo traz só números e páginas públicas dos sites, sem o texto das respostas (esse fica no painel). Para gerar um resumo fora de hora: aba Actions → `resumo-semanal` → "Run workflow". Para desligar: Actions → `resumo-semanal` → "..." → "Disable workflow".
+O repositório é público, então o resumo traz só números e páginas públicas dos sites, nunca o texto das perguntas nem das respostas (esses ficam no painel, com senha). Para gerar um resumo fora de hora: aba Actions → `resumo-semanal` → "Run workflow". Para desligar: Actions → `resumo-semanal` → "..." → "Disable workflow".
 
 Para acompanhar as avaliações, abra o painel https://chatbot-coperse.coperse-furg.workers.dev/painel e digite a mesma senha da reindexação manual (seção 3). Ele mostra, nos últimos 7, 30 ou 90 dias:
 
 - quantas perguntas os candidatos fizeram e quantas ficaram sem resposta, separando as não encontradas nas páginas (falta página ou edital) das recusadas (fora do tema ou caso individual);
+- o texto das perguntas sem resposta, as mais recentes primeiro (perguntas repetidas mostram o que falta nas páginas);
+- o dia com mais perguntas frente à cota diária e quantos candidatos a cota barrou;
 - o total de avaliações, a taxa de aprovação e os votos por dia (em gráfico ou tabela);
 - as páginas mais citadas nas respostas com 👎 (as primeiras a revisar) e as próprias respostas com 👎.
 

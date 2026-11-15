@@ -46,6 +46,7 @@ describe('montar', () => {
     expect(w.raiz.getElementById('titulo')!.textContent).toBe('Assistente COPERSE');
     expect(q('.cab p').textContent).toBe('Respostas com base nas páginas oficiais da FURG');
     expect(q('.aviso').textContent).toContain('Não digite CPF, nome ou outros dados pessoais.');
+    expect(q('.aviso').textContent).toContain('As perguntas são guardadas sem identificação por 90 dias');
     expect(q('.msg.bot').textContent).toContain(
       'Olá! Tire dúvidas sobre o Vestibular, o SiSU e os processos seletivos específicos da FURG. Eu respondo com base nas páginas oficiais e mostro de onde veio cada informação.',
     );

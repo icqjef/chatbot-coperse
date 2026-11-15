@@ -26,6 +26,8 @@ export interface EnvPerguntar {
   DIMENSAO_EMBEDDING?: string;
   LIMIAR_SIMILARIDADE?: string;
   GEMINI_API_KEY: string;
+  /** "true" grava o texto das perguntas (mascarado, sem IP, 90 dias) para o painel. */
+  REGISTRAR_PERGUNTAS?: string;
 }
 
 const MAX_PERGUNTA = 500;
@@ -258,8 +260,9 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   const entrada = await prepararEntrada(recebida, segredo);
   const agora = () => new Date();
   const contar = contaNoPainel(origem);
+  const registro = env.REGISTRAR_PERGUNTAS === 'true' ? { pergunta: entrada.pergunta } : undefined;
   const responder = async (r: Resultado, social = false) => {
-    if (contar) await contarPergunta(env.DB, tipoDaResposta(r, social), agora());
+    if (contar) await contarPergunta(env.DB, tipoDaResposta(r, social), agora(), registro);
     return json({ ...r, assinatura: await assinar(r.resposta, segredo) }, 200, cors);
   };
   const negado = await aplicarLimite(req, env.LIMITADOR, cors, true);
@@ -275,7 +278,10 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
       console.error('Falha na cota diária');
       return json({ erro: MSG_INDISPONIVEL }, 503, cors);
     }
-    if (!liberada) return json({ erro: MSG_COTA }, 429, cors);
+    if (!liberada) {
+      if (contar) await contarPergunta(env.DB, 'limite', agora(), registro);
+      return json({ erro: MSG_COTA }, 429, cors);
+    }
   }
   try {
     const embedder = criarEmbedder(env);

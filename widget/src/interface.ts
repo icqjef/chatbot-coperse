@@ -130,7 +130,7 @@ export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avalia
   const aviso = el('div', 'aviso');
   const alerta = el('span', undefined, '⚠');
   alerta.setAttribute('aria-hidden', 'true');
-  aviso.append(alerta, 'Não digite CPF, nome ou outros dados pessoais.');
+  aviso.append(alerta, 'Não digite CPF, nome ou outros dados pessoais. As perguntas são guardadas sem identificação por 90 dias para melhorar o assistente.');
 
   const msgs = el('div', 'msgs');
   msgs.setAttribute('aria-live', 'polite');

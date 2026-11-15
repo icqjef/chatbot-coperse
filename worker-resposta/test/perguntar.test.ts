@@ -638,3 +638,44 @@ describe('contagem das perguntas', () => {
     expect(contaNoPainel('https://chatbot-coperse.coperse-furg.workers.dev')).toBe(false);
   });
 });
+
+describe('registro de perguntas no fluxo', () => {
+  function comLote(env: Env) {
+    const lotes: { sql: string; params: unknown[] }[][] = [];
+    const base = env.DB as unknown as { prepare: (sql: string) => { bind: (...p: unknown[]) => object } };
+    env.DB = {
+      prepare: (sql: string) => {
+        const p = base.prepare(sql);
+        return { bind: (...params: unknown[]) => Object.assign(p.bind(...params), { sql, params }) };
+      },
+      batch: async (l: { sql: string; params: unknown[] }[]) => {
+        lotes.push(l);
+        return [];
+      },
+    } as unknown as D1Database;
+    return lotes;
+  }
+  it('ligado: grava a pergunta já mascarada; origem *.workers.dev não grava', async () => {
+    const { env } = montar({});
+    env.REGISTRAR_PERGUNTAS = 'true';
+    const lotes = comLote(env);
+    await pedir(env, { pergunta: `meu CPF é ${CPF}, qual o prazo?` });
+    const inserir = lotes[0]!.find((s) => s.sql.includes('perguntas_registro') && s.sql.startsWith('INSERT'))!;
+    expect(inserir.params[2]).toBe('meu CPF é [removido], qual o prazo?');
+    await pedir(env, { pergunta: 'qual o prazo?' }, { Origin: 'https://chatbot-coperse.coperse-furg.workers.dev' });
+    expect(lotes).toHaveLength(1);
+  });
+  it('desligado: só o contador', async () => {
+    const { env } = montar({});
+    const lotes = comLote(env);
+    await pedir(env, { pergunta: 'qual o prazo?' });
+    expect(lotes[0]).toHaveLength(1);
+  });
+  it('cota esgotada conta como limite', async () => {
+    const { env } = montar({});
+    env.COTA = { consumir: async () => false };
+    const lotes = comLote(env);
+    expect((await pedir(env, { pergunta: 'qual o prazo?' })).status).toBe(429);
+    expect(lotes[0]![0]!.params[1]).toBe('limite');
+  });
+});
