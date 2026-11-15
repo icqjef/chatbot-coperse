@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { carregarSites } from '@chatbot/comum';
 import { criarCfFalso } from './fakes.js';
 import type { Site } from '@chatbot/comum/tipos';
 import { urlExcluida, adiar, carregarEstado, concluir, deveIgnorar, ehPdf, enfileirar, normalizarUrl, proximos, type EstadoRastreio, type NovoItem } from '../src/fila.js';
@@ -223,6 +225,18 @@ describe('urlExcluida', () => {
     expect(urlExcluida('https://coperse.furg.br/images/Editais/2024/indigenas/x.pdf', coperse)).toBe(true);
     expect(urlExcluida('https://coperse.furg.br/images/2026/Vestibular-2026/Cronograma_retificado.pdf', coperse)).toBe(false);
     expect(urlExcluida('https://coperse.furg.br/images/Editais/2025/x.pdf', coperse)).toBe(false);
+  });
+  it('com incluir, só passa o que casa com a lista fechada (portal furg.br)', () => {
+    const furg = carregarSites(JSON.parse(readFileSync(new URL('../../config/sites.json', import.meta.url), 'utf8'))).find((s) => s.id === 'furg')!;
+    expect(urlExcluida('https://www.furg.br/graduacao/medicina', furg)).toBe(false);
+    expect(urlExcluida('https://www.furg.br/graduacao', furg)).toBe(false);
+    expect(urlExcluida('https://www.furg.br/estudantes/assistencia-basica/assistencia-basica-moradia', furg)).toBe(false);
+    expect(urlExcluida('https://www.furg.br/arquivos/Noticias/20-01-2026-Calendrio_Universitrio_2026_2027-furg.pdf', furg)).toBe(false);
+    expect(urlExcluida('https://www.furg.br/arquivos/COPERSE/00_QUADRO_INFORMATIVO_E_SIMPLIFICADO_DA_DOCUMENTAO.pdf', furg)).toBe(false);
+    expect(urlExcluida('https://www.furg.br/arquivos/COPERSE/Declarao_-_PS_Quilombolas.pdf', furg)).toBe(true);
+    expect(urlExcluida('https://www.furg.br/noticias/noticias-institucional/x', furg)).toBe(true);
+    expect(urlExcluida('https://www.furg.br/arquivos/catalogo/Guia_de_Cursos_2023_compressed.pdf', furg)).toBe(true);
+    expect(urlExcluida('https://www.furg.br/graduacao?start=20', furg)).toBe(true);
   });
   it('sem excluir nada é excluído', () => {
     expect(urlExcluida('https://coperse.furg.br/anos-anteriores/x', { ...coperse, excluir: undefined })).toBe(false);

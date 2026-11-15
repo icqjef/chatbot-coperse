@@ -76,7 +76,7 @@ export function limparDatas(resposta: string): string {
 
 export const APRESENTACAO =
   'Sou o assistente virtual da COPERSE, a Comissão Permanente do Processo Seletivo da FURG. ' +
-  'Respondo dúvidas sobre o Vestibular, o SiSU e os outros processos seletivos da FURG com base nas páginas oficiais, sempre indicando a fonte. ' +
+  'Respondo dúvidas sobre o Vestibular, o SiSU, os outros processos seletivos e os cursos de graduação da FURG com base nas páginas oficiais, sempre indicando a fonte. ' +
   'Sou um programa de computador, não uma pessoa. Não digite dados pessoais como CPF, nome ou e-mail; para casos individuais, escreva para coperse@furg.br.';
 
 const CONVITE = 'Como posso ajudar com os processos seletivos da FURG?';
@@ -108,7 +108,7 @@ export function respostaSocial(mensagem: string, agora: Date): string | null {
   if (i.has('saudacao')) partes.push(saudar(saudacao));
   if (i.has('comoVai')) partes.push('Tudo bem, obrigado por perguntar!');
   if (i.has('identidade')) partes.push(APRESENTACAO);
-  else if (i.has('saudacao')) partes.push('Sou o assistente virtual da COPERSE e respondo dúvidas sobre o Vestibular, o SiSU e os outros processos seletivos da FURG.');
+  else if (i.has('saudacao')) partes.push('Sou o assistente virtual da COPERSE e respondo dúvidas sobre o Vestibular, o SiSU, os outros processos seletivos e os cursos de graduação da FURG.');
   const data = dataPorExtenso(agora);
   if (i.has('data') && i.has('hora')) partes.push(`Hoje é ${data}, e agora são ${horaBr(agora)} (horário de Brasília).`);
   else if (i.has('data')) partes.push(`Hoje é ${data}.`);

@@ -7,7 +7,7 @@ export type Perfil = { boasVindas: string; sugestoes: string[]; convite: string 
 const FINAL = 'Eu respondo com base nas páginas oficiais e mostro de onde veio cada informação.';
 
 const GERAL: Perfil = {
-  boasVindas: `Olá! Tire dúvidas sobre o Vestibular, o SiSU e os processos seletivos específicos da FURG. ${FINAL}`,
+  boasVindas: `Olá! Tire dúvidas sobre o Vestibular, o SiSU, os processos seletivos específicos e os cursos de graduação da FURG. ${FINAL}`,
   sugestoes: [
     'O que está com inscrição aberta agora?',
     'Quando são as inscrições do Vestibular?',

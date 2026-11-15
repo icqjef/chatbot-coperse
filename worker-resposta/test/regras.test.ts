@@ -71,6 +71,11 @@ describe('mascararDadosPessoais', () => {
 
 describe('montarSistema', () => {
   const s = montarSistema([trecho(1), trecho(2)], new Date('2026-11-12T15:00:00Z'));
+  it('cobre cursos e vida acadêmica e explica as vagas do portal furg.br', () => {
+    expect(s).toContain('os cursos de graduação e o começo da vida acadêmica');
+    expect(s).toContain('Trechos com site="furg"');
+    expect(s).toContain('total de vagas do curso no ano');
+  });
   it('traz regras e data', () => {
     expect(s).toContain('Você é o assistente virtual da COPERSE');
     expect(s).toContain('Hoje é 12/11/2026 (quinta-feira), 12h00 no horário de Brasília.');

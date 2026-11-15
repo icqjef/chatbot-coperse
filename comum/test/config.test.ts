@@ -13,7 +13,7 @@ const site = (extra: Record<string, unknown> = {}) => ({
 describe('carregarSites', () => {
   it('aceita o sites.json real', () => {
     const sites = carregarSites(lerJson('sites.json'));
-    expect(sites).toHaveLength(3);
+    expect(sites).toHaveLength(4);
     expect(sites[0]?.id).toBe('coperse');
   });
   it('rejeita site sem base', () => {
@@ -48,6 +48,18 @@ describe('carregarSites: excluir', () => {
     expect(c?.excluir).toEqual(['/anos-anteriores/', '/images/Editais/20(0\\d|1\\d|2[0-4])/']);
     expect(s?.excluir).toEqual(['/anos-anteriores/', '/images/stories/20(0\\d|1\\d|2[0-4])']);
     expect(v?.excluir).toEqual([]);
+  });
+});
+
+describe('carregarSites: incluir', () => {
+  it('aceita lista de regex e recusa regex inválida', () => {
+    expect(carregarSites([site({ incluir: ['^https://a/x$'] })])[0]?.incluir).toEqual(['^https://a/x$']);
+    expect(() => carregarSites([site({ incluir: ['('] })])).toThrow(/incluir/);
+  });
+  it('o portal furg.br do sites.json real tem lista fechada que cobre as próprias páginas-chave', () => {
+    const f = carregarSites(lerJson('sites.json')).find((x) => x.id === 'furg');
+    expect(f?.profundidade).toBe(1);
+    for (const u of f!.paginas_chave) expect(f!.incluir!.some((e) => new RegExp(e).test(u)), u).toBe(true);
   });
 });
 

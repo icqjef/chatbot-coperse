@@ -48,7 +48,7 @@ describe('montar', () => {
     expect(q('.aviso').textContent).toContain('Não digite CPF, nome ou outros dados pessoais.');
     expect(q('.aviso').textContent).toContain('As perguntas são guardadas sem identificação por 90 dias');
     expect(q('.msg.bot').textContent).toContain(
-      'Olá! Tire dúvidas sobre o Vestibular, o SiSU e os processos seletivos específicos da FURG. Eu respondo com base nas páginas oficiais e mostro de onde veio cada informação.',
+      'Olá! Tire dúvidas sobre o Vestibular, o SiSU, os processos seletivos específicos e os cursos de graduação da FURG. Eu respondo com base nas páginas oficiais e mostro de onde veio cada informação.',
     );
     expect([...w.raiz.querySelectorAll('.sugestoes button')].map((b) => b.textContent)).toEqual([
       'O que está com inscrição aberta agora?',

@@ -43,7 +43,7 @@ describe('respostaSocial', () => {
 
   it('data e hora juntas, com saudação', () => {
     expect(respostaSocial('oi, que dia é hoje e que horas são?', AGORA)).toBe(
-      'Olá! Sou o assistente virtual da COPERSE e respondo dúvidas sobre o Vestibular, o SiSU e os outros processos seletivos da FURG. Hoje é sábado, 14 de novembro de 2026, e agora são 16h05 (horário de Brasília).',
+      'Olá! Sou o assistente virtual da COPERSE e respondo dúvidas sobre o Vestibular, o SiSU, os outros processos seletivos e os cursos de graduação da FURG. Hoje é sábado, 14 de novembro de 2026, e agora são 16h05 (horário de Brasília).',
     );
   });
 
