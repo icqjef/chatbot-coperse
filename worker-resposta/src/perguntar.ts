@@ -8,6 +8,7 @@ import { diaSaoPaulo } from './limites';
 import { assinar, paresAutenticos, type MensagemRecebida } from './historico';
 import { limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
 import { cabecalhosCors, origemPermitida } from './cors';
+import { contaNoPainel, contarPergunta, tipoDaResposta } from './contagem';
 import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes, type Fonte } from './regras';
 
 export interface RateLimit {
@@ -255,14 +256,17 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
 
   const segredo = env.GEMINI_API_KEY;
   const entrada = await prepararEntrada(recebida, segredo);
-  const responder = async (r: Resultado) =>
-    json({ ...r, assinatura: await assinar(r.resposta, segredo) }, 200, cors);
   const agora = () => new Date();
+  const contar = contaNoPainel(origem);
+  const responder = async (r: Resultado, social = false) => {
+    if (contar) await contarPergunta(env.DB, tipoDaResposta(r, social), agora());
+    return json({ ...r, assinatura: await assinar(r.resposta, segredo) }, 200, cors);
+  };
   const negado = await aplicarLimite(req, env.LIMITADOR, cors, true);
   if (negado) return negado;
   // Saudação, agradecimento, "quem é você", data e hora: resposta pronta, sem gastar a cota do Gemini.
   const social = respostaSocial(entrada.pergunta, agora());
-  if (social) return responder({ resposta: social, fontes: [], sugestoes: [], contato: false });
+  if (social) return responder({ resposta: social, fontes: [], sugestoes: [], contato: false }, true);
   if (env.COTA) {
     let liberada = false;
     try {

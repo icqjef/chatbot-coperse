@@ -626,3 +626,15 @@ describe('atendimento proativo', () => {
     expect(await (await pedir(env, { pergunta: 'oi' })).json()).toMatchObject({ sugestoes: [], contato: false });
   });
 });
+
+describe('contagem das perguntas', () => {
+  it('tipoDaResposta e origem da página de teste', async () => {
+    const { tipoDaResposta, contaNoPainel } = await import('../src/contagem');
+    expect(tipoDaResposta({ resposta: 'R [1]', fontes: [{}], contato: false }, false)).toBe('respondida');
+    expect(tipoDaResposta({ resposta: `Bom dia! ${SEM_BASE}`, fontes: [], contato: true }, false)).toBe('sem_base');
+    expect(tipoDaResposta({ resposta: 'Não posso ver sua nota. Escreva para coperse@furg.br.', fontes: [], contato: true }, false)).toBe('recusa');
+    expect(tipoDaResposta({ resposta: 'Olá!', fontes: [], contato: false }, true)).toBe('conversa');
+    expect(contaNoPainel('https://coperse.furg.br')).toBe(true);
+    expect(contaNoPainel('https://chatbot-coperse.coperse-furg.workers.dev')).toBe(false);
+  });
+});

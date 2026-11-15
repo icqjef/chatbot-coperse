@@ -12,7 +12,12 @@ function montar(opcoes: { permitir?: boolean; falhar?: boolean; senha?: string }
           if (opcoes.falhar) throw new Error('d1');
           consultas.push({ sql, params });
           if (sql.includes('GROUP BY dia')) return { results: [{ dia: '2026-11-15', ajudou: 3, nao: 1 }] };
-          return { results: [{ dia: '2026-11-15', resposta: 'Resposta ruim [1].' }] };
+          if (sql.includes('contagem_perguntas')) return { results: [{ dia: '2026-11-15', tipo: 'sem_base', n: 2 }] };
+          if (sql.includes('FROM paginas')) return { results: [{ url: 'https://a.furg.br/x', titulo: 'Página X' }] };
+          if (sql.startsWith('SELECT fontes')) {
+            return { results: [{ fontes: '["https://a.furg.br/x","https://a.furg.br/y"]' }, { fontes: '["https://a.furg.br/x"]' }] };
+          }
+          return { results: [{ dia: '2026-11-15', resposta: 'Resposta ruim [1].', fontes: '["https://a.furg.br/x"]' }] };
         },
       }),
     }),
@@ -42,16 +47,27 @@ describe('painel', () => {
     expect(html).toContain('<script src="/painel.js" defer></script>');
     expect(html).not.toContain(SENHA);
   });
-  it('GET /painel.js é JavaScript', async () => {
+  it('GET /painel.js é JavaScript válido', async () => {
     const r = await worker.fetch(new Request('https://w.example/painel.js'), montar().env);
     expect(r.headers.get('Content-Type')).toContain('javascript');
+    const codigo = await r.text();
+    expect(() => new Function(codigo)).not.toThrow();
   });
   it('senha certa: dias por dia e respostas negativas do período', async () => {
     const { env, consultas } = montar();
     const r = await dados(env, SENHA, '7');
     expect(r.status).toBe(200);
     const j = (await r.json()) as Record<string, unknown>;
-    expect(j).toMatchObject({ dias: 7, porDia: [{ dia: '2026-11-15', ajudou: 3, nao: 1 }], negativas: [{ resposta: 'Resposta ruim [1].' }] });
+    expect(j).toMatchObject({
+      dias: 7,
+      porDia: [{ dia: '2026-11-15', ajudou: 3, nao: 1 }],
+      perguntas: [{ dia: '2026-11-15', tipo: 'sem_base', n: 2 }],
+      paginasRuins: [
+        { url: 'https://a.furg.br/x', titulo: 'Página X', n: 2 },
+        { url: 'https://a.furg.br/y', titulo: 'https://a.furg.br/y', n: 1 },
+      ],
+      negativas: [{ resposta: 'Resposta ruim [1].', fontes: [{ url: 'https://a.furg.br/x', titulo: 'Página X' }] }],
+    });
     expect(j.inicio).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(consultas[0]!.params).toEqual([j.inicio]);
   });
