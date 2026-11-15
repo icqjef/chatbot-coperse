@@ -5,6 +5,7 @@
  */
 import { diaSaoPaulo } from './limites';
 import { SEM_BASE } from './regras';
+import { ENCERRAMENTO } from './conversa';
 
 /** `limite`: barrada porque a cota diária do assistente acabou. */
 export type TipoPergunta = 'respondida' | 'sem_base' | 'recusa' | 'conversa' | 'limite';
@@ -14,7 +15,7 @@ const MAX_TEXTO = 500;
 const MS_DIA = 86_400_000;
 
 export function tipoDaResposta(r: { resposta: string; fontes: unknown[]; contato: boolean }, social: boolean): TipoPergunta {
-  if (social) return 'conversa';
+  if (social || r.resposta === ENCERRAMENTO) return 'conversa';
   if (r.fontes.length) return 'respondida';
   return r.resposta.includes(SEM_BASE) ? 'sem_base' : 'recusa';
 }

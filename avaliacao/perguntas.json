@@ -680,6 +680,36 @@
       ],
       "fonte": "furg.br/campus-carreiros",
       "origem": "Tirada de furg.br em 15/11/2026; a conferir pelo Jeferson."
+    },
+    {
+      "id": "conversa-e-so-isso",
+      "categoria": "conversa",
+      "pergunta": "é só isso",
+      "resposta_esperada": "Agradece e encerra, sem dizer que não encontrou a informação.",
+      "fatos": [
+        [
+          "pude ajudar"
+        ]
+      ],
+      "sem_fontes": true,
+      "proibidos": [
+        "Não encontrei"
+      ]
+    },
+    {
+      "id": "conversa-encerra-gemini",
+      "categoria": "conversa",
+      "pergunta": "ok, vou dar uma olhada no edital então",
+      "resposta_esperada": "Agradece e encerra (o Gemini reconhece pela regra 15), sem dizer que não encontrou a informação.",
+      "fatos": [
+        [
+          "pude ajudar"
+        ]
+      ],
+      "sem_fontes": true,
+      "proibidos": [
+        "Não encontrei"
+      ]
     }
   ]
 }

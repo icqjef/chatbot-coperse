@@ -6,10 +6,10 @@ import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@c
 import { buscarTrechos, type Trecho } from './busca';
 import { diaSaoPaulo } from './limites';
 import { assinar, paresAutenticos, type MensagemRecebida } from './historico';
-import { limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
+import { ENCERRAMENTO, limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { contaNoPainel, contarPergunta, tipoDaResposta } from './contagem';
-import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes, type Fonte } from './regras';
+import { MARCA_ENCERRAMENTO, SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes, type Fonte } from './regras';
 
 export interface RateLimit {
   limit(opcoes: { key: string; diario?: boolean }): Promise<{ success: boolean; motivo?: 'minuto' | 'dia' }>;
@@ -113,6 +113,8 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
     if (e instanceof RespostaBloqueada) return NAO_ACHOU;
     throw e;
   }
+  // Encerramento que escapou da lista de conversa.ts: texto fixo, nunca o do modelo (que viria sem fonte).
+  if (bruta.includes(MARCA_ENCERRAMENTO)) return { resposta: ENCERRAMENTO, fontes: [], sugestoes: [], contato: false };
   const { texto, sugestoes } = separarSugestoes(bruta, entrada.pergunta);
   const { resposta, fontes, citou } = extrairFontes(texto, trechos);
   if (fontes.length === 0) {

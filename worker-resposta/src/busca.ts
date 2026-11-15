@@ -34,11 +34,13 @@ const MS_DIA = 86_400_000;
 const PENALIDADE_EDICAO_ANTIGA = 0.04;
 const BONUS_ANO_PERGUNTADO = 0.02;
 /**
- * Portal furg.br (cursos, calendário, assistência estudantil): sempre fica atrás das páginas da COPERSE,
- * do SiSU e do Vestibular sobre o mesmo assunto, porque tem páginas desatualizadas sobre os processos.
+ * Portal furg.br (cursos, calendário, assistência estudantil): só desempata, ficando atrás das páginas
+ * da COPERSE, do SiSU e do Vestibular em posição equivalente. Precisa ser pequena: a fusão inteira vai de
+ * ~0,025 (1º nas duas listas) a ~0,012 (20º numa só); 0,01 tirava dos 8 trechos a página do curso que
+ * era a 1ª da busca textual. A precedência nos processos fica com a regra 14 e com o bônus de processo.
  */
 const SITES_SECUNDARIOS = new Set(['furg']);
-const PENALIDADE_SECUNDARIO = 0.01;
+const PENALIDADE_SECUNDARIO = 0.002;
 
 /** Ano de edição citado na pergunta ("SiSU 2018", "nota de corte de 2020"), ou null. */
 export function anoDaPergunta(pergunta: string): number | null {
@@ -100,6 +102,19 @@ export function fundir(
   return [...pont].map(([id, pontuacao]) => ({ id, pontuacao })).sort((a, b) => b.pontuacao - a.pontuacao);
 }
 
+/**
+ * Os `maximo` primeiros da fusão, garantindo o 1º da busca textual: com peso 0,5, ele sozinho
+ * (~0,008) perde até para o 20º da vetorial (~0,012) e nunca entraria. É o caso de uma página que cita
+ * literalmente o que foi perguntado ("semestres", "Medicina") e que a vetorial não pôs entre as 20.
+ * Ele toma o lugar do último colocado.
+ */
+export function escolher(fundidos: { id: string }[], primeiroTextual: string | undefined, maximo: number): string[] {
+  const ids = fundidos.slice(0, maximo).map((f) => f.id);
+  if (primeiroTextual && !ids.includes(primeiroTextual) && ids.length >= maximo) ids[maximo - 1] = primeiroTextual;
+  else if (primeiroTextual && !ids.includes(primeiroTextual)) ids.push(primeiroTextual);
+  return ids;
+}
+
 interface LinhaTrecho {
   id: string;
   texto: string;
@@ -157,15 +172,16 @@ export async function buscarTrechos(
   for (const [id, l] of linhas) meta.set(id, { data: l.data_publicacao, site: l.site, ano: l.ano, processo: l.processo });
   const simPorId = new Map(vetoriais.map((v) => [v.id, v.similaridade]));
 
+  const textuaisValidos = textuais.filter((t) => linhas.has(t.id));
   const fundidos = fundir(
     vetoriais.filter((v) => v.similaridade >= opcoes.limiar && linhas.has(v.id)),
-    textuais.filter((t) => linhas.has(t.id)),
+    textuaisValidos,
     meta,
     deps.agora(),
     opcoes.processo,
     anoDaPergunta(pergunta),
   );
-  const trechos: Trecho[] = fundidos.slice(0, maximo).map(({ id }) => {
+  const trechos: Trecho[] = escolher(fundidos, textuaisValidos[0]?.id, maximo).map((id) => {
     const l = linhas.get(id)!;
     return {
       id,

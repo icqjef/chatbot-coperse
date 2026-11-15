@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { respostaSocial, intencoesSociais, dataPorExtenso, horaBr, APRESENTACAO, limparDatas } from '../src/conversa';
+import { respostaSocial, intencoesSociais, dataPorExtenso, horaBr, APRESENTACAO, ENCERRAMENTO, limparDatas } from '../src/conversa';
 
 // sábado, 14/11/2026, 16h05 em Brasília (UTC-3)
 const AGORA = new Date('2026-11-14T19:05:00Z');
@@ -53,6 +53,48 @@ describe('respostaSocial', () => {
     expect(respostaSocial('que horas são', t)).toBe('Agora são 23h30 (horário de Brasília).');
   });
 
+  it.each([
+    'é só isso',
+    'É só isso.',
+    'era só isso, obrigado',
+    'só isso mesmo',
+    'por enquanto é só',
+    'não',
+    'Não, obrigado!',
+    'não preciso de mais nada',
+    'nenhuma outra dúvida',
+    'sem mais dúvidas',
+    'já entendi',
+    'tá ótimo',
+    'tudo resolvido',
+    'fiquei satisfeito',
+    'esclareceu minha dúvida',
+    'tirou minhas dúvidas',
+    'vou olhar o edital',
+    'pode encerrar',
+    'beleza, era isso',
+    'maravilha',
+    'Já está resolvido, valeu',
+  ])('encerramento: "%s"', (m) => {
+    expect(respostaSocial(m, AGORA)).toContain(ENCERRAMENTO);
+  });
+  it('encerramento com agradecimento ou despedida', () => {
+    expect(respostaSocial('é só isso, obrigado', AGORA)).toBe(`Por nada! ${ENCERRAMENTO}`);
+    expect(respostaSocial('era só isso, tchau', AGORA)).toBe(`${ENCERRAMENTO} Até mais!`);
+  });
+  it.each([
+    'É só isso?',
+    'não entendi',
+    'não ficou claro',
+    'não sei qual curso escolher',
+    'ainda tenho dúvida',
+    'tudo sobre o SiSU',
+    'já saiu o resultado?',
+    'isso vale para o SiSU também?',
+    'boa sorte',
+  ])('não é encerramento (vai para a busca): "%s"', (m) => {
+    expect(respostaSocial(m, AGORA)).toBeNull();
+  });
   it.each([
     'Qual a data da prova?',
     'Que dia é a prova do Vestibular?',

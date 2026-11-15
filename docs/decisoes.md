@@ -274,3 +274,18 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Regras: o assunto passou a incluir os cursos de graduação e o começo da vida acadêmica de quem ingressa (matrícula, calendário, campi, restaurante, moradia e auxílios); o resto continua recusado. Regra 14: sobre datas, taxas, vagas, documentos e regras de um processo, prevalecem coperse, sisu e vestibular; "Vagas" da página do curso é o total anual, e o assistente diz isso e dá também as vagas do processo quando houver.
 - Saudação do Worker e boas-vindas do widget (perfil COPERSE) citam os cursos de graduação.
 - Perguntas de referência: 7 novas na categoria `cursos-vida-academica` (fora do portão), com `origem` marcando que foram tiradas do furg.br e faltam ser conferidas pelo Jeferson.
+
+## 2026-11-15 — Encerramento da conversa ("é só isso")
+
+- Problema relatado pelo Jeferson: depois de uma resposta, "é só isso" (satisfeito, encerrando) recebeu "Não encontrei essa informação". A mensagem não estava na lista de mensagens sociais; foi para a busca junto com a pergunta anterior, o Gemini respondeu sem citar trecho e o código trocou a resposta por SEM_BASE.
+- Correção em duas camadas:
+  1. `conversa.ts`: intenção nova `encerramento` ("é só isso", "era só isso", "por enquanto é só", "não, obrigado", "não" sozinho, "mais nada", "sem mais dúvidas", "já entendi", "tá ótimo", "fiquei satisfeito", "esclareceu minha dúvida", "vou olhar o edital", "pode encerrar" etc.), respondida sem Gemini nem cota com "Que bom que pude ajudar! Se surgir outra dúvida, é só perguntar aqui. Boa sorte no processo seletivo." "Não" só conta sozinho ("não entendi" e "não ficou claro" seguem para a busca); com interrogação ("é só isso?") a mensagem vai ao Gemini, porque pode ser pergunta.
+  2. Rede de segurança: regra 15 manda o Gemini responder só `CONVERSA_ENCERRADA` quando a mensagem é comentário ou encerramento; o Worker troca a marca pelo mesmo texto fixo (nunca usa o texto do modelo, que viria sem fonte). Conta como `conversa` no painel e não é gravada no registro.
+- 2 perguntas de referência novas na categoria `conversa`.
+
+## 2026-11-15 — Busca: redução do furg.br menor e vaga garantida ao 1º da busca textual
+
+- Teste no ar depois da leitura do furg.br (86 páginas, sem erro): trote, Campus Carreiros e Engenharia Civil vieram certos do portal, mas a duração e as vagas por ano de Medicina e o preço do restaurante não. A página de Medicina era a 1ª da busca textual (FTS), mas não chegava aos 8 trechos.
+- Causa 1: a redução de 0,01 do portal era maior que a faixa inteira da fusão (~0,025 para o 1º nas duas listas, ~0,012 para o 20º numa só). Passou a 0,002, só desempate; a precedência sobre os processos fica com a regra 14 e o bônus de processo.
+- Causa 2 (vale para todos os sites): com peso 0,5, o 1º só da busca textual (~0,008) perde até para o 20º da vetorial e nunca entra. `escolher` agora garante o 1º da busca textual entre os 8, no lugar do último colocado. Não mudei os pesos, para não alterar o resto das respostas.
+- Regra 14: vagas vindas de edital ou de página de processo são só daquele processo; nunca o "total do ano" (o modelo tinha chamado as 34 vagas do Vestibular de total anual).
