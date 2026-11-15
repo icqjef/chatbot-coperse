@@ -289,3 +289,8 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Causa 1: a redução de 0,01 do portal era maior que a faixa inteira da fusão (~0,025 para o 1º nas duas listas, ~0,012 para o 20º numa só). Passou a 0,002, só desempate; a precedência sobre os processos fica com a regra 14 e o bônus de processo.
 - Causa 2 (vale para todos os sites): com peso 0,5, o 1º só da busca textual (~0,008) perde até para o 20º da vetorial e nunca entra. `escolher` agora garante o 1º da busca textual entre os 8, no lugar do último colocado. Não mudei os pesos, para não alterar o resto das respostas.
 - Regra 14: vagas vindas de edital ou de página de processo são só daquele processo; nunca o "total do ano" (o modelo tinha chamado as 34 vagas do Vestibular de total anual).
+
+## 2026-11-15 — Trecho da busca textual entra como 9º, sem deslocar
+
+- Teste completo depois do #43: as 14 perguntas novas passaram, mas `vest-prova-data` passou a falhar (deu a data, sem o horário; a página do vestibular.furg.br saiu dos trechos e o Cronograma retificado, 1º da busca textual, entrou). Tomar o lugar do 8º colocado tirava trecho bom. `escolher` agora acrescenta o 1º da busca textual como 9º trecho, sem tirar nenhum dos 8 da fusão.
+- `armadilha-individual`: falso alarme do teste. A resposta certa ("para saber se sua inscrição foi homologada, acesse o sistema de inscrição... coperse@furg.br") continha o texto proibido "sua inscrição foi homologada". Os proibidos passaram a ser as afirmações ("sim, sua inscrição foi homologada", "sua inscrição foi homologada.").

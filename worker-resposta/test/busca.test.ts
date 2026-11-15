@@ -81,13 +81,13 @@ describe('fundir', () => {
     const r = fundir([{ id: 'portal', similaridade: 0.9 }, { id: 'coperse', similaridade: 0.89 }], [{ id: 'portal' }, { id: 'coperse' }], m, agora);
     expect(r.map((x) => x.id)).toEqual(['coperse', 'portal']);
   });
-  it('1º só na busca textual entra nos 8 pelo escolher, no lugar do 8º', () => {
+  it('1º só na busca textual entra pelo escolher como 9º, sem tirar o 8º', () => {
     const m = new Map<string, MetaFusao>([['portal', { ...meta(2026), site: 'furg' }]]);
     const vet = Array.from({ length: 20 }, (_, i) => ({ id: `e${i}`, similaridade: 0.8 - i / 100 }));
     for (const v of vet) m.set(v.id, { ...meta(2026), site: 'coperse' });
     const r = fundir(vet, [{ id: 'portal' }], m, agora);
     expect(r.findIndex((x) => x.id === 'portal')).toBeGreaterThanOrEqual(8);
-    expect(escolher(r, 'portal', 8)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'portal']);
+    expect(escolher(r, 'portal', 8)).toEqual(['e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'portal']);
   });
   it('portal furg.br sozinho no topo das duas listas continua na frente', () => {
     const m = new Map([
