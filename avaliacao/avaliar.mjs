@@ -34,7 +34,7 @@ async function perguntar(p) {
     });
     const corpo = await res.json().catch(() => ({}));
     if (res.status !== 200) return { erro: corpo.erro ?? "", status: res.status };
-    return { resposta: corpo.resposta ?? "", fontes: corpo.fontes ?? [] };
+    return { resposta: corpo.resposta ?? "", fontes: corpo.fontes ?? [], diagnostico: corpo.diagnostico };
   } catch (e) {
     return { erro: String(e), status: 0 };
   }

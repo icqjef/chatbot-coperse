@@ -294,3 +294,8 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 
 - Teste completo depois do #43: as 14 perguntas novas passaram, mas `vest-prova-data` passou a falhar (deu a data, sem o horário; a página do vestibular.furg.br saiu dos trechos e o Cronograma retificado, 1º da busca textual, entrou). Tomar o lugar do 8º colocado tirava trecho bom. `escolher` agora acrescenta o 1º da busca textual como 9º trecho, sem tirar nenhum dos 8 da fusão.
 - `armadilha-individual`: falso alarme do teste. A resposta certa ("para saber se sua inscrição foi homologada, acesse o sistema de inscrição... coperse@furg.br") continha o texto proibido "sua inscrição foi homologada". Os proibidos passaram a ser as afirmações ("sim, sua inscrição foi homologada", "sua inscrição foi homologada.").
+
+## 2026-11-15 — Diagnóstico da busca na página de teste
+
+- Com o #44 no ar, `vest-prova-data` continuou falhando, embora o trecho "Data e horário da prova… das 14h às 19h30" do vestibular.furg.br exista no D1 e no Vectorize. Sem ver a posição de cada trecho, os ajustes da fusão viram tentativa e erro.
+- As respostas pedidas pela origem `*.workers.dev` (página de teste e `avaliacao/avaliar.mjs`) trazem `diagnostico`: a consulta usada e os 15 primeiros da fusão com URL, site, nota, posição na busca vetorial (e similaridade), posição na textual e se foi escolhido. Só URLs públicas e notas. Respostas para os sites da FURG não trazem o campo. `avaliar.mjs` grava o diagnóstico no arquivo de resultados.

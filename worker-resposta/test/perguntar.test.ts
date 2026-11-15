@@ -208,6 +208,16 @@ describe('POST /perguntar', () => {
     expect(chamadas.some((c) => c.url.includes('generateContent'))).toBe(false);
   });
 
+  it('diagnóstico da busca só para a página de teste (*.workers.dev), nunca para os sites da FURG', async () => {
+    const { env } = montar({});
+    const furg = (await (await pedir(env, { pergunta: 'qual o prazo?' })).json()) as Record<string, unknown>;
+    expect(furg.diagnostico).toBeUndefined();
+    const teste = (await (
+      await pedir(env, { pergunta: 'qual o prazo?' }, { Origin: 'https://chatbot-coperse.coperse-furg.workers.dev' })
+    ).json()) as { diagnostico: { consulta: string; trechos: { url: string; escolhido: boolean; vetorial: number | null }[] } };
+    expect(teste.diagnostico.consulta).toBe('qual o prazo?');
+    expect(teste.diagnostico.trechos[0]).toMatchObject({ url: 'https://vestibular.furg.br/edital', escolhido: true, vetorial: 1 });
+  });
   it('com base: resposta e fontes', async () => {
     const { env } = montar({});
     const r = await pedir(env, { pergunta: 'qual o prazo?' });
