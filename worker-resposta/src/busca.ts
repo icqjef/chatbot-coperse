@@ -27,6 +27,18 @@ const PESO_VETORIAL = 1;
 const PESO_TEXTUAL = 0.5;
 const BONUS_PROCESSO = 0.02;
 const MS_DIA = 86_400_000;
+/**
+ * Edição de dois anos atrás ou mais: perde mais do que a distância entre o 1º e o último colocado
+ * da fusão, então só entra quando falta trecho de edição recente (ou a pergunta cita aquele ano).
+ */
+const PENALIDADE_EDICAO_ANTIGA = 0.04;
+const BONUS_ANO_PERGUNTADO = 0.02;
+
+/** Ano de edição citado na pergunta ("SiSU 2018", "nota de corte de 2020"), ou null. */
+export function anoDaPergunta(pergunta: string): number | null {
+  const m = /(?<!\d)(20[0-4]\d)(?!\d)/.exec(pergunta);
+  return m ? Number(m[1]) : null;
+}
 
 /** Monta uma consulta FTS5 segura: termos entre aspas unidos por OR. */
 export function consultaFts(pergunta: string): string | null {
@@ -53,6 +65,7 @@ export function fundir(
   meta: Map<string, MetaFusao>,
   agora: Date,
   processo?: string | null,
+  anoPerguntado: number | null = null,
 ): { id: string; pontuacao: number }[] {
   const pont = new Map<string, number>();
   const somar = (lista: { id: string }[], peso: number) =>
@@ -70,6 +83,8 @@ export function fundir(
         bonus += 0.01 * Math.min(1, Math.max(0, 1 - dias / 365));
       }
       if (m.ano !== null && m.ano >= anoAtual) bonus += 0.01;
+      if (m.ano !== null && anoPerguntado !== null && m.ano === anoPerguntado) bonus += BONUS_ANO_PERGUNTADO;
+      else if (m.ano !== null && anoPerguntado === null && m.ano < anoAtual - 1) bonus -= PENALIDADE_EDICAO_ANTIGA;
       if (processo && m.processo === processo) bonus += BONUS_PROCESSO;
     }
     pont.set(id, p + bonus);
@@ -140,6 +155,7 @@ export async function buscarTrechos(
     meta,
     deps.agora(),
     opcoes.processo,
+    anoDaPergunta(pergunta),
   );
   const trechos: Trecho[] = fundidos.slice(0, maximo).map(({ id }) => {
     const l = linhas.get(id)!;

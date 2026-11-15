@@ -235,3 +235,11 @@ Pedido do Jeferson: perfil de atendimento parecido com o dos assistentes de gran
 - Botão "Nova conversa" e indicador de digitação (pontos animados; o leitor de tela ouve "Pensando…").
 - Teto do widget passa de 15 KB para 20 KB (ficou em cerca de 18 KB).
 - Fora por ora: resposta em fluxo contínuo (streaming), que exigiria trocar a extração de fontes e gastaria mais CPU no plano gratuito.
+
+## 2026-11-15 — Edições antigas perdem peso na busca
+
+No teste do widget no sisu.furg.br, a resposta sobre lista de espera dizia "No SiSU 2026" mas citava "Perguntas Frequentes" (2018) e a página da edição 2011. Os metadados estavam certos; o bônus de recência (até 0,02) era menor que a distância entre posições da busca, então páginas antigas muito parecidas com a pergunta ganhavam das atuais.
+
+- Trecho de edição de dois anos atrás ou mais (`ano < ano atual - 1`) perde 0,04 na fusão: fica atrás de qualquer trecho recente, mas continua disponível quando não há conteúdo recente sobre o assunto. As edições anteriores seguem indexadas (decisão do Jeferson de 14/11).
+- Se a pergunta cita um ano ("nota de corte do SiSU 2018"), não há penalidade e os trechos daquele ano ganham 0,02.
+- Regra 7 do prompt: trecho de edição anterior só serve quando a pergunta é sobre ela ou quando nenhum trecho recente trata do assunto, e a resposta diz de que edição é a informação.
