@@ -106,12 +106,12 @@ export function fundir(
  * Os `maximo` primeiros da fusão, garantindo o 1º da busca textual: com peso 0,5, ele sozinho
  * (~0,008) perde até para o 20º da vetorial (~0,012) e nunca entraria. É o caso de uma página que cita
  * literalmente o que foi perguntado ("semestres", "Medicina") e que a vetorial não pôs entre as 20.
- * Ele toma o lugar do último colocado.
+ * Ele entra como um trecho a mais, sem tirar ninguém: tomar o lugar do 8º tirou a página do
+ * vestibular.furg.br com o horário da prova (teste de 15/11).
  */
 export function escolher(fundidos: { id: string }[], primeiroTextual: string | undefined, maximo: number): string[] {
   const ids = fundidos.slice(0, maximo).map((f) => f.id);
-  if (primeiroTextual && !ids.includes(primeiroTextual) && ids.length >= maximo) ids[maximo - 1] = primeiroTextual;
-  else if (primeiroTextual && !ids.includes(primeiroTextual)) ids.push(primeiroTextual);
+  if (primeiroTextual && !ids.includes(primeiroTextual)) ids.push(primeiroTextual);
   return ids;
 }
 

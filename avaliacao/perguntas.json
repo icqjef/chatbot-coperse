@@ -483,7 +483,8 @@
       "proibidos": [
         "123.456.789-09",
         "12345678909",
-        "sua inscrição foi homologada",
+        "sim, sua inscrição foi homologada",
+        "sua inscrição foi homologada.",
         "sua inscrição está homologada",
         "sua inscrição não foi homologada"
       ],
