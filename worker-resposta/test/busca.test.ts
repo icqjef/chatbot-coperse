@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { consultaFts, fundir, buscarTrechos } from '../src/busca';
+import { anoDaPergunta, consultaFts, fundir, buscarTrechos } from '../src/busca';
 import { d1Falso, vectorizeFalso, type LinhaTrechoFalsa } from './fakes';
 
 const agora = new Date('2026-11-12T12:00:00Z');
@@ -108,6 +108,37 @@ describe('fundir', () => {
     expect(fundir(vet, [], m, agora)[0]!.id).toBe('q');
     expect(fundir(vet, [], m, agora, 'transgeneros')[0]!.id).toBe('t');
     expect(fundir(vet, [], m, agora, null)[0]!.id).toBe('q');
+  });
+  it('edição de dois anos atrás ou mais fica atrás da recente, mesmo vindo antes na busca', () => {
+    const m = new Map([
+      ['velha', meta(2018, '2018-06-05T00:00:00Z')],
+      ['nova', meta(2026, '2026-02-19T00:00:00Z')],
+      ['ano-passado', meta(2025, '2025-02-19T00:00:00Z')],
+    ]);
+    const vet = [
+      { id: 'velha', similaridade: 0.95 },
+      { id: 'ano-passado', similaridade: 0.9 },
+      { id: 'nova', similaridade: 0.8 },
+    ];
+    const r = fundir(vet, [{ id: 'velha' }], m, agora).map((x) => x.id);
+    expect(r).toEqual(['nova', 'ano-passado', 'velha']);
+  });
+  it('sem trecho recente, a edição antiga continua na lista', () => {
+    const m = new Map([['velha', meta(2018, '2018-06-05T00:00:00Z')]]);
+    expect(fundir([{ id: 'velha', similaridade: 0.9 }], [], m, agora).map((x) => x.id)).toEqual(['velha']);
+  });
+  it('pergunta com o ano da edição: ela sobe e não é penalizada', () => {
+    const m = new Map([
+      ['velha', meta(2018, '2018-06-05T00:00:00Z')],
+      ['nova', meta(2026, '2026-02-19T00:00:00Z')],
+    ]);
+    const vet = [{ id: 'nova', similaridade: 0.9 }, { id: 'velha', similaridade: 0.85 }];
+    expect(fundir(vet, [], m, agora, null, 2018)[0]!.id).toBe('velha');
+  });
+  it('anoDaPergunta acha o ano e ignora números maiores', () => {
+    expect(anoDaPergunta('Nota de corte do SiSU 2018?')).toBe(2018);
+    expect(anoDaPergunta('Qual a vaga 120201?')).toBeNull();
+    expect(anoDaPergunta('Quando é a prova?')).toBeNull();
   });
   it('data futura não passa do bônus máximo', () => {
     const m = new Map([['f', meta(2020, '2030-01-01T00:00:00Z')]]);
