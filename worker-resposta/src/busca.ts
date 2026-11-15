@@ -140,11 +140,24 @@ async function buscarFts(db: D1Database, pergunta: string): Promise<{ id: string
   }
 }
 
+/** Por que um trecho entrou ou não: posição em cada busca e nota final (só na página de teste). */
+export interface LinhaDiagnostico {
+  url: string;
+  site: string;
+  pontuacao: number;
+  vetorial: number | null;
+  similaridade: number | null;
+  textual: number | null;
+  escolhido: boolean;
+}
+
+const MAX_DIAGNOSTICO = 15;
+
 export async function buscarTrechos(
   pergunta: string,
   deps: DepsBusca,
   opcoes: { limiar: number; maximo?: number; processo?: string | null },
-): Promise<{ trechos: Trecho[]; melhorSimilaridade: number }> {
+): Promise<{ trechos: Trecho[]; melhorSimilaridade: number; diagnostico?: LinhaDiagnostico[] }> {
   const maximo = opcoes.maximo ?? 8;
   const [vetor] = await deps.embedder.embed([pergunta], 'RETRIEVAL_QUERY');
   if (!vetor) throw new Error('embedding vazio');
@@ -195,5 +208,17 @@ export async function buscarTrechos(
       similaridade: simPorId.get(id) ?? 0,
     };
   });
-  return { trechos, melhorSimilaridade };
+  const escolhidos = new Set(trechos.map((t) => t.id));
+  const posVet = new Map(vetoriais.map((v, i) => [v.id, i + 1]));
+  const posTxt = new Map(textuaisValidos.map((t, i) => [t.id, i + 1]));
+  const diagnostico = fundidos.slice(0, MAX_DIAGNOSTICO).map(({ id, pontuacao }) => ({
+    url: linhas.get(id)!.url,
+    site: linhas.get(id)!.site,
+    pontuacao: Math.round(pontuacao * 10_000) / 10_000,
+    vetorial: posVet.get(id) ?? null,
+    similaridade: simPorId.has(id) ? Math.round(simPorId.get(id)! * 1000) / 1000 : null,
+    textual: posTxt.get(id) ?? null,
+    escolhido: escolhidos.has(id),
+  }));
+  return { trechos, melhorSimilaridade, diagnostico };
 }

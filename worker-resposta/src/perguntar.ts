@@ -3,7 +3,7 @@ import listasJson from '../../config/listas.json';
 import processosJson from '../../config/processos.json';
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
-import { buscarTrechos, type Trecho } from './busca';
+import { buscarTrechos, type LinhaDiagnostico, type Trecho } from './busca';
 import { diaSaoPaulo } from './limites';
 import { assinar, paresAutenticos, type MensagemRecebida } from './historico';
 import { ENCERRAMENTO, limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
@@ -263,7 +263,7 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   const agora = () => new Date();
   const contar = contaNoPainel(origem);
   const registro = env.REGISTRAR_PERGUNTAS === 'true' ? { pergunta: entrada.pergunta } : undefined;
-  const responder = async (r: Resultado, social = false) => {
+  const responder = async (r: Resultado & { diagnostico?: unknown }, social = false) => {
     if (contar) await contarPergunta(env.DB, tipoDaResposta(r, social), agora(), registro);
     return json({ ...r, assinatura: await assinar(r.resposta, segredo) }, 200, cors);
   };
@@ -289,17 +289,23 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
     const embedder = criarEmbedder(env);
     const gerador = criarGerador(env);
     const limiar = Number(env.LIMIAR_SIMILARIDADE);
+    let diagnostico: { consulta: string; trechos: LinhaDiagnostico[] } | undefined;
     const resultado = await responderPergunta(entrada, {
-      buscar: (p, processo) =>
-        buscarTrechos(
+      buscar: async (p, processo) => {
+        const r = await buscarTrechos(
           p,
           { embedder, vectorize: env.VECTORIZE, db: env.DB, agora },
           { limiar: Number.isFinite(limiar) && env.LIMIAR_SIMILARIDADE ? limiar : LIMIAR_PADRAO, processo },
-        ),
+        );
+        diagnostico = { consulta: p, trechos: r.diagnostico ?? [] };
+        return r;
+      },
       gerador,
       agora,
     });
-    return await responder(resultado);
+    // Página de teste e avaliação automática (origem *.workers.dev): mostra por que cada página entrou ou não.
+    // Só URLs públicas e notas; nunca vai para os sites da FURG.
+    return await responder(contar || !diagnostico ? resultado : { ...resultado, diagnostico });
   } catch (e) {
     // Só a parte inicial ("... HTTP 429"); o texto do provedor (depois do travessão) não vai ao log.
     const msg = String(e instanceof Error ? e.message : e).split(env.GEMINI_API_KEY).join('[chave]');
