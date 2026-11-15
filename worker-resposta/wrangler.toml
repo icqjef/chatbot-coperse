@@ -31,6 +31,8 @@ GITHUB_WORKFLOW = "indexar.yml"
 LIMITE_POR_MINUTO = "6"
 LIMITE_DIARIO_VISITANTE = "150"
 COTA_DIARIA = "1000"
+# Registro do texto das perguntas (mascarado, sem IP, apagado após 90 dias). Ligado pelo Jeferson em 2026-11-15.
+REGISTRAR_PERGUNTAS = "true"
 
 # Limites exatos (o limitador nativo da Cloudflare é aproximado). SQLite: único tipo no plano gratuito.
 [[durable_objects.bindings]]

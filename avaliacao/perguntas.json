@@ -1,6 +1,8 @@
 {
   "versao": 1,
   "conferido_por_jeferson": true,
+  "edicoes": { "vestibular": 2027, "sisu": 2026, "transgeneros": 2027, "quilombolas": 2027, "indigenas": 2027, "vagas-complementares": 2026 },
+  "nota_edicoes": "Edição de cada processo que estas perguntas conferem. O resumo semanal avisa quando aparecem no índice páginas de uma edição mais nova; aí as perguntas daquele processo precisam ser revistas (docs/guia-operacao.md, seção 6).",
   "nota": "Rascunho de 2026-11-13 montado a partir dos trechos indexados. 'fatos': cada item é uma lista de formas aceitas; a resposta precisa conter ao menos uma forma de cada item (sem diferenciar maiúsculas nem acentos). 'fonte': trecho da URL que precisa aparecer nas fontes. 'sem_fontes': a resposta não pode trazer fontes. 'proibidos': textos que não podem aparecer. 'historico': lista opcional de mensagens anteriores ({papel, texto}), enviada como está na requisição (testa seguimentos como 'e de Medicina?'). 'datas_antigas': datas da edição passada que não podem aparecer sem o ano.",
   "perguntas": [
     {

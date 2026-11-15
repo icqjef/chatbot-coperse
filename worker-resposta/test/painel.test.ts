@@ -12,6 +12,7 @@ function montar(opcoes: { permitir?: boolean; falhar?: boolean; senha?: string }
           if (opcoes.falhar) throw new Error('d1');
           consultas.push({ sql, params });
           if (sql.includes('GROUP BY dia')) return { results: [{ dia: '2026-11-15', ajudou: 3, nao: 1 }] };
+          if (sql.includes('perguntas_registro')) return { results: [{ dia: '2026-11-15', tipo: 'sem_base', pergunta: 'Tem curso de Medicina à noite?' }] };
           if (sql.includes('contagem_perguntas')) return { results: [{ dia: '2026-11-15', tipo: 'sem_base', n: 2 }] };
           if (sql.includes('FROM paginas')) return { results: [{ url: 'https://a.furg.br/x', titulo: 'Página X' }] };
           if (sql.startsWith('SELECT fontes')) {
@@ -37,6 +38,19 @@ const dados = (env: Env, senha = SENHA, dias = '30') =>
   );
 
 describe('painel', () => {
+  it('com registro ligado: perguntas sem resposta e a cota diária', async () => {
+    const { env } = montar();
+    (env as unknown as Record<string, string>).REGISTRAR_PERGUNTAS = 'true';
+    (env as unknown as Record<string, string>).COTA_DIARIA = '1000';
+    const j = (await (await dados(env)).json()) as Record<string, unknown>;
+    expect(j).toMatchObject({ registro: true, cota: 1000, semResposta: [{ tipo: 'sem_base', pergunta: 'Tem curso de Medicina à noite?' }] });
+  });
+  it('com registro desligado: não lê o registro', async () => {
+    const { env, consultas } = montar();
+    const j = (await (await dados(env)).json()) as Record<string, unknown>;
+    expect(j).toMatchObject({ registro: false, semResposta: [] });
+    expect(consultas.some((c) => c.sql.includes('perguntas_registro'))).toBe(false);
+  });
   it('GET /painel: página sem dados, com CSP, noindex e sem cache', async () => {
     const r = await worker.fetch(new Request('https://w.example/painel'), montar().env);
     expect(r.status).toBe(200);
