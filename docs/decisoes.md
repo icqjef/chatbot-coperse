@@ -299,3 +299,8 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 
 - Com o #44 no ar, `vest-prova-data` continuou falhando, embora o trecho "Data e horário da prova… das 14h às 19h30" do vestibular.furg.br exista no D1 e no Vectorize. Sem ver a posição de cada trecho, os ajustes da fusão viram tentativa e erro.
 - As respostas pedidas pela origem `*.workers.dev` (página de teste e `avaliacao/avaliar.mjs`) trazem `diagnostico`: a consulta usada e os 15 primeiros da fusão com URL, site, nota, posição na busca vetorial (e similaridade), posição na textual e se foi escolhido. Só URLs públicas e notas. Respostas para os sites da FURG não trazem o campo. `avaliar.mjs` grava o diagnóstico no arquivo de resultados.
+
+## 2026-11-15 — No máximo 2 trechos por página entre os 8
+
+- Diagnóstico no ar de "Quando é a prova do Vestibular FURG 2027?": o trecho do vestibular.furg.br com o horário era o 1º da busca vetorial (similaridade 0,84, contra 0,81 do seguinte), mas ficou em 8º na fusão. A listagem de notícias do Vestibular no coperse (`?view=category&id=258`, atualizada hoje) ocupou 4 dos 8 lugares. Os bônus (processo, ano, ano perguntado, recência: até ~0,06) pesam mais que a diferença de posição (~0,02), e trechos parecidos da mesma página passam juntos.
+- `escolher` agora aceita no máximo 2 trechos por página; os que passam do limite só completam a lista quando faltam trechos de outras páginas. Os bônus não mudaram, para não alterar o resto das respostas.

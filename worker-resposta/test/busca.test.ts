@@ -229,4 +229,10 @@ describe('escolher', () => {
     expect(escolher([{ id: 'a' }], 't', 8)).toEqual(['a', 't']);
     expect(escolher([{ id: 'a' }, { id: 'b' }, { id: 'c' }], undefined, 2)).toEqual(['a', 'b']);
   });
+  it('no máximo 2 trechos por página; os que passam completam a lista se faltar', () => {
+    const url = (id: string) => id.split('#')[0]!;
+    const f = ['lista#1', 'lista#2', 'lista#3', 'lista#4', 'vest#1', 'edital#1'].map((id) => ({ id }));
+    expect(escolher(f, undefined, 4, url)).toEqual(['lista#1', 'lista#2', 'vest#1', 'edital#1']);
+    expect(escolher(f.slice(0, 4), undefined, 3, url)).toEqual(['lista#1', 'lista#2', 'lista#3']);
+  });
 });
