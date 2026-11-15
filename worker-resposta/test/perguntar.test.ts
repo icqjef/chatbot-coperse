@@ -3,6 +3,7 @@ import worker, { type Env } from '../src/index';
 import { responderPergunta, chaveLimite, consultaDeBusca } from '../src/perguntar';
 import { SEM_BASE } from '../src/regras';
 import { assinar, assinaturaValida } from '../src/historico';
+import { ENCERRAMENTO } from '../src/conversa';
 import type { Trecho } from '../src/busca';
 import { d1Falso, vectorizeFalso } from './fakes';
 
@@ -447,6 +448,10 @@ describe('responderPergunta: saudação decidida no código', () => {
     gerador: { gerar: async () => texto },
     agora: () => new Date('2026-11-12T12:00:00Z'),
   });
+  it('modelo marca encerramento (regra 15): texto fixo, sem fontes e sem contato', async () => {
+    const r = await responderPergunta({ pergunta: 'blz então, era essa a dúvida', historico: [] }, deps('CONVERSA_ENCERRADA'));
+    expect(r).toEqual({ resposta: ENCERRAMENTO, fontes: [], sugestoes: [], contato: false });
+  });
   it('pergunta sem saudação: tira o "Olá!" que o modelo pôs', async () => {
     const r = await responderPergunta({ pergunta: 'Quando é a prova?', historico: [] }, deps('Olá! \n\nA prova é dia 22/11/2026 [1].'));
     expect(r.resposta).toBe('A prova é dia 22/11/2026 [1].');
@@ -634,6 +639,7 @@ describe('contagem das perguntas', () => {
     expect(tipoDaResposta({ resposta: `Bom dia! ${SEM_BASE}`, fontes: [], contato: true }, false)).toBe('sem_base');
     expect(tipoDaResposta({ resposta: 'Não posso ver sua nota. Escreva para coperse@furg.br.', fontes: [], contato: true }, false)).toBe('recusa');
     expect(tipoDaResposta({ resposta: 'Olá!', fontes: [], contato: false }, true)).toBe('conversa');
+    expect(tipoDaResposta({ resposta: ENCERRAMENTO, fontes: [], contato: false }, false)).toBe('conversa');
     expect(contaNoPainel('https://coperse.furg.br')).toBe(true);
     expect(contaNoPainel('https://chatbot-coperse.coperse-furg.workers.dev')).toBe(false);
   });

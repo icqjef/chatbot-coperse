@@ -4,7 +4,7 @@
  * inteira é social; "bom dia, quando é a prova?" segue para o fluxo normal.
  */
 
-type Intencao = 'saudacao' | 'comoVai' | 'identidade' | 'data' | 'hora' | 'agradecimento' | 'despedida';
+type Intencao = 'saudacao' | 'comoVai' | 'identidade' | 'data' | 'hora' | 'agradecimento' | 'despedida' | 'encerramento';
 
 const FUSO = 'America/Sao_Paulo';
 
@@ -17,6 +17,8 @@ const PADROES: [Intencao | null, string][] = [
   ['hora', '(?:que|quais) horas? (?:sao|e|e agora|sao agora)|(?:qual|que) (?:e )?(?:a )?hora(?: atual| certa| agora)?|hora atual|hora certa|horario atual|as horas'],
   ['agradecimento', 'muit(?:o|issimo) obrigad[oa]s?|obrigad[oa]s?|obrigadao|brigad[oa]|obg|valeu|vlw|agradec\\w*|grat[oa]|thanks|thank you|(?:me )?ajudou(?: muito| bastante)?|otimo|perfeito|entendi|entendido|certo|ok|okay|blz|show|legal|massa|top'],
   ['despedida', 'tchau|xau|ate (?:logo|mais|breve|a proxima|amanha)|adeus|falou|flw|bye'],
+  // "é só isso", "não, obrigado", "já entendi", "vou olhar o edital": a pessoa está satisfeita ou encerrando.
+  ['encerramento', '(?:era|e|foi|sera) (?:so|somente|apenas) (?:isso|isto|essa|esta)(?: mesmo| ai| por enquanto| por hoje)?|(?:so|somente|apenas) (?:isso|isto|essa|esta)(?: mesmo| ai| por enquanto| por hoje)?|por (?:enquanto|hoje|ora|agora|aqui) (?:e |era |foi )?(?:so|isso|tudo|somente|apenas)(?: mesmo)?|(?:era|e|foi) (?:isso|tudo)(?: mesmo| ai)?|isso (?:mesmo|ai|e tudo|era tudo)|e tudo|era tudo|foi tudo|(?:nao |n )?(?:preciso|quero|tenho|vou precisar) (?:de )?mais nada|mais nada|nada mais|nada|(?:nenhuma|sem|nao tenho|nao tenho mais|nao tenho outra) (?:outra |mais )?(?:duvida|pergunta)s?(?: por enquanto| no momento)?|(?:nao|n) (?:obrigad[oa]|valeu|precisa|preciso|era so isso|e so isso)|(?:nao|n)$|(?:ja )?(?:esta|ta|fica|ficou) (?:bom|otimo|resolvido|certo|tranquilo|beleza|claro|esclarecido|de boa)|ja (?:entendi|sei|consegui|resolvi|vi|era)|ja$|tudo (?:certo|resolvido|esclarecido|ok|claro)|(?:fiquei |estou |to |tou |fico )?satisfeit[oa]s?|(?:fiquei |estou |to )?(?:tranquil[oa]|aliviad[oa])|(?:isso |voce |vc )?(?:me )?(?:esclareceu|resolveu|respondeu)(?: tudo| minha duvida| minhas duvidas)?|(?:tirou|sanou|respondeu|esclareceu) (?:a |as )?(?:minha |minhas )?duvidas?|resolvido|esclarecido|pode (?:encerrar|finalizar|fechar)|encerrar|encerra|finalizar|fim|acabou|terminei|terminamos|vou (?:ver|olhar|conferir|dar uma olhada|ler|verificar)(?: (?:la|aqui|isso|o edital|depois))?|maravilha|excelente|show de bola|beleza|que bom|bom saber|boa|joia|tranquilo|de boa|combinado|fechado|certinho|isso'],
   // palavras de ligação que podem aparecer entre as frases sociais
   [null, 'e|por favor|pf|pfv|pfvr|entao|ai|assistente|bot|chatbot|coperse|amig[oa]|gente|pessoal|me diga|me diz|diga|diz|voce sabe|vc sabe|sabe|sabe me dizer|pode me dizer|poderia me dizer|pode me informar|poderia informar|me informe|informe|mesmo|muito|pela ajuda|pela informacao|pelas informacoes|pela resposta|de novo|hoje|agora|hj|sim|ta|tudo|novamente|a|o|me|tb|tambem'],
 ];
@@ -81,6 +83,9 @@ export const APRESENTACAO =
 
 const CONVITE = 'Como posso ajudar com os processos seletivos da FURG?';
 
+/** Resposta a quem encerra a conversa ("é só isso"); também usada quando o Gemini marca a mensagem como encerramento. */
+export const ENCERRAMENTO = 'Que bom que pude ajudar! Se surgir outra dúvida, é só perguntar aqui. Boa sorte no processo seletivo.';
+
 export function dataPorExtenso(agora: Date): string {
   return new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(agora);
 }
@@ -115,7 +120,11 @@ export function respostaSocial(mensagem: string, agora: Date): string | null {
   else if (i.has('hora')) partes.push(`Agora são ${horaBr(agora)} (horário de Brasília).`);
   const agradeceu = i.has('agradecimento');
   const despediu = i.has('despedida');
+  const encerrou = i.has('encerramento');
+  // "É só isso?" com interrogação pode ser pergunta ("são só esses documentos?"): o Gemini decide pelo contexto.
+  if (encerrou && mensagem.includes('?')) return null;
   if (agradeceu && despediu) partes.push('Por nada! Até mais e boa sorte no processo seletivo.');
+  else if (encerrou) partes.push(agradeceu ? `Por nada! ${ENCERRAMENTO}` : despediu ? `${ENCERRAMENTO} Até mais!` : ENCERRAMENTO);
   else if (agradeceu) partes.push('Por nada! Se tiver outra dúvida sobre os processos seletivos da FURG, é só perguntar.');
   else if (despediu) partes.push('Até mais! Boa sorte no processo seletivo.');
   else if (!i.has('data') && !i.has('hora')) partes.push(CONVITE);

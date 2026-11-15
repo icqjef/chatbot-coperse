@@ -274,3 +274,11 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Regras: o assunto passou a incluir os cursos de graduação e o começo da vida acadêmica de quem ingressa (matrícula, calendário, campi, restaurante, moradia e auxílios); o resto continua recusado. Regra 14: sobre datas, taxas, vagas, documentos e regras de um processo, prevalecem coperse, sisu e vestibular; "Vagas" da página do curso é o total anual, e o assistente diz isso e dá também as vagas do processo quando houver.
 - Saudação do Worker e boas-vindas do widget (perfil COPERSE) citam os cursos de graduação.
 - Perguntas de referência: 7 novas na categoria `cursos-vida-academica` (fora do portão), com `origem` marcando que foram tiradas do furg.br e faltam ser conferidas pelo Jeferson.
+
+## 2026-11-15 — Encerramento da conversa ("é só isso")
+
+- Problema relatado pelo Jeferson: depois de uma resposta, "é só isso" (satisfeito, encerrando) recebeu "Não encontrei essa informação". A mensagem não estava na lista de mensagens sociais; foi para a busca junto com a pergunta anterior, o Gemini respondeu sem citar trecho e o código trocou a resposta por SEM_BASE.
+- Correção em duas camadas:
+  1. `conversa.ts`: intenção nova `encerramento` ("é só isso", "era só isso", "por enquanto é só", "não, obrigado", "não" sozinho, "mais nada", "sem mais dúvidas", "já entendi", "tá ótimo", "fiquei satisfeito", "esclareceu minha dúvida", "vou olhar o edital", "pode encerrar" etc.), respondida sem Gemini nem cota com "Que bom que pude ajudar! Se surgir outra dúvida, é só perguntar aqui. Boa sorte no processo seletivo." "Não" só conta sozinho ("não entendi" e "não ficou claro" seguem para a busca); com interrogação ("é só isso?") a mensagem vai ao Gemini, porque pode ser pergunta.
+  2. Rede de segurança: regra 15 manda o Gemini responder só `CONVERSA_ENCERRADA` quando a mensagem é comentário ou encerramento; o Worker troca a marca pelo mesmo texto fixo (nunca usa o texto do modelo, que viria sem fonte). Conta como `conversa` no painel e não é gravada no registro.
+- 2 perguntas de referência novas na categoria `conversa`.
