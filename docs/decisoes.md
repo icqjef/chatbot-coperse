@@ -304,3 +304,12 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 
 - Diagnóstico no ar de "Quando é a prova do Vestibular FURG 2027?": o trecho do vestibular.furg.br com o horário era o 1º da busca vetorial (similaridade 0,84, contra 0,81 do seguinte), mas ficou em 8º na fusão. A listagem de notícias do Vestibular no coperse (`?view=category&id=258`, atualizada hoje) ocupou 4 dos 8 lugares. Os bônus (processo, ano, ano perguntado, recência: até ~0,06) pesam mais que a diferença de posição (~0,02), e trechos parecidos da mesma página passam juntos.
 - `escolher` agora aceita no máximo 2 trechos por página; os que passam do limite só completam a lista quando faltam trechos de outras páginas. Os bônus não mudaram, para não alterar o resto das respostas.
+
+## 2026-11-15 — Conferência automática das datas
+
+- Pedido do Jeferson, depois de ver o modelo escrever "a prova foi realizada em 22/11/2026" (data futura) e um "Fique atento:" com prazo já vencido, apesar das regras 8 e 12.
+- `worker-resposta/src/tempo.ts`, sem dependências:
+  - `problemasDeTempo`: em cada frase, para cada data dd/mm/aaaa, olha o último verbo nos 60 caracteres anteriores (depois da data anterior). Passado ("foi", "ocorreu", "terminou"…) com data futura, ou futuro ("será", "vai"…) com data passada, é erro. Presente ("é", "ocorre") e mudança de prazo entre o verbo e a data ("foram prorrogadas até", "foi publicado") não são conferidos. A data de hoje também não.
+  - `semAvisoVencido`: tira a linha "Fique atento:" quando todas as datas dela já passaram.
+- No Worker: com erro de tempo, o modelo reescreve uma vez, com a correção no sistema (hoje, a data e o tempo esperado). Fica a nova versão só se tiver menos erros e continuar citando trechos. A segunda chamada não passa pela cota diária (é rara). Não troco o verbo no código porque frases como "foram prorrogadas até 20/12" estão certas.
+- No teste de qualidade, `verificar.mjs` importa o mesmo `tempo.ts` (o Node 24 roda TypeScript simples) e reprova resposta com tempo verbal errado ou aviso vencido, em todas as perguntas. Aplicada às ~180 respostas dos 4 últimos testes, só apontou o caso real ("Fique atento" com o recurso de 15/10/2026).

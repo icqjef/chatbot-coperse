@@ -91,3 +91,17 @@ describe("armadilha de edição passada", () => {
     expect(verificar(p, { resposta: "No SiSU 2026, a habilitação segue a lista de espera [1].", fontes: [{ url: "x" }] }).ok).toBe(true);
   });
 });
+
+describe("conferência das datas", () => {
+  const p = { fatos: [], fonte: "" };
+  const HOJE = "2026-11-15";
+  it("reprova passado com data futura e 'Fique atento' vencido", () => {
+    const r = verificar(p, ok("A prova foi realizada em 22/11/2026 [1]."), HOJE);
+    expect(r.motivos).toContain('tempo verbal: "foi" com 22/11/2026 (esperado futuro)');
+    const v = verificar(p, ok("Consulte o sistema [1].\n\nFique atento: o recurso foi até 15/10/2026 [1]."), HOJE);
+    expect(v.motivos).toContain('"Fique atento" com prazo que já passou');
+  });
+  it("aprova tempo certo", () => {
+    expect(verificar(p, ok("A prova será realizada em 22/11/2026 [1].\n\nFique atento: a prova será em 22/11/2026 [1]."), HOJE).ok).toBe(true);
+  });
+});

@@ -462,6 +462,37 @@ describe('responderPergunta: saudação decidida no código', () => {
     const r = await responderPergunta({ pergunta: 'blz então, era essa a dúvida', historico: [] }, deps('CONVERSA_ENCERRADA'));
     expect(r).toEqual({ resposta: ENCERRAMENTO, fontes: [], sugestoes: [], contato: false });
   });
+  it('tempo verbal errado: pede nova versão ao modelo, avisando o erro, e usa a corrigida', async () => {
+    const sistemas: string[] = [];
+    const respostas = ['A prova foi realizada em 22/11/2026 [1].', 'A prova será realizada em 22/11/2026 [1].'];
+    const r = await responderPergunta(
+      { pergunta: 'Quando é a prova?', historico: [] },
+      { ...deps(''), gerador: { gerar: async (s: string) => (sistemas.push(s), respostas.shift()!) } },
+    );
+    expect(r.resposta).toBe('A prova será realizada em 22/11/2026 [1].');
+    expect(sistemas).toHaveLength(2);
+    expect(sistemas[1]).toContain('22/11/2026 é depois de hoje');
+  });
+  it('tempo verbal: se a nova versão não melhora ou perde a citação, fica a primeira', async () => {
+    const respostas = ['A prova foi realizada em 22/11/2026 [1].', 'A prova será em 22/11/2026.'];
+    const r = await responderPergunta(
+      { pergunta: 'Quando é a prova?', historico: [] },
+      { ...deps(''), gerador: { gerar: async () => respostas.shift()! } },
+    );
+    expect(r.resposta).toBe('A prova foi realizada em 22/11/2026 [1].');
+  });
+  it('tempo certo: uma chamada só; "Fique atento" com prazo vencido sai', async () => {
+    let chamadas = 0;
+    const r = await responderPergunta(
+      { pergunta: 'Minha inscrição foi homologada?', historico: [] },
+      {
+        ...deps(''),
+        gerador: { gerar: async () => (chamadas++, 'Consulte o sistema de inscrição [1].\n\nFique atento: o recurso foi até 15/10/2026 [1].') },
+      },
+    );
+    expect(chamadas).toBe(1);
+    expect(r.resposta).toBe('Consulte o sistema de inscrição [1].');
+  });
   it('pergunta sem saudação: tira o "Olá!" que o modelo pôs', async () => {
     const r = await responderPergunta({ pergunta: 'Quando é a prova?', historico: [] }, deps('Olá! \n\nA prova é dia 22/11/2026 [1].'));
     expect(r.resposta).toBe('A prova é dia 22/11/2026 [1].');

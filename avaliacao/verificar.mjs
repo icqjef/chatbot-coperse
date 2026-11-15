@@ -1,3 +1,9 @@
+import { problemasDeTempo, semAvisoVencido } from "../worker-resposta/src/tempo.ts";
+
+/** Hoje em Brasília, AAAA-MM-DD. */
+export const hojeBrasilia = (agora = new Date()) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(agora);
+
 export function normalizar(t) {
   return String(t ?? "")
     .toLowerCase()
@@ -37,7 +43,7 @@ export function comDatasNumericas(texto) {
   return conv === texto ? texto : `${texto} ${conv}`;
 }
 
-export function verificar(p, r) {
+export function verificar(p, r, hoje = hojeBrasilia()) {
   if (r.erro !== undefined || (r.status !== undefined && r.status !== 200)) {
     return { ok: false, motivos: [`HTTP ${r.status}: ${r.erro ?? ""}`.trim()] };
   }
@@ -60,6 +66,13 @@ export function verificar(p, r) {
   }
   for (const x of p.proibidos ?? []) {
     if (texto.includes(normalizar(x))) motivos.push(`texto proibido presente: ${x}`);
+  }
+  // Mesma conferência do Worker (worker-resposta/src/tempo.ts): se chegou aqui, escapou dela.
+  for (const e of problemasDeTempo(String(r.resposta ?? ""), hoje)) {
+    motivos.push(`tempo verbal: "${e.verbo}" com ${e.data} (esperado ${e.esperado})`);
+  }
+  if (semAvisoVencido(String(r.resposta ?? ""), hoje) !== String(r.resposta ?? "").trim()) {
+    motivos.push('"Fique atento" com prazo que já passou');
   }
   if (p.deve_dizer_edicao_passada) {
     const ano = texto.includes(normalizar(p.deve_dizer_edicao_passada));
