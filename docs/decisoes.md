@@ -243,3 +243,11 @@ No teste do widget no sisu.furg.br, a resposta sobre lista de espera dizia "No S
 - Trecho de edição de dois anos atrás ou mais (`ano < ano atual - 1`) perde 0,04 na fusão: fica atrás de qualquer trecho recente, mas continua disponível quando não há conteúdo recente sobre o assunto. As edições anteriores seguem indexadas (decisão do Jeferson de 14/11).
 - Se a pergunta cita um ano ("nota de corte do SiSU 2018"), não há penalidade e os trechos daquele ano ganham 0,02.
 - Regra 7 do prompt: trecho de edição anterior só serve quando a pergunta é sobre ela ou quando nenhum trecho recente trata do assunto, e a resposta diz de que edição é a informação.
+
+## 2026-11-15 — Painel das avaliações
+
+- Página `/painel` servida pelo próprio Worker de resposta, lendo o D1 ao vivo. Sem serviço novo, sem conta nova e sem copiar dados para fora da Cloudflare.
+- Acesso com a senha da reindexação manual (`REINDEX_TOKEN`, já existente): o Jeferson não precisa guardar outra. Os números vêm de `POST /painel/dados` com a senha no cabeçalho `Authorization`; o limite por minuto do visitante vale antes da conferência da senha. A página em si não traz dados.
+- Mostra total, taxa de aprovação, 👍 e 👎 no período (7, 30 ou 90 dias), avaliações por dia em barras empilhadas (com tabela equivalente para leitor de tela) e as últimas 50 respostas com 👎. Cores da paleta de referência (azul = ajudou, laranja = não ajudou), validadas nos modos claro e escuro.
+- Cabeçalhos: CSP só com script do próprio Worker, `noindex`, sem cache, sem `Referer`, sem incorporação em outros sites.
+
