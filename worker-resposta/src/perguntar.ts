@@ -5,6 +5,7 @@ import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type LinhaDiagnostico, type Trecho } from './busca';
 import { diaSaoPaulo } from './limites';
+import { correcaoDeTempo, problemasDeTempo, semAvisoVencido } from './tempo';
 import { assinar, paresAutenticos, type MensagemRecebida } from './historico';
 import { ENCERRAMENTO, limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
 import { cabecalhosCors, origemPermitida } from './cors';
@@ -103,19 +104,32 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
   const consulta = consultaDeBusca(entrada.pergunta, entrada.historico);
   const { trechos } = await deps.buscar(consulta, inferirProcesso([entrada.pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS));
   if (trechos.length === 0) return NAO_ACHOU;
+  const sistema = montarSistema(trechos, deps.agora());
+  const mensagens: Mensagem[] = [...entrada.historico, { papel: 'usuario', texto: entrada.pergunta }];
   let bruta: string;
   try {
-    bruta = await deps.gerador.gerar(montarSistema(trechos, deps.agora()), [
-      ...entrada.historico,
-      { papel: 'usuario', texto: entrada.pergunta },
-    ]);
+    bruta = await deps.gerador.gerar(sistema, mensagens);
   } catch (e) {
     if (e instanceof RespostaBloqueada) return NAO_ACHOU;
     throw e;
   }
   // Encerramento que escapou da lista de conversa.ts: texto fixo, nunca o do modelo (que viria sem fonte).
   if (bruta.includes(MARCA_ENCERRAMENTO)) return { resposta: ENCERRAMENTO, fontes: [], sugestoes: [], contato: false };
-  const { texto, sugestoes } = separarSugestoes(bruta, entrada.pergunta);
+  const hoje = diaSaoPaulo(deps.agora());
+  // Tempo verbal que não combina com a data ("foi realizada em" data futura): o modelo reescreve uma vez,
+  // avisado do erro. Fica a nova versão só se ela errar menos e continuar citando trechos.
+  const problemas = problemasDeTempo(bruta, hoje);
+  if (problemas.length) {
+    try {
+      const nova = await deps.gerador.gerar(sistema + correcaoDeTempo(problemas, hoje), mensagens);
+      if (problemasDeTempo(nova, hoje).length < problemas.length && /\[\d+\]/.test(nova)) bruta = nova;
+    } catch {
+      // fica a primeira versão
+    }
+  }
+  const separada = separarSugestoes(bruta, entrada.pergunta);
+  const sugestoes = separada.sugestoes;
+  const texto = semAvisoVencido(separada.texto, hoje);
   const { resposta, fontes, citou } = extrairFontes(texto, trechos);
   if (fontes.length === 0) {
     // Recusa ou encaminhamento (regras 3 a 5): curta, sem citar número algum e apontando para a COPERSE.
