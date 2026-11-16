@@ -42,7 +42,7 @@ export { Limites } from './limites';
 const ORIGENS = carregarOrigens(origensJson);
 
 export default {
-  async fetch(req: Request, envBruto: Env): Promise<Response> {
+  async fetch(req: Request, envBruto: Env, ctx?: ExecutionContext): Promise<Response> {
     let env = envBruto;
     if (envBruto.LIMITES) {
       const { limitador, cota } = criarLimites(envBruto.LIMITES, envBruto);
@@ -80,7 +80,7 @@ export default {
     }
     if (url.pathname === '/perguntar' || url.pathname === '/avaliar') {
       if (req.method === 'POST') {
-        return url.pathname === '/avaliar' ? tratarAvaliar(req, env, ORIGENS) : tratarPerguntar(req, env, ORIGENS);
+        return url.pathname === '/avaliar' ? tratarAvaliar(req, env, ORIGENS) : tratarPerguntar(req, env, ORIGENS, ctx);
       }
       if (req.method === 'OPTIONS') {
         const origem = req.headers.get('Origin');

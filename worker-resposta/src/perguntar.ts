@@ -61,6 +61,30 @@ export interface DepsResposta {
   buscar: (pergunta: string, processo: string | null) => Promise<{ trechos: Trecho[]; melhorSimilaridade: number }>;
   gerador: Gerador;
   agora: () => Date;
+  /** Resposta gradual: recebe a prévia já filtrada (só frases completas e com fonte) enquanto o modelo escreve. */
+  aoParcial?: (texto: string) => void;
+}
+
+const FIM_DE_FRASE = /[.!?](?=\s)|\n/g;
+
+/**
+ * Prévia do texto que o modelo ainda está escrevendo: só frases completas, antes de "Sugestões:", com os mesmos
+ * filtros da resposta final (tempo verbal, aviso vencido, fontes, datas, saudação). Null enquanto não houver
+ * citação válida: texto sem fonte nunca aparece, nem por instantes. A resposta final sempre substitui a prévia.
+ */
+export function previa(acumulado: string, trechos: Trecho[], pergunta: string, hoje: string): string | null {
+  if (acumulado.trimStart().startsWith(MARCA_ENCERRAMENTO.slice(0, 8))) return null;
+  let texto = separarSugestoes(acumulado).texto;
+  // Com "Sugestões:" já escrita, o texto antes dela está completo (o corte tira o espaço depois da última frase).
+  let fim = texto.length < acumulado.length ? texto.length : 0;
+  if (!fim) for (const m of texto.matchAll(FIM_DE_FRASE)) fim = m.index + 1;
+  if (!fim) return null;
+  texto = semAvisoVencido(corrigirTempo(texto.slice(0, fim), hoje), hoje);
+  const { resposta, fontes } = extrairFontes(texto, trechos);
+  if (!fontes.length) return null;
+  const saudacao = saudacaoInicial(pergunta);
+  const corpo = limparDatas(semSaudacaoDoModelo(resposta));
+  return saudacao ? `${saudacao} ${corpo}` : corpo;
 }
 
 const MAX_SEGUIMENTO = 60;
@@ -112,16 +136,28 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
   if (trechos.length === 0) return NAO_ACHOU;
   const sistema = montarSistema(trechos, deps.agora());
   const mensagens: Mensagem[] = [...entrada.historico, { papel: 'usuario', texto: entrada.pergunta }];
+  const hoje = diaSaoPaulo(deps.agora());
   let bruta: string;
   try {
-    bruta = await deps.gerador.gerar(sistema, mensagens);
+    const aoParcial = deps.aoParcial;
+    if (aoParcial && deps.gerador.gerarAosPoucos) {
+      // A prévia só é refeita quando termina uma frase: poupa CPU a cada pedaço.
+      let frases = 0;
+      let ultima = '';
+      bruta = await deps.gerador.gerarAosPoucos(sistema, mensagens, (acumulado) => {
+        const n = acumulado.match(FIM_DE_FRASE)?.length ?? 0;
+        if (n === frases) return;
+        frases = n;
+        const p = previa(acumulado, trechos, entrada.pergunta, hoje);
+        if (p && p !== ultima) aoParcial((ultima = p));
+      });
+    } else bruta = await deps.gerador.gerar(sistema, mensagens);
   } catch (e) {
     if (e instanceof RespostaBloqueada) return NAO_ACHOU;
     throw e;
   }
   // Encerramento que escapou da lista de conversa.ts: texto fixo, nunca o do modelo (que viria sem fonte).
   if (bruta.includes(MARCA_ENCERRAMENTO)) return { resposta: ENCERRAMENTO, fontes: [], sugestoes: [], contato: false };
-  const hoje = diaSaoPaulo(deps.agora());
   // Tempo verbal que não combina com a data ("foi realizada em" data futura): o modelo reescreve uma vez,
   // avisado do erro. Fica a nova versão só se ela errar menos e continuar citando trechos; o resto é trocado direto.
   const problemas = problemasDeTempo(bruta, hoje);
@@ -260,7 +296,14 @@ async function lerCorpoLimitado(req: Request): Promise<string | null> {
 
 let avisouSemChave = false;
 
-export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: string[]): Promise<Response> {
+const NDJSON = 'application/x-ndjson';
+
+export async function tratarPerguntar(
+  req: Request,
+  env: EnvPerguntar,
+  origens: string[],
+  ctx?: { waitUntil(p: Promise<unknown>): void },
+): Promise<Response> {
   const origem = req.headers.get('Origin');
   const cors = cabecalhosCors(origem, origens);
   if (!origemPermitida(origem, origens)) return json({ erro: 'Origem não permitida.' }, 403, cors);
@@ -317,14 +360,18 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
       return json({ erro: MSG_COTA }, 429, cors);
     }
   }
-  try {
-    const ate = Date.now() + PRAZO_GEMINI_MS;
+  const ate = Date.now() + PRAZO_GEMINI_MS;
+  const limiar = Number(env.LIMIAR_SIMILARIDADE);
+  let diagnostico: { consulta: string; trechos: LinhaDiagnostico[] } | undefined;
+  // Provedores criados aqui dentro: configuração inválida vira 503 (ou {"erro"}) no try de quem chama.
+  const gerarResposta = (aoParcial?: (texto: string) => void) => {
     const embedder = criarEmbedder(env, undefined, { tempoMs: TEMPO_EMBEDDING_MS });
     const base = criarGerador(env);
-    const gerador: Gerador = { gerar: (sistema, mensagens) => base.gerar(sistema, mensagens, { ate }) };
-    const limiar = Number(env.LIMIAR_SIMILARIDADE);
-    let diagnostico: { consulta: string; trechos: LinhaDiagnostico[] } | undefined;
-    const resultado = await responderPergunta(entrada, {
+    const gerador: Gerador = {
+      gerar: (sistema, mensagens) => base.gerar(sistema, mensagens, { ate }),
+      gerarAosPoucos: (sistema, mensagens, aoReceber) => base.gerarAosPoucos!(sistema, mensagens, aoReceber, { ate }),
+    };
+    return responderPergunta(entrada, {
       buscar: async (p, processo) => {
         const r = await buscarTrechos(
           p,
@@ -336,16 +383,58 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
       },
       gerador,
       agora,
+      aoParcial,
     });
-    // Página de teste e avaliação automática (origem *.workers.dev): mostra por que cada página entrou ou não.
-    // Só URLs públicas e notas; nunca vai para os sites da FURG.
-    const resposta = await responder(contar || !diagnostico ? resultado : { ...resultado, diagnostico });
-    if (chave) await gravarCache(env.DB, chave, resultado, agora());
-    return resposta;
-  } catch (e) {
+  };
+  // Página de teste e avaliação automática (origem *.workers.dev): mostra por que cada página entrou ou não.
+  // Só URLs públicas e notas; nunca vai para os sites da FURG.
+  const comDiagnostico = (r: Resultado) => (contar || !diagnostico ? r : { ...r, diagnostico });
+  const registrarFalha = (e: unknown) => {
     // Só a parte inicial ("... HTTP 429"); o texto do provedor (depois do travessão) não vai ao log.
     const msg = String(e instanceof Error ? e.message : e).split(env.GEMINI_API_KEY).join('[chave]');
     console.error('Falha ao responder:', msg.split(' — ')[0]!.slice(0, 120));
-    return json({ erro: MSG_INDISPONIVEL }, 503, cors);
+  };
+
+  if (!(req.headers.get('Accept') ?? '').includes(NDJSON)) {
+    try {
+      const resultado = await gerarResposta();
+      const resposta = await responder(comDiagnostico(resultado));
+      if (chave) await gravarCache(env.DB, chave, resultado, agora());
+      return resposta;
+    } catch (e) {
+      registrarFalha(e);
+      return json({ erro: MSG_INDISPONIVEL }, 503, cors);
+    }
   }
+
+  // Resposta gradual (widget novo): uma linha JSON por evento. {"parcial": texto} quantas vezes vier, e por
+  // fim {"fim": resposta completa} ou {"erro": mensagem}. A resposta final é a mesma do modo JSON.
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+  const escritor = writable.getWriter();
+  const codificador = new TextEncoder();
+  const linha = (o: unknown) => escritor.write(codificador.encode(JSON.stringify(o) + '\n')).catch(() => {});
+  const trabalho = (async () => {
+    try {
+      const resultado = await gerarResposta((texto) => void linha({ parcial: texto }));
+      const r = comDiagnostico(resultado);
+      if (contar) await contarPergunta(env.DB, tipoDaResposta(r, false), agora(), registro);
+      await linha({ fim: { ...r, assinatura: await assinar(r.resposta, segredo) } });
+      if (chave) await gravarCache(env.DB, chave, resultado, agora());
+    } catch (e) {
+      registrarFalha(e);
+      await linha({ erro: MSG_INDISPONIVEL });
+    } finally {
+      await escritor.close().catch(() => {});
+    }
+  })();
+  ctx?.waitUntil(trabalho);
+  return new Response(readable, {
+    status: 200,
+    headers: {
+      ...cors,
+      'Content-Type': `${NDJSON}; charset=utf-8`,
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
 }

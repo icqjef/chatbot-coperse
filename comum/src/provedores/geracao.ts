@@ -12,6 +12,13 @@ export interface OpcoesGerar {
 
 export interface Gerador {
   gerar(sistema: string, mensagens: Mensagem[], opcoes?: OpcoesGerar): Promise<string>;
+  /** Como `gerar`, chamando `aoReceber` com o texto acumulado a cada pedaço que chega. */
+  gerarAosPoucos?(
+    sistema: string,
+    mensagens: Mensagem[],
+    aoReceber: (acumulado: string) => void,
+    opcoes?: OpcoesGerar,
+  ): Promise<string>;
 }
 
 /** O provedor recusou a resposta (RECITATION/SAFETY): não é falha de serviço. */
@@ -50,18 +57,22 @@ export function criarGerador(
   const esperaMs = opcoes.esperaMs ?? ESPERA_PADRAO_MS;
   const esperar = opcoes.esperar ?? esperarPadrao;
 
-  async function chamar(modelo: string, sistema: string, mensagens: Mensagem[], limiteMs: number): Promise<string> {
-    const resp = await fetchFn(`${BASE}/${modelo}:generateContent`, {
+  function corpo(sistema: string, mensagens: Mensagem[]): string {
+    return JSON.stringify({
+      systemInstruction: { parts: [{ text: sistema }] },
+      contents: mensagens.map((m) => ({
+        role: m.papel === 'usuario' ? 'user' : 'model',
+        parts: [{ text: m.texto }],
+      })),
+      generationConfig: { maxOutputTokens: 1024 },
+    });
+  }
+
+  async function pedir(url: string, sistema: string, mensagens: Mensagem[], limiteMs: number): Promise<Response> {
+    const resp = await fetchFn(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: sistema }] },
-        contents: mensagens.map((m) => ({
-          role: m.papel === 'usuario' ? 'user' : 'model',
-          parts: [{ text: m.texto }],
-        })),
-        generationConfig: { maxOutputTokens: 1024 },
-      }),
+      body: corpo(sistema, mensagens),
       signal: AbortSignal.timeout(limiteMs),
     });
     if (!resp.ok) {
@@ -69,50 +80,120 @@ export function criarGerador(
       const msg = typeof bruto === 'string' ? bruto.split(env.GEMINI_API_KEY).join('[chave]').slice(0, 300) : '';
       throw new ErroHttpProvedor(`Falha na geração do Gemini: HTTP ${resp.status}${msg ? ' — ' + msg : ''}`, resp.status);
     }
-    const dados = (await resp.json()) as any;
+    return resp;
+  }
+
+  /** Texto (sem partes de raciocínio) e motivo de término de um pedaço da resposta do Gemini. */
+  function lerCandidato(dados: any): { texto: string; fim?: string; existe: boolean } {
     const cand = dados?.candidates?.[0];
     const partes: any[] = cand?.content?.parts ?? [];
     const texto = partes
       .filter((p) => !p.thought && typeof p.text === 'string')
       .map((p) => p.text)
       .join('');
-    if (cand?.finishReason === 'SAFETY' || cand?.finishReason === 'RECITATION')
-      throw new RespostaBloqueada(cand.finishReason);
+    return { texto, fim: cand?.finishReason, existe: Boolean(cand) };
+  }
+
+  function conferir(texto: string, fim: string | undefined, existe: boolean): string {
+    if (fim === 'SAFETY' || fim === 'RECITATION') throw new RespostaBloqueada(fim);
     // MAX_TOKENS com texto: aceita o trecho parcial.
-    if (!cand || !texto) throw new Error('Gemini não devolveu texto');
+    if (!existe || !texto) throw new Error('Gemini não devolveu texto');
     return texto;
   }
 
-  return {
-    async gerar(sistema: string, mensagens: Mensagem[], opcoesGerar: OpcoesGerar = {}): Promise<string> {
-      if (mensagens.length === 0 || mensagens.at(-1)?.papel === "modelo")
-        throw new Error('A última mensagem deve ser do usuário (papel "modelo" é rejeitado pelo Gemini)');
-      const ate = opcoesGerar.ate ?? Infinity;
-      const restante = () => ate - Date.now();
-      // Plano: principal; se a falha passageira foi rápida, principal de novo após espera curta;
-      // depois a reserva (outra geração de modelo, outra capacidade). Tempo esgotado vai direto à reserva.
-      const plano: { modelo: string; espera: boolean }[] = [{ modelo: principal, espera: false }];
-      let ultimoErro: unknown = new Error('Gemini: sem tempo para tentar');
-      for (let i = 0; i < plano.length; i++) {
-        const passo = plano[i]!;
-        if (passo.espera) {
-          if (restante() < esperaMs + MINIMO_MS) break;
-          await esperar(esperaMs);
-        }
-        const limiteMs = Math.min(tempoMs, restante());
-        if (limiteMs < MINIMO_MS) break;
-        try {
-          const texto = await chamar(passo.modelo, sistema, mensagens, limiteMs);
-          if (passo.modelo !== principal) console.error(`Gemini: resposta pelo modelo reserva ${passo.modelo}`);
-          return texto;
-        } catch (e) {
-          ultimoErro = e;
-          if (!passageiro(e)) throw e;
-          if (i === 0 && !tempoEsgotado(e)) plano.push({ modelo: principal, espera: true });
-          if (i <= 1 && reserva && !plano.some((p) => p.modelo === reserva)) plano.push({ modelo: reserva, espera: false });
+  async function chamar(modelo: string, sistema: string, mensagens: Mensagem[], limiteMs: number): Promise<string> {
+    const resp = await pedir(`${BASE}/${modelo}:generateContent`, sistema, mensagens, limiteMs);
+    const c = lerCandidato(await resp.json());
+    return conferir(c.texto, c.fim, c.existe);
+  }
+
+  /**
+   * Resposta em pedaços (Server-Sent Events). `aoReceber` recebe o texto acumulado a cada pedaço.
+   * Falha depois do primeiro pedaço não é passageira: repetir mostraria o começo de novo à pessoa.
+   */
+  async function chamarAosPoucos(
+    modelo: string,
+    sistema: string,
+    mensagens: Mensagem[],
+    limiteMs: number,
+    aoReceber: (acumulado: string) => void,
+  ): Promise<string> {
+    const resp = await pedir(`${BASE}/${modelo}:streamGenerateContent?alt=sse`, sistema, mensagens, limiteMs);
+    if (!resp.body) throw new Error('Gemini não devolveu texto');
+    const leitor = resp.body.pipeThrough(new TextDecoderStream()).getReader();
+    let resto = '';
+    let texto = '';
+    let fim: string | undefined;
+    let existe = false;
+    try {
+      for (;;) {
+        const { done, value } = await leitor.read();
+        if (done) break;
+        resto += value;
+        let n: number;
+        while ((n = resto.indexOf('\n')) >= 0) {
+          const linha = resto.slice(0, n).trim();
+          resto = resto.slice(n + 1);
+          if (!linha.startsWith('data:')) continue;
+          const c = lerCandidato(JSON.parse(linha.slice(5)));
+          existe ||= c.existe;
+          if (c.fim) fim = c.fim;
+          if (c.texto) {
+            texto += c.texto;
+            aoReceber(texto);
+          }
         }
       }
-      throw ultimoErro;
+    } catch (e) {
+      if (texto) throw new Error(`Gemini interrompeu a resposta: ${e instanceof Error ? e.name : 'erro'}`);
+      throw e;
+    }
+    return conferir(texto, fim, existe);
+  }
+
+  // Plano: principal; se a falha passageira foi rápida, principal de novo após espera curta;
+  // depois a reserva (outra geração de modelo, outra capacidade). Tempo esgotado vai direto à reserva.
+  async function comTentativas(
+    mensagens: Mensagem[],
+    opcoesGerar: OpcoesGerar,
+    chamarModelo: (modelo: string, limiteMs: number) => Promise<string>,
+  ): Promise<string> {
+    if (mensagens.length === 0 || mensagens.at(-1)?.papel === "modelo")
+      throw new Error('A última mensagem deve ser do usuário (papel "modelo" é rejeitado pelo Gemini)');
+    const ate = opcoesGerar.ate ?? Infinity;
+    const restante = () => ate - Date.now();
+    const plano: { modelo: string; espera: boolean }[] = [{ modelo: principal, espera: false }];
+    let ultimoErro: unknown = new Error('Gemini: sem tempo para tentar');
+    for (let i = 0; i < plano.length; i++) {
+      const passo = plano[i]!;
+      if (passo.espera) {
+        if (restante() < esperaMs + MINIMO_MS) break;
+        await esperar(esperaMs);
+      }
+      const limiteMs = Math.min(tempoMs, restante());
+      if (limiteMs < MINIMO_MS) break;
+      try {
+        const texto = await chamarModelo(passo.modelo, limiteMs);
+        if (passo.modelo !== principal) console.error(`Gemini: resposta pelo modelo reserva ${passo.modelo}`);
+        return texto;
+      } catch (e) {
+        ultimoErro = e;
+        if (!passageiro(e)) throw e;
+        if (i === 0 && !tempoEsgotado(e)) plano.push({ modelo: principal, espera: true });
+        if (i <= 1 && reserva && !plano.some((p) => p.modelo === reserva)) plano.push({ modelo: reserva, espera: false });
+      }
+    }
+    throw ultimoErro;
+  }
+
+  return {
+    gerar(sistema: string, mensagens: Mensagem[], opcoesGerar: OpcoesGerar = {}): Promise<string> {
+      return comTentativas(mensagens, opcoesGerar, (modelo, limiteMs) => chamar(modelo, sistema, mensagens, limiteMs));
+    },
+    gerarAosPoucos(sistema, mensagens, aoReceber, opcoesGerar = {}) {
+      return comTentativas(mensagens, opcoesGerar, (modelo, limiteMs) =>
+        chamarAosPoucos(modelo, sistema, mensagens, limiteMs, aoReceber),
+      );
     },
   };
 }

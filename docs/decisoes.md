@@ -347,6 +347,14 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Vale também para a recusa sem citação: com o e-mail acrescentado, ela passa como encaminhamento em vez de virar SEM_BASE.
 - Perguntas gerais ("Quando sai a homologação?", "Qual a nota mínima?", "meu curso tem quantas vagas?") não são afetadas.
 
+## 16/11/2026 — Gemini: tempo-limite, nova tentativa e modelo reserva
+
+- Motivo: na avaliação de 16/11, 3 perguntas voltaram com HTTP 503 do Gemini e passaram ao repetir. O candidato recebia "indisponível" numa falha de instantes. Não havia tempo-limite: se o Gemini demorasse, o widget desistia aos 30 s sem resposta do Worker.
+- Fonte: aistudio.google.com/docs/troubleshooting ("Retry strategy", conferido em 16/11/2026): repetir com espera em 408, 429 e 5xx; não repetir 400, 401, 402, 403 e 404.
+- Geração (`comum/src/provedores/geracao.ts`): no máximo 3 chamadas. Modelo principal; se a falha passageira foi rápida, o principal de novo após 0,6 s; depois o modelo reserva. Tempo esgotado vai direto à reserva. Cada chamada tem 12 s, e o Worker não começa tentativa depois de 26 s do início (o widget espera 30 s). Resposta bloqueada (SAFETY/RECITATION) e erro de cliente não são repetidos.
+- Reserva: `MODELO_RESERVA = "gemini-3.1-flash-lite"`, estável e de outra geração, com capacidade separada (aistudio.google.com/docs/models, 16/11/2026). Uso registrado no log ("resposta pelo modelo reserva"). Preço da reserva a conferir na página de preços antes de ela virar rotina; hoje é usada só em falha.
+- Embeddings: uma nova tentativa em falha passageira, sem reserva (vetores de outro modelo não se comparam aos do índice). 6 s por chamada na pergunta; 30 s no indexador.
+- Padrão adotado: o mesmo das bibliotecas oficiais (repetição com espera); não houve projeto do GitHub a adaptar para um trecho tão pequeno.
 ## 16/11/2026 — Ataques às instruções na avaliação automática
 
 - Motivo: as defesas contra ataque às instruções (regra 10, histórico assinado, máscara de dados, recusa sem fonte) não tinham teste de ponta a ponta. Uma mudança no prompt ou no código poderia abri-las sem ninguém perceber.
@@ -363,6 +371,15 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Por que D1 e não o Cache API da Cloudflare: o Cache API não guarda nada em endereços *.workers.dev, que é onde o Worker roda.
 - Prazo de 2 horas: a indexação já leva de 2 a 8 horas para trazer uma novidade dos sites. Duas horas a mais no pior caso não mudam muito, e respostas datadas ("hoje", "encerrado") não atravessam a meia-noite.
 - Privacidade: o aviso `/privacidade` e o inventário em `docs/conformidade.md` incluem a tabela nova.
+
+## 16/11/2026 — Resposta aparecendo enquanto é escrita
+
+- Motivo: o candidato esperava de 2 a 4 s olhando "Pensando…" e só então via a resposta inteira. Os atendentes de empresas de referência mostram o texto à medida que ele é escrito.
+- Gemini: `gerarAosPoucos` usa `streamGenerateContent?alt=sse`. A nova tentativa e o modelo reserva valem só até chegar o primeiro pedaço; depois disso, uma falha encerra a resposta, para não mostrar o começo duas vezes.
+- Worker: com `Accept: application/x-ndjson`, responde uma linha JSON por evento: `{"parcial": texto}` e, no fim, `{"fim": resposta}` ou `{"erro": mensagem}`. Sem esse cabeçalho (avaliação automática, widget antigo em cache), tudo segue em JSON como antes. Erros antes da geração (limite, cota, origem) e respostas prontas continuam em JSON com o status de sempre.
+- Prévia segura: só frases completas, nada depois de "Sugestões:", e só depois da primeira citação válida. Texto sem fonte nunca aparece, nem por instantes. A prévia passa pelos mesmos filtros da resposta final (tempo verbal, aviso vencido, endereços, datas, saudação). A resposta final é a mesma do modo JSON e substitui a prévia; quando a reescrita do tempo verbal acontece, só ela muda.
+- Acessibilidade: a prévia fica com `aria-hidden`. O leitor de tela continua ouvindo "Pensando…" e ouve a resposta final uma vez, sem anunciar cada pedaço.
+- Padrão adotado: NDJSON sobre `fetch`, em vez de EventSource, porque a pergunta vai por POST e EventSource só faz GET. Leitura com `getReader`; navegador sem esse recurso lê tudo de uma vez no fim.
 ## 16/11/2026 — Monitor com alerta a cada 10 minutos
 
 - Motivo: até aqui só havia o resumo semanal e o e-mail de falha da indexação. Se o Worker, o banco ou o Gemini caíssem, ninguém ficava sabendo.
