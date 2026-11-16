@@ -150,6 +150,7 @@ Para acompanhar as avaliações, abra o painel https://chatbot-coperse.coperse-f
 - quantas perguntas os candidatos fizeram e quantas ficaram sem resposta, separando as não encontradas nas páginas (falta página ou edital) das recusadas (fora do tema ou caso individual);
 - o texto das perguntas sem resposta, as mais recentes primeiro (perguntas repetidas mostram o que falta nas páginas);
 - o dia com mais perguntas frente à cota diária e quantos candidatos a cota barrou;
+- o tempo de resposta: a mediana (metade das respostas chega até esse tempo) e a porcentagem acima de 5 segundos. Se a parte acima de 5 s passar de 10%, avise quem mantém o código;
 - o total de avaliações, a taxa de aprovação e os votos por dia (em gráfico ou tabela);
 - as páginas mais citadas nas respostas com 👎 (as primeiras a revisar) e as próprias respostas com 👎.
 

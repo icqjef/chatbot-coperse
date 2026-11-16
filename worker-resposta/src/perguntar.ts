@@ -304,6 +304,7 @@ export async function tratarPerguntar(
   origens: string[],
   ctx?: { waitUntil(p: Promise<unknown>): void },
 ): Promise<Response> {
+  const recebidaEm = Date.now();
   const origem = req.headers.get('Origin');
   const cors = cabecalhosCors(origem, origens);
   if (!origemPermitida(origem, origens)) return json({ erro: 'Origem não permitida.' }, 403, cors);
@@ -332,7 +333,7 @@ export async function tratarPerguntar(
   const contar = contaNoPainel(origem);
   const registro = env.REGISTRAR_PERGUNTAS === 'true' ? { pergunta: entrada.pergunta } : undefined;
   const responder = async (r: Resultado & { diagnostico?: unknown }, social = false) => {
-    if (contar) await contarPergunta(env.DB, tipoDaResposta(r, social), agora(), registro);
+    if (contar) await contarPergunta(env.DB, tipoDaResposta(r, social), agora(), registro, Date.now() - recebidaEm);
     return json({ ...r, assinatura: await assinar(r.resposta, segredo) }, 200, cors);
   };
   const negado = await aplicarLimite(req, env.LIMITADOR, cors, true);
@@ -417,7 +418,7 @@ export async function tratarPerguntar(
     try {
       const resultado = await gerarResposta((texto) => void linha({ parcial: texto }));
       const r = comDiagnostico(resultado);
-      if (contar) await contarPergunta(env.DB, tipoDaResposta(r, false), agora(), registro);
+      if (contar) await contarPergunta(env.DB, tipoDaResposta(r, false), agora(), registro, Date.now() - recebidaEm);
       await linha({ fim: { ...r, assinatura: await assinar(r.resposta, segredo) } });
       if (chave) await gravarCache(env.DB, chave, resultado, agora());
     } catch (e) {

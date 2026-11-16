@@ -13,6 +13,7 @@ function montar(opcoes: { permitir?: boolean; falhar?: boolean; senha?: string }
           consultas.push({ sql, params });
           if (sql.includes('GROUP BY dia')) return { results: [{ dia: '2026-11-15', ajudou: 3, nao: 1 }] };
           if (sql.includes('perguntas_registro')) return { results: [{ dia: '2026-11-15', tipo: 'sem_base', pergunta: 'Tem curso de Medicina à noite?' }] };
+          if (sql.includes('tempo_resposta')) return { results: [{ faixa: 'ate2', n: 7 }, { faixa: 'ate10', n: 1 }] };
           if (sql.includes('contagem_perguntas')) return { results: [{ dia: '2026-11-15', tipo: 'sem_base', n: 2 }] };
           if (sql.includes('FROM paginas')) return { results: [{ url: 'https://a.furg.br/x', titulo: 'Página X' }] };
           if (sql.startsWith('SELECT fontes')) {
@@ -44,6 +45,7 @@ describe('painel', () => {
     (env as unknown as Record<string, string>).COTA_DIARIA = '1000';
     const j = (await (await dados(env)).json()) as Record<string, unknown>;
     expect(j).toMatchObject({ registro: true, cota: 1000, semResposta: [{ tipo: 'sem_base', pergunta: 'Tem curso de Medicina à noite?' }] });
+    expect(j.tempos).toEqual([{ faixa: 'ate2', n: 7 }, { faixa: 'ate10', n: 1 }]);
   });
   it('com registro desligado: não lê o registro', async () => {
     const { env, consultas } = montar();

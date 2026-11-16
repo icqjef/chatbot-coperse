@@ -81,7 +81,7 @@ export async function tratarPainelDados(req: Request, env: Env, agora = new Date
   const inicio = diaSaoPaulo(new Date(agora.getTime() - (dias - 1) * MS_DIA));
   try {
     const registro = env.REGISTRAR_PERGUNTAS === 'true';
-    const [porDia, negativas, perguntas, fontesNegativas, semResposta] = await Promise.all([
+    const [porDia, negativas, perguntas, fontesNegativas, semResposta, tempos] = await Promise.all([
       env.DB.prepare(
         'SELECT dia, SUM(util) AS ajudou, COUNT(*) - SUM(util) AS nao FROM avaliacoes WHERE dia >= ? GROUP BY dia ORDER BY dia',
       )
@@ -103,6 +103,9 @@ export async function tratarPainelDados(req: Request, env: Env, agora = new Date
             .bind(inicio)
             .all<{ dia: string; tipo: string; pergunta: string }>()
         : Promise.resolve({ results: [] as { dia: string; tipo: string; pergunta: string }[] }),
+      env.DB.prepare('SELECT faixa, SUM(n) AS n FROM tempo_resposta WHERE dia >= ? GROUP BY faixa')
+        .bind(inicio)
+        .all<{ faixa: string; n: number }>(),
     ]);
     const top = contarUrls(fontesNegativas.results.map((l) => l.fontes));
     const titulos = await tituloDasPaginas(env.DB, [...top.map(([u]) => u), ...negativas.results.flatMap((n) => lerFontes(n.fontes))]);
@@ -116,6 +119,7 @@ export async function tratarPainelDados(req: Request, env: Env, agora = new Date
         cota: Number(env.COTA_DIARIA) || 1000,
         registro,
         semResposta: semResposta.results,
+        tempos: tempos.results,
         paginasRuins: top.map(([url, n]) => ({ url, titulo: titulos.get(url) ?? url, n })),
         negativas: negativas.results.map((n) => ({
           dia: n.dia,
@@ -251,6 +255,10 @@ th { color: var(--texto-2); font-weight: 600; }
       <div class="cartao kpi"><div class="rotulo">Dia com mais perguntas</div><div class="valor" id="k-pico">–</div><div class="nota" id="k-pico-nota"></div></div>
       <div class="cartao kpi"><div class="rotulo">Barradas pela cota diária</div><div class="valor" id="k-limite">–</div><div class="nota" id="k-limite-nota"></div></div>
     </div>
+    <div class="kpis">
+      <div class="cartao kpi"><div class="rotulo">Tempo de resposta (mediana)</div><div class="valor" id="k-tempo">–</div><div class="nota" id="k-tempo-nota">metade das respostas chega até esse tempo</div></div>
+      <div class="cartao kpi"><div class="rotulo">Respostas acima de 5 s</div><div class="valor" id="k-lentas">–</div><div class="nota" id="k-lentas-nota">até a resposta completa</div></div>
+    </div>
     <div class="cartao secao" id="cartao-sem-resposta">
       <h2>Perguntas sem resposta</h2>
       <p class="ajuda" id="ajuda-sem-resposta">As mais recentes primeiro (até 100). Perguntas que se repetem mostram o que falta nas páginas ou no edital. Dados pessoais aparecem como [removido].</p>
@@ -381,6 +389,7 @@ const PAINEL_JS = `(() => {
     $('k-limite').textContent = num(limite);
     $('k-limite-nota').textContent = limite ? 'candidatos que receberam "limite de hoje atingido"' : 'nenhum candidato barrado';
     semResposta();
+    tempos();
 
     const aval = porDia(dados.porDia, (_acc, l) => ({ a: Number(l.ajudou), b: Number(l.nao) }));
     const sim = aval.reduce((s, d) => s + d.a, 0);
@@ -460,6 +469,25 @@ const PAINEL_JS = `(() => {
     });
     t.append(corpo);
     $('tabela-' + nome).replaceChildren(corpo.children.length ? t : el('p', { class: 'vazio' }, msgVazio));
+  }
+
+  // Faixas na ordem; a mediana é a primeira faixa que alcança metade das respostas.
+  const FAIXAS = [['ate1', 'até 1 s'], ['ate2', 'até 2 s'], ['ate3', 'até 3 s'], ['ate5', 'até 5 s'], ['ate10', 'até 10 s'], ['mais10', 'mais de 10 s']];
+  function tempos() {
+    const n = new Map((dados.tempos || []).map((l) => [l.faixa, Number(l.n)]));
+    const total = FAIXAS.reduce((s, [f]) => s + (n.get(f) || 0), 0);
+    if (!total) {
+      $('k-tempo').textContent = '–';
+      $('k-lentas').textContent = '–';
+      $('k-lentas-nota').textContent = 'sem medições no período';
+      return;
+    }
+    let soma = 0;
+    const mediana = FAIXAS.find(([f]) => (soma += n.get(f) || 0) >= total / 2);
+    $('k-tempo').textContent = mediana[1];
+    const lentas = (n.get('ate10') || 0) + (n.get('mais10') || 0);
+    $('k-lentas').textContent = pct(lentas / total);
+    $('k-lentas-nota').textContent = num(lentas) + ' de ' + num(total) + ' respostas';
   }
 
   const TIPOS = { sem_base: 'não encontrada', recusa: 'recusada', limite: 'cota esgotada' };
