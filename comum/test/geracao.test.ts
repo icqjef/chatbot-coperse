@@ -92,4 +92,74 @@ describe('criarGerador (Gemini)', () => {
   it('provedor desconhecido lança erro', () => {
     expect(() => criarGerador({ ...env, PROVEDOR_LLM: 'x' })).toThrow(/PROVEDOR_LLM/);
   });
+
+  describe('falhas passageiras', () => {
+    const rapido = { esperar: async () => {} };
+    const erro = (status: number) => new Response(JSON.stringify({ error: { message: 'x' } }), { status });
+    const modeloDe = (f: any, i: number) => /models\/([^:]+):/.exec(f.mock.calls[i][0])![1];
+    const envR = { ...env, MODELO_RESERVA: 'reserva-x' };
+
+    it('503 repete no principal e responde', async () => {
+      const f = vi.fn().mockResolvedValueOnce(erro(503)).mockResolvedValueOnce(texto('ok'));
+      expect(await criarGerador(envR, f as any, rapido).gerar('s', msgs)).toBe('ok');
+      expect([modeloDe(f, 0), modeloDe(f, 1)]).toEqual(['gemini-3.5-flash-lite', 'gemini-3.5-flash-lite']);
+    });
+
+    it('duas falhas no principal vão para a reserva', async () => {
+      const f = vi.fn().mockResolvedValueOnce(erro(503)).mockResolvedValueOnce(erro(429)).mockResolvedValueOnce(texto('ok'));
+      expect(await criarGerador(envR, f as any, rapido).gerar('s', msgs)).toBe('ok');
+      expect(f).toHaveBeenCalledTimes(3);
+      expect(modeloDe(f, 2)).toBe('reserva-x');
+    });
+
+    it('tempo esgotado vai direto para a reserva', async () => {
+      const tempo = Object.assign(new Error('t'), { name: 'TimeoutError' });
+      const f = vi.fn().mockRejectedValueOnce(tempo).mockResolvedValueOnce(texto('ok'));
+      expect(await criarGerador(envR, f as any, rapido).gerar('s', msgs)).toBe('ok');
+      expect(modeloDe(f, 1)).toBe('reserva-x');
+    });
+
+    it('sem reserva: no máximo duas chamadas e devolve o último erro', async () => {
+      const f = vi.fn(async () => erro(500));
+      await expect(criarGerador(env, f as any, rapido).gerar('s', msgs)).rejects.toThrow(/HTTP 500/);
+      expect(f).toHaveBeenCalledTimes(2);
+    });
+
+    it('todas falham: três chamadas no máximo', async () => {
+      const f = vi.fn(async () => erro(503));
+      await expect(criarGerador(envR, f as any, rapido).gerar('s', msgs)).rejects.toThrow(/HTTP 503/);
+      expect(f).toHaveBeenCalledTimes(3);
+    });
+
+    it('erro de cliente (400, 403) não repete', async () => {
+      for (const st of [400, 403]) {
+        const f = vi.fn(async () => erro(st));
+        await expect(criarGerador(envR, f as any, rapido).gerar('s', msgs)).rejects.toThrow(`HTTP ${st}`);
+        expect(f).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it('RespostaBloqueada não repete', async () => {
+      const f = vi.fn(async () => ok({ candidates: [{ finishReason: 'SAFETY' }] }));
+      await expect(criarGerador(envR, f as any, rapido).gerar('s', msgs)).rejects.toBeInstanceOf(RespostaBloqueada);
+      expect(f).toHaveBeenCalledTimes(1);
+    });
+
+    it('prazo curto: não começa tentativa sem tempo e limita o tempo da chamada', async () => {
+      const f = vi.fn(async () => erro(503));
+      await expect(
+        criarGerador(envR, f as any, rapido).gerar('s', msgs, { ate: Date.now() + 2500 }),
+      ).rejects.toThrow(/HTTP 503/);
+      expect(f).toHaveBeenCalledTimes(1);
+      const g = vi.fn(async () => texto('ok'));
+      await criarGerador(envR, g as any, rapido).gerar('s', msgs, { ate: Date.now() + 1000 }).catch(() => {});
+      expect(g).not.toHaveBeenCalled();
+    });
+
+    it('envia sinal de tempo-limite', async () => {
+      const f = vi.fn(async () => texto('ok'));
+      await criarGerador(env, f as any).gerar('s', msgs);
+      expect((f.mock.calls[0] as any)[1].signal).toBeInstanceOf(AbortSignal);
+    });
+  });
 });
