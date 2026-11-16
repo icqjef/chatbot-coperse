@@ -85,6 +85,25 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/**
+ * Pergunta sobre a situação da própria pessoa ("minha inscrição foi homologada?", "qual a minha nota?").
+ * Possessivo da 1ª pessoa perto de um assunto que só o sistema de inscrição ou a COPERSE sabem responder.
+ */
+const INDIVIDUAL =
+  /(?<!\p{L})(?:minha|meu|minhas|meus)\s+(?:\p{L}+\s+){0,2}?(?:inscri[cç][aã]o|isen[cç][aã]o|homologa[cç][aã]o|nota|recurso|classifica[cç][aã]o|resultado|situa[cç][aã]o|matr[ií]cula|pedido|aferi[cç][aã]o)(?!\p{L})/iu;
+/** "fui homologado?", "passei?": a pergunta pela própria situação sem possessivo. */
+const INDIVIDUAL_VERBO = /(?<!\p{L})(?:fui\s+(?:homologad|aprovad|classificad|chamad|convocad|selecionad|deferid|indeferid)\p{L}*|passei)(?!\p{L})/iu;
+export const perguntaIndividual = (pergunta: string) => INDIVIDUAL.test(pergunta) || INDIVIDUAL_VERBO.test(pergunta);
+/** Acrescentado à resposta de pergunta individual que não indicou o contato (regra 4). */
+export const ENCAMINHAMENTO_INDIVIDUAL =
+  'Para a sua situação individual, consulte o sistema de inscrição ou escreva para coperse@furg.br.';
+
+/** Garante o contato da COPERSE na resposta a pergunta individual, mesmo quando o modelo esquece. */
+export function comEncaminhamento(resposta: string, pergunta: string): string {
+  if (!perguntaIndividual(pergunta) || resposta.includes('coperse@furg.br')) return resposta;
+  return `${resposta.trimEnd()}\n\n${ENCAMINHAMENTO_INDIVIDUAL}`;
+}
+
 export function montarSistema(trechos: Trecho[], hoje: Date): string {
   const blocos = trechos.map(
     (t, i) =>
