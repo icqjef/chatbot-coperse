@@ -355,3 +355,11 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Reserva: `MODELO_RESERVA = "gemini-3.1-flash-lite"`, estável e de outra geração, com capacidade separada (aistudio.google.com/docs/models, 16/11/2026). Uso registrado no log ("resposta pelo modelo reserva"). Preço da reserva a conferir na página de preços antes de ela virar rotina; hoje é usada só em falha.
 - Embeddings: uma nova tentativa em falha passageira, sem reserva (vetores de outro modelo não se comparam aos do índice). 6 s por chamada na pergunta; 30 s no indexador.
 - Padrão adotado: o mesmo das bibliotecas oficiais (repetição com espera); não houve projeto do GitHub a adaptar para um trecho tão pequeno.
+## 16/11/2026 — Cache das respostas às perguntas repetidas
+
+- Motivo: perguntas como "quando é a prova?" se repetem muito em época de inscrição. Cada uma chamava o Gemini de novo (custo, cerca de 2 a 4 s de espera e cota diária) e podia sair com redação diferente.
+- Mudança: `worker-resposta/src/cache.ts` e tabela `respostas_cache` (migration 0007). A chave é o SHA-256 do dia de Brasília e da pergunta normalizada (minúsculas, sem acento, sem pontuação). A resposta vale por 2 horas e só no mesmo dia. Só entram a primeira pergunta da conversa (seguimentos dependem do histórico), respostas com fonte e perguntas vindas dos sites da FURG. A página de teste e a avaliação automática sempre geram de novo, para medir o modelo de verdade.
+- A pergunta respondida pelo cache conta no painel e no registro como as outras, mas não gasta a cota diária.
+- Por que D1 e não o Cache API da Cloudflare: o Cache API não guarda nada em endereços *.workers.dev, que é onde o Worker roda.
+- Prazo de 2 horas: a indexação já leva de 2 a 8 horas para trazer uma novidade dos sites. Duas horas a mais no pior caso não mudam muito, e respostas datadas ("hoje", "encerrado") não atravessam a meia-noite.
+- Privacidade: o aviso `/privacidade` e o inventário em `docs/conformidade.md` incluem a tabela nova.
