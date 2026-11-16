@@ -23,8 +23,41 @@ const TEMPO_LIMITE_MS = 30_000;
 // Espelha MAX_MENSAGEM de worker-resposta/src/perguntar.ts: acima disso o Worker responde 400.
 const MAX_TEXTO_HISTORICO = 2000;
 
+/**
+ * Lê a resposta gradual (uma linha JSON por evento): {"parcial"} vai para `aoParcial`; devolve o {"fim"}.
+ * {"erro"} vira ErroWidget com a mensagem do Worker. Sem `body` legível (navegador antigo), lê tudo de uma vez.
+ */
+async function lerGradual(resp: Response, aoParcial?: (texto: string) => void): Promise<unknown> {
+  let fim: unknown;
+  let erro: string | undefined;
+  const tratar = (linha: string) => {
+    if (!linha.trim()) return;
+    const e = JSON.parse(linha) as Record<string, unknown>;
+    if (typeof e.parcial === 'string') aoParcial?.(e.parcial);
+    else if (typeof e.erro === 'string') erro = e.erro;
+    else if (e.fim && typeof e.fim === 'object') fim = e.fim;
+  };
+  if (!resp.body) (await resp.text()).split('\n').forEach(tratar);
+  else {
+    const leitor = resp.body.getReader();
+    const decodificador = new TextDecoder();
+    let resto = '';
+    for (;;) {
+      const { done, value } = await leitor.read();
+      if (done) break;
+      resto += decodificador.decode(value, { stream: true });
+      const linhas = resto.split('\n');
+      resto = linhas.pop() ?? '';
+      linhas.forEach(tratar);
+    }
+    tratar(resto + decodificador.decode());
+  }
+  if (erro) throw new ErroWidget(erro);
+  return fim;
+}
+
 export function criarEnviar(api: string, fetchFn: typeof fetch = (...a) => fetch(...a)): Enviar {
-  return async (pergunta, historico) => {
+  return async (pergunta, historico, aoParcial) => {
     let resp: Response;
     let corpo: unknown;
     // AbortController + setTimeout: AbortSignal.timeout não existe no Safari < 16.
@@ -33,13 +66,16 @@ export function criarEnviar(api: string, fetchFn: typeof fetch = (...a) => fetch
     try {
       resp = await fetchFn(`${api}/perguntar`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        // O Worker responde aos poucos (NDJSON) quando pode; erros e respostas prontas vêm em JSON.
+        headers: { 'content-type': 'application/json', accept: 'application/x-ndjson, application/json' },
         signal: controle.signal,
         body: JSON.stringify({ pergunta, historico }),
       });
-      corpo = await resp.json();
-    } catch {
-      throw new ErroWidget(MSG_REDE);
+      corpo = (resp.headers.get('content-type') ?? '').includes('application/x-ndjson')
+        ? await lerGradual(resp, aoParcial)
+        : await resp.json();
+    } catch (e) {
+      throw e instanceof ErroWidget ? e : new ErroWidget(MSG_REDE);
     } finally {
       clearTimeout(relogio);
     }

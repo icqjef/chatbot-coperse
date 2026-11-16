@@ -271,7 +271,22 @@ export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avalia
     msgs.append(pensando);
     rolar();
     try {
-      const r = await deps.enviar(pergunta, historicoParaEnvio(estado.itens));
+      // Prévia enquanto o assistente escreve: só para quem vê a tela (aria-hidden). O leitor de tela segue com
+      // "Pensando…" e anuncia uma vez a resposta final, que substitui a prévia.
+      let previa: HTMLElement | undefined;
+      const r = await deps.enviar(pergunta, historicoParaEnvio(estado.itens), (texto) => {
+        const nova = renderResposta(texto, []);
+        nova.classList.add('previa');
+        nova.setAttribute('aria-hidden', 'true');
+        if (previa) previa.replaceWith(nova);
+        else {
+          msgs.insertBefore(nova, pensando);
+          pensando.className = 'so-leitor';
+        }
+        previa = nova;
+        rolar();
+      });
+      previa?.remove();
       pensando.remove();
       const modelo: Item = { papel: 'modelo', texto: r.resposta, fontes: r.fontes };
       if (r.assinatura) modelo.assinatura = r.assinatura;
@@ -281,6 +296,7 @@ export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avalia
       estado.itens.push({ papel: 'usuario', texto: pergunta }, modelo);
       salvar();
     } catch (e) {
+      msgs.querySelector('.previa')?.remove();
       pensando.remove();
       bolha.remove();
       const m = (e as { mensagem?: unknown } | null)?.mensagem;

@@ -138,6 +138,29 @@ describe('conversa', () => {
 
   beforeEach(() => sessionStorage.clear());
 
+  it('prévia aparece só para quem vê a tela e some com a resposta final', async () => {
+    let soltar: (v: unknown) => void = () => {};
+    const env = vi.fn((_p: string, _h: unknown, aoParcial?: (t: string) => void) => {
+      aoParcial?.('Parte [1].');
+      return new Promise((r) => (soltar = r));
+    });
+    montarCom(env as unknown as ReturnType<typeof vi.fn>);
+    digitar('Oi');
+    clicarEnviar();
+    await pronto();
+    const previa = q('.previa');
+    expect(previa.getAttribute('aria-hidden')).toBe('true');
+    expect(previa.textContent).toContain('Parte');
+    // "Pensando…" continua para o leitor de tela, mas sem a bolha visível.
+    expect(q('[role=status]').className).toBe('so-leitor');
+    expect(q('[role=status]').textContent).toContain('Pensando');
+    soltar(ok);
+    await pronto();
+    expect(w.raiz.querySelector('.previa')).toBeNull();
+    expect(w.raiz.querySelector('[role=status]')).toBeNull();
+    expect(q('.msgs').textContent).toContain('Resp');
+  });
+
   it('Enter envia, Shift+Enter não', async () => {
     const env = montarCom(vi.fn().mockResolvedValue(ok));
     digitar('Oi');
@@ -145,7 +168,7 @@ describe('conversa', () => {
     expect(env).not.toHaveBeenCalled();
     enter();
     await pronto();
-    expect(env).toHaveBeenCalledWith('Oi', []);
+    expect(env).toHaveBeenCalledWith('Oi', [], expect.any(Function));
     expect(q('.msg.usu').textContent).toBe('Oi');
     expect(q('.msgs').textContent).toContain('Resp');
     expect(q('.msgs sup').textContent).toBe('1');
@@ -182,7 +205,7 @@ describe('conversa', () => {
     const env = montarCom(vi.fn().mockResolvedValue(ok));
     q<HTMLButtonElement>('.sugestoes button').click();
     await pronto();
-    expect(env).toHaveBeenCalledWith('O que está com inscrição aberta agora?', []);
+    expect(env).toHaveBeenCalledWith('O que está com inscrição aberta agora?', [], expect.any(Function));
   });
 
   it('pergunta só com espaços não é enviada', () => {
@@ -204,7 +227,7 @@ describe('conversa', () => {
     digitar('B');
     clicarEnviar();
     await pronto();
-    expect(env).toHaveBeenLastCalledWith('B', []);
+    expect(env).toHaveBeenLastCalledWith('B', [], expect.any(Function));
   });
 
   it('falhas repetidas não empilham bolhas de erro', async () => {
@@ -238,7 +261,7 @@ describe('conversa', () => {
     expect(env).toHaveBeenLastCalledWith('B', [
       { papel: 'usuario', texto: 'A' },
       { papel: 'modelo', texto: 'Resp [1]' },
-    ]);
+    ], expect.any(Function));
   });
 
   it('M4: a assinatura da resposta volta no histórico, inclusive depois de recarregar a página', async () => {
@@ -254,7 +277,7 @@ describe('conversa', () => {
     expect(env).toHaveBeenLastCalledWith('B', [
       { papel: 'usuario', texto: 'A' },
       { papel: 'modelo', texto: 'Resp [1]', assinatura: 'SIG' },
-    ]);
+    ], expect.any(Function));
   });
 
   it('salva e restaura conversa e estado aberto no sessionStorage', async () => {
@@ -382,7 +405,7 @@ describe('conversa', () => {
     digitar('B');
     clicarEnviar();
     await pronto();
-    expect(env).toHaveBeenLastCalledWith('B', []);
+    expect(env).toHaveBeenLastCalledWith('B', [], expect.any(Function));
   });
 });
 

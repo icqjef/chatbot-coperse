@@ -50,7 +50,7 @@ describe('depois da resposta', () => {
     expect(q('.sugestoes').getAttribute('aria-label')).toBe('Você também pode perguntar');
     (todos('.sugestoes button')[0] as HTMLButtonElement).click();
     await pronto();
-    expect(enviar).toHaveBeenLastCalledWith('Qual o valor?', expect.any(Array));
+    expect(enviar).toHaveBeenLastCalledWith('Qual o valor?', expect.any(Array), expect.any(Function));
     expect(todos('.sugestoes')).toHaveLength(1);
   });
   it('sem base: botão de contato e assuntos frequentes, sem avaliação', async () => {

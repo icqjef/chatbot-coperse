@@ -363,3 +363,12 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Por que D1 e não o Cache API da Cloudflare: o Cache API não guarda nada em endereços *.workers.dev, que é onde o Worker roda.
 - Prazo de 2 horas: a indexação já leva de 2 a 8 horas para trazer uma novidade dos sites. Duas horas a mais no pior caso não mudam muito, e respostas datadas ("hoje", "encerrado") não atravessam a meia-noite.
 - Privacidade: o aviso `/privacidade` e o inventário em `docs/conformidade.md` incluem a tabela nova.
+
+## 16/11/2026 — Resposta aparecendo enquanto é escrita
+
+- Motivo: o candidato esperava de 2 a 4 s olhando "Pensando…" e só então via a resposta inteira. Os atendentes de empresas de referência mostram o texto à medida que ele é escrito.
+- Gemini: `gerarAosPoucos` usa `streamGenerateContent?alt=sse`. A nova tentativa e o modelo reserva valem só até chegar o primeiro pedaço; depois disso, uma falha encerra a resposta, para não mostrar o começo duas vezes.
+- Worker: com `Accept: application/x-ndjson`, responde uma linha JSON por evento: `{"parcial": texto}` e, no fim, `{"fim": resposta}` ou `{"erro": mensagem}`. Sem esse cabeçalho (avaliação automática, widget antigo em cache), tudo segue em JSON como antes. Erros antes da geração (limite, cota, origem) e respostas prontas continuam em JSON com o status de sempre.
+- Prévia segura: só frases completas, nada depois de "Sugestões:", e só depois da primeira citação válida. Texto sem fonte nunca aparece, nem por instantes. A prévia passa pelos mesmos filtros da resposta final (tempo verbal, aviso vencido, endereços, datas, saudação). A resposta final é a mesma do modo JSON e substitui a prévia; quando a reescrita do tempo verbal acontece, só ela muda.
+- Acessibilidade: a prévia fica com `aria-hidden`. O leitor de tela continua ouvindo "Pensando…" e ouve a resposta final uma vez, sem anunciar cada pedaço.
+- Padrão adotado: NDJSON sobre `fetch`, em vez de EventSource, porque a pergunta vai por POST e EventSource só faz GET. Leitura com `getReader`; navegador sem esse recurso lê tudo de uma vez no fim.

@@ -6,6 +6,40 @@ const resp = (status: number, corpo: unknown) =>
   new Response(JSON.stringify(corpo), { status, headers: { 'content-type': 'application/json' } });
 
 describe('criarEnviar', () => {
+  const ndjson = (...linhas: unknown[]) => {
+    const texto = linhas.map((l) => JSON.stringify(l) + '\n').join('');
+    // Quebra no meio de uma linha para testar a montagem.
+    const meio = Math.floor(texto.length / 2);
+    const corpo = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode(texto.slice(0, meio)));
+        c.enqueue(new TextEncoder().encode(texto.slice(meio)));
+        c.close();
+      },
+    });
+    return new Response(corpo, { status: 200, headers: { 'content-type': 'application/x-ndjson; charset=utf-8' } });
+  };
+  it('pede resposta gradual e passa as prévias; devolve o fim', async () => {
+    const f = vi.fn().mockResolvedValue(
+      ndjson({ parcial: 'O prazo [1].' }, { parcial: 'O prazo [1]. A taxa [1].' }, { fim: { resposta: 'Final [1].', fontes: [], assinatura: 'S' } }),
+    );
+    const vistos: string[] = [];
+    const r = await criarEnviar('https://w', f)('oi', [], (t) => vistos.push(t));
+    expect(f.mock.calls[0]![1].headers.accept).toContain('application/x-ndjson');
+    expect(vistos).toEqual(['O prazo [1].', 'O prazo [1]. A taxa [1].']);
+    expect(r).toEqual({ resposta: 'Final [1].', fontes: [], assinatura: 'S' });
+  });
+  it('{erro} na resposta gradual lança com a mensagem do servidor', async () => {
+    const f = vi.fn().mockResolvedValue(ndjson({ parcial: 'x [1].' }, { erro: 'Indisponível agora.' }));
+    const e = await criarEnviar('https://w', f)('oi', []).catch((x) => x);
+    expect(e).toBeInstanceOf(ErroWidget);
+    expect(e.mensagem).toBe('Indisponível agora.');
+  });
+  it('resposta gradual sem {fim} vira erro de rede', async () => {
+    const f = vi.fn().mockResolvedValue(ndjson({ parcial: 'x [1].' }));
+    const e = await criarEnviar('https://w', f)('oi', []).catch((x) => x);
+    expect(e.mensagem).toMatch(/Não consegui falar/);
+  });
   it('200 devolve o objeto e o corpo enviado é {pergunta, historico}', async () => {
     const f = vi.fn().mockResolvedValue(resp(200, { resposta: 'ok', fontes: [] }));
     const h: Mensagem[] = [

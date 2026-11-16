@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import worker, { type Env } from '../src/index';
 import { responderPergunta, chaveLimite, consultaDeBusca } from '../src/perguntar';
+import { previa } from '../src/perguntar';
 import { ENCAMINHAMENTO_INDIVIDUAL, SEM_BASE } from '../src/regras';
 import { assinar, assinaturaValida } from '../src/historico';
 import { ENCERRAMENTO } from '../src/conversa';
@@ -62,7 +63,16 @@ function montar(opcoes: { score?: number; texto?: string; status?: number; permi
       return Response.json({ embeddings: Array.from({ length: n }, () => ({ values: Array.from({ length: 768 }, (_, i) => (i === 0 ? 1 : 0)) })) });
     }
     if (opcoes.status) return Response.json({ error: { message: 'cota' } }, { status: opcoes.status });
-    return Response.json({ candidates: [{ content: { parts: [{ text: opcoes.texto ?? 'O prazo é 10/12 [1].' }] }, finishReason: opcoes.fim }] });
+    const texto = opcoes.texto ?? 'O prazo é 10/12 [1].';
+    if (String(url).includes(':streamGenerateContent')) {
+      // Um evento SSE por palavra, como o Gemini manda em pedaços.
+      const pedacos = texto.split(/(?<= )/);
+      const sse = pedacos
+        .map((t, i) => `data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text: t }] }, ...(i === pedacos.length - 1 && opcoes.fim ? { finishReason: opcoes.fim } : {}) }] })}\r\n\r\n`)
+        .join('');
+      return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    }
+    return Response.json({ candidates: [{ content: { parts: [{ text: texto }] }, finishReason: opcoes.fim }] });
   });
   const env = {
     DB: db,
@@ -800,5 +810,67 @@ describe('cache de respostas no fluxo', () => {
     const c = montar({});
     const r = await pedir(c.env, { pergunta: 'qual o prazo?' });
     expect(r.status).toBe(200);
+  });
+});
+
+describe('resposta gradual (Accept: application/x-ndjson)', () => {
+  async function eventos(r: Response) {
+    return (await r.text()).trim().split('\n').map((l) => JSON.parse(l));
+  }
+  const gradual = { Accept: 'application/x-ndjson, application/json' };
+
+  it('manda prévias com fonte e termina com a mesma resposta do modo JSON', async () => {
+    const texto = 'As inscrições vão até 10/12/2026 [1]. A taxa é R$ 100,00 [1].\nSugestões: Qual o local da prova?';
+    const a = montar({ texto });
+    const r = await pedir(a.env, { pergunta: 'Até quando posso me inscrever?' }, gradual);
+    expect(r.headers.get('Content-Type')).toContain('application/x-ndjson');
+    expect(r.headers.get('Access-Control-Allow-Origin')).toBe(ORIGEM);
+    const ev = await eventos(r);
+    const parciais = ev.filter((e) => 'parcial' in e).map((e) => e.parcial);
+    expect(parciais.length).toBeGreaterThan(0);
+    expect(parciais.join(' ')).not.toMatch(/Sugest/);
+    expect(parciais.at(-1)).toBe('As inscrições vão até 10/12/2026 [1]. A taxa é R$ 100,00 [1].');
+    expect(a.chamadas.some((c) => c.url.includes(':streamGenerateContent?alt=sse'))).toBe(true);
+    const fim = ev.at(-1).fim;
+    const b = montar({ texto });
+    const json = await (await pedir(b.env, { pergunta: 'Até quando posso me inscrever?' })).json();
+    expect(fim).toEqual(json);
+  });
+
+  it('texto sem citação não aparece na prévia', async () => {
+    const a = montar({ texto: 'A prova é amanhã, confie em mim. Boa sorte!' });
+    const ev = await eventos(await pedir(a.env, { pergunta: 'Quando é a prova?' }, gradual));
+    expect(ev.some((e) => 'parcial' in e)).toBe(false);
+    expect(ev.at(-1).fim.fontes).toEqual([]);
+  });
+
+  it('falha do Gemini termina com {erro}', async () => {
+    const a = montar({ status: 400 });
+    const ev = await eventos(await pedir(a.env, { pergunta: 'Quando é a prova?' }, gradual));
+    expect(ev).toEqual([{ erro: INDISPONIVEL }]);
+  });
+
+  it('erros antes da geração continuam em JSON com o status', async () => {
+    const a = montar({ permitir: false });
+    const r = await pedir(a.env, { pergunta: 'Quando é a prova?' }, gradual);
+    expect(r.status).toBe(429);
+    expect(r.headers.get('Content-Type')).toContain('application/json');
+  });
+});
+
+describe('previa', () => {
+  const t = [{ url: 'https://vestibular.furg.br/e', titulo: 'E', site: 'vestibular', data: '2026-10-01', processo: 'vestibular', ano: 2027, texto: 'x', similaridade: 0.9 }] as any;
+  it('só frases completas, renumera a fonte e tira endereços', () => {
+    expect(previa('O prazo é 10/12/2026 [1]. A taxa', t, 'prazo?', '2026-11-16')).toBe('O prazo é 10/12/2026 [1].');
+    expect(previa('Veja https://x.com [1]. ', t, 'x', '2026-11-16')).not.toContain('https');
+    expect(previa('O prazo é 10/12/2026', t, 'prazo?', '2026-11-16')).toBeNull();
+    expect(previa('Sem fonte nenhuma. ', t, 'x', '2026-11-16')).toBeNull();
+    expect(previa('Número inexistente [7]. ', t, 'x', '2026-11-16')).toBeNull();
+    expect(previa('CONVERSA_ENCERRADA', t, 'x', '2026-11-16')).toBeNull();
+  });
+  it('corrige o tempo verbal e acrescenta a saudação da pergunta', () => {
+    const p = previa('A prova foi realizada em 13/12/2026 [1]. ', t, 'Bom dia! Quando é a prova?', '2026-11-16')!;
+    expect(p).toMatch(/^Bom dia!/);
+    expect(p).toContain('será realizada');
   });
 });

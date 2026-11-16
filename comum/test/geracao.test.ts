@@ -162,4 +162,65 @@ describe('criarGerador (Gemini)', () => {
       expect((f.mock.calls[0] as any)[1].signal).toBeInstanceOf(AbortSignal);
     });
   });
+
+  describe('gerarAosPoucos (SSE)', () => {
+    const rapido = { esperar: async () => {} };
+    const sse = (...pedacos: unknown[]) => {
+      const texto = pedacos.map((p) => `data: ${JSON.stringify(p)}\r\n\r\n`).join('');
+      // Corta no meio de uma linha para testar a montagem dos pedaços.
+      const meio = Math.floor(texto.length / 2);
+      return new Response(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(new TextEncoder().encode(texto.slice(0, meio)));
+            c.enqueue(new TextEncoder().encode(texto.slice(meio)));
+            c.close();
+          },
+        }),
+        { status: 200 },
+      );
+    };
+    const pedaco = (t: string, fim?: string) => ({ candidates: [{ content: { parts: [{ text: t }] }, ...(fim ? { finishReason: fim } : {}) }] });
+
+    it('junta os pedaços, avisa o acumulado e usa streamGenerateContent?alt=sse', async () => {
+      const f = vi.fn(async () => sse(pedaco('O prazo '), pedaco('é 10/12 [1].'), pedaco('', 'STOP')));
+      const vistos: string[] = [];
+      const r = await criarGerador(env, f as any, rapido).gerarAosPoucos!('s', msgs, (a) => vistos.push(a));
+      expect(r).toBe('O prazo é 10/12 [1].');
+      expect(vistos).toEqual(['O prazo ', 'O prazo é 10/12 [1].']);
+      expect((f.mock.calls[0] as any)[0]).toContain(':streamGenerateContent?alt=sse');
+    });
+
+    it('falha passageira antes do primeiro pedaço repete', async () => {
+      const f = vi.fn()
+        .mockResolvedValueOnce(new Response('{}', { status: 503 }))
+        .mockResolvedValueOnce(sse(pedaco('ok [1].', 'STOP')));
+      expect(await criarGerador(env, f as any, rapido).gerarAosPoucos!('s', msgs, () => {})).toBe('ok [1].');
+      expect(f).toHaveBeenCalledTimes(2);
+    });
+
+    it('falha depois do primeiro pedaço não repete', async () => {
+      let pedidos = 0;
+      const quebrado = new Response(
+        new ReadableStream({
+          // 1º pedido entrega um pedaço; o 2º falha (pedaços na fila seriam descartados pelo erro).
+          pull(c) {
+            if (pedidos++ === 0) c.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(pedaco('O prazo '))}\n\n`));
+            else c.error(Object.assign(new Error('t'), { name: 'TimeoutError' }));
+          },
+        }),
+        { status: 200 },
+      );
+      const f = vi.fn(async () => quebrado);
+      await expect(
+        criarGerador({ ...env, MODELO_RESERVA: 'r' }, f as any, rapido).gerarAosPoucos!('s', msgs, () => {}),
+      ).rejects.toThrow(/interrompeu/);
+      expect(f).toHaveBeenCalledTimes(1);
+    });
+
+    it('SAFETY no fim lança RespostaBloqueada', async () => {
+      const f = vi.fn(async () => sse(pedaco('x'), { candidates: [{ finishReason: 'SAFETY' }] }));
+      await expect(criarGerador(env, f as any, rapido).gerarAosPoucos!('s', msgs, () => {})).rejects.toBeInstanceOf(RespostaBloqueada);
+    });
+  });
 });
