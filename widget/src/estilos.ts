@@ -48,6 +48,8 @@ sup { font-weight: 700; color: var(--cor-escura); margin-left: 1px; }
 @keyframes pulo { 0%, 60%, 100% { transform: translateY(0); background: #b9c1ca; } 30% { transform: translateY(-4px); background: #5d6670; } }
 .so-leitor { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .oficial { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; color: #1e6b3a; }
+.guardar { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: #3c444d; }
+.acao-guardar { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid #8a939c; background: #fff; color: #3c444d; cursor: pointer; min-height: 24px; }
 .atalhos { display: flex; margin: 0 0 8px; }
 .datas { font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--cor); color: var(--cor-escura); background: #fff; cursor: pointer; }
 .datas:disabled { color: #5d6670; border-color: #8a939c; cursor: default; }

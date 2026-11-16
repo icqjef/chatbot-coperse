@@ -82,10 +82,44 @@ function icone(): SVGSVGElement {
   return svg;
 }
 
-function linkContato(texto: string): HTMLAnchorElement {
+function linkContato(texto: string, href = MAILTO): HTMLAnchorElement {
   const a = el('a', 'contato', texto);
-  a.href = MAILTO;
+  a.href = href;
   return a;
+}
+
+/** Texto para copiar ou baixar: pergunta, resposta com [n], fontes numeradas e o lembrete do edital. */
+export function textoParaGuardar(pergunta: string | undefined, resposta: string, fontes: Fonte[], hoje = new Date()): string {
+  const dia = hoje.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  return [
+    ...(pergunta ? ['Pergunta: ' + pergunta, ''] : []),
+    `Resposta do Assistente COPERSE (${dia}):`,
+    resposta.trim(),
+    ...(fontes.length ? ['', 'Fontes:', ...fontes.map((f, i) => `${i + 1}. ${f.titulo} - ${f.url}`)] : []),
+    '',
+    'Resposta automática. Confira sempre o edital oficial.',
+  ].join('\n');
+}
+
+/**
+ * E-mail já preenchido com a pergunta, a resposta do assistente e as páginas citadas: a COPERSE recebe o
+ * contexto e a pessoa só escreve a dúvida. Tudo fica no navegador; nada passa pelo servidor do assistente.
+ */
+export function mailtoContato(pergunta?: string, resposta?: string, fontes: Fonte[] = []): string {
+  if (!pergunta) return MAILTO;
+  const limpa = (resposta ?? '').replace(/\s*\[\d+\]/g, '').trim().slice(0, 900);
+  const corpo = [
+    'Olá, COPERSE.',
+    '',
+    'Perguntei ao assistente virtual:',
+    pergunta.slice(0, 500),
+    '',
+    ...(limpa ? ['Resposta do assistente:', limpa, ''] : []),
+    ...(fontes.length ? ['Páginas citadas:', ...fontes.slice(0, 3).map((f) => f.url), ''] : []),
+    'Minha dúvida:',
+    '',
+  ].join('\n');
+  return `${MAILTO}&body=${encodeURIComponent(corpo)}`;
 }
 
 export function montar(
@@ -200,7 +234,7 @@ export function montar(
     return caixa;
   }
 
-  function avaliacao(item: Item): HTMLElement {
+  function avaliacao(item: Item, pergunta?: string): HTMLElement {
     const caixa = el('div', 'avaliacao');
     const rotulo = el('span', undefined, 'Esta resposta ajudou?');
     const sim = botao('voto', '👍', 'Sim, ajudou');
@@ -216,7 +250,7 @@ export function montar(
       obrigado.setAttribute('role', 'status');
       caixa.append(obrigado);
       if (!util) {
-        caixa.append(' Tente perguntar de outro jeito ou ', linkContato(`escreva para ${EMAIL}`), '.');
+        caixa.append(' Tente perguntar de outro jeito ou ', linkContato(`escreva para ${EMAIL}`, mailtoContato(pergunta, item.texto, item.fontes)), '.');
       }
       campo.focus();
     };
@@ -226,7 +260,37 @@ export function montar(
     return caixa;
   }
 
-  function mostrar(item: Item, ultimo = false): void {
+  /** Copiar e baixar a resposta (com pergunta e fontes), para guardar uma data ou um documento exigido. */
+  function guardar(item: Item, pergunta?: string): HTMLElement {
+    const caixa = el('div', 'guardar');
+    const aviso = el('span', 'aviso-guardar');
+    aviso.setAttribute('aria-live', 'polite');
+    const texto = () => textoParaGuardar(pergunta, item.texto, item.fontes ?? []);
+    const copiar = botao('acao-guardar', 'Copiar');
+    copiar.addEventListener('click', () => {
+      navigator.clipboard?.writeText(texto()).then(
+        () => (aviso.textContent = 'Resposta copiada.'),
+        () => (aviso.textContent = 'Não foi possível copiar. Selecione o texto e copie.'),
+      ) ?? (aviso.textContent = 'Não foi possível copiar. Selecione o texto e copie.');
+    });
+    const baixar = botao('acao-guardar', 'Baixar');
+    baixar.addEventListener('click', () => {
+      const url = URL.createObjectURL(new Blob([texto()], { type: 'text/plain;charset=utf-8' }));
+      const a = el('a');
+      a.href = url;
+      a.download = `resposta-coperse-${new Date().toISOString().slice(0, 10)}.txt`;
+      raiz.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      aviso.textContent = 'Arquivo baixado.';
+    });
+    caixa.append(copiar, baixar, aviso);
+    return caixa;
+  }
+
+  /** `pergunta`: a mensagem da pessoa que esta resposta atende (vai no e-mail já preenchido). */
+  function mostrar(item: Item, ultimo = false, pergunta?: string): void {
     if (item.papel === 'usuario') {
       msgs.append(el('div', 'msg usu', item.texto));
       return;
@@ -236,10 +300,11 @@ export function montar(
     if (item.oficial) bolha.insertBefore(el('p', 'oficial', '✔ Resposta conferida pela COPERSE'), bolha.firstChild);
     if (item.contato) {
       const acao = el('div', 'acao');
-      acao.append(linkContato('Escrever para a COPERSE'));
+      acao.append(linkContato('Escrever para a COPERSE', mailtoContato(pergunta, item.texto, item.fontes)));
       bolha.append(acao);
     }
-    if (fontes.length && !item.avaliado && item.assinatura) bolha.append(avaliacao(item));
+    if (fontes.length) bolha.append(guardar(item, pergunta));
+    if (fontes.length && !item.avaliado && item.assinatura) bolha.append(avaliacao(item, pergunta));
     msgs.append(bolha);
     if (!ultimo) return;
     if (item.sugestoes?.length) msgs.append(chips(item.sugestoes, 'Você também pode perguntar'));
@@ -302,7 +367,7 @@ export function montar(
       if (r.sugestoes?.length) modelo.sugestoes = r.sugestoes;
       if (r.contato) modelo.contato = true;
       if (r.oficial) modelo.oficial = true;
-      mostrar(modelo, true);
+      mostrar(modelo, true, pergunta);
       estado.itens.push({ papel: 'usuario', texto: pergunta }, modelo);
       salvar();
     } catch (e) {
@@ -392,7 +457,7 @@ export function montar(
 
   if (estado.itens.length) {
     try {
-      estado.itens.forEach((item, i) => mostrar(item, i === estado.itens.length - 1));
+      estado.itens.forEach((item, i) => mostrar(item, i === estado.itens.length - 1, estado.itens[i - 1]?.papel === 'usuario' ? estado.itens[i - 1]!.texto : undefined));
     } catch {
       // Estado restaurado inválido: descarta e começa vazio.
       msgs.replaceChildren(boasVindas);

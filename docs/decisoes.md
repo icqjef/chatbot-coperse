@@ -428,3 +428,10 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Reconhecimento: cosseno entre o vetor da pergunta do candidato e o da pergunta oficial, mínimo 0,92. Se a oficial é de um processo (inferido da pergunta escrita), a pergunta do candidato precisa ser do mesmo processo; oficial sem processo vale para qualquer pergunta. O vetor da pergunta é o mesmo da busca (calculado uma vez só).
 - A resposta oficial vem antes da busca e do Gemini, com a fonte e o selo "Resposta conferida pela COPERSE" no widget. Salvar ou desativar apaga o cache de respostas.
 - Tabela `respostas_oficiais` (migration 0010). Desativar não apaga a linha.
+
+## 16/11/2026 — E-mail já preenchido, copiar e baixar a resposta (checklist, itens 3 e 4)
+
+- E-mail: "Escrever para a COPERSE" (respostas sem base e depois de um 👎) abre o e-mail com a pergunta, a resposta do assistente (sem os [n], até 900 caracteres) e até 3 páginas citadas, terminando em "Minha dúvida:". Tudo é montado no navegador (link `mailto:`); nada passa pelo servidor do assistente.
+- Copiar e Baixar: em cada resposta com fonte. O texto leva a pergunta, a resposta com [n], as fontes numeradas (título e endereço), a data e o lembrete "Confira sempre o edital oficial". Baixar gera `resposta-coperse-AAAA-MM-DD.txt` no próprio navegador. Texto simples em vez de PDF: abre em qualquer celular e não aumenta o widget com uma biblioteca de PDF.
+- O aviso "Resposta copiada" usa `aria-live` para o leitor de tela. Os botões entram na ordem do Tab depois das fontes.
+- Widget: 24,5 KB (teto de 32 KB).
