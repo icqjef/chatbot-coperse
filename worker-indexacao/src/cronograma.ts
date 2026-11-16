@@ -1,6 +1,7 @@
 /**
- * Cronograma como dados (checklist, item 1). Depois da indexação, cada documento novo ou alterado das edições
- * atuais que fala em cronograma passa uma vez pelo Gemini, que devolve as etapas e datas em JSON. Só ficam as
+ * Cronograma como dados (checklist, item 1). Depois da indexação, cada PDF novo ou alterado das edições
+ * atuais que fala em cronograma passa uma vez pelo Gemini (páginas HTML de notícia traziam prazos antigos e
+ * datas sem ano: em 16/11, "inscrição até 01/10" de antes da prorrogação), que devolve as etapas e datas em JSON. Só ficam as
  * linhas conferidas contra o texto original (comum/src/cronograma.ts): data que não está logo depois do nome da
  * etapa no documento é descartada.
  */
@@ -63,7 +64,7 @@ export async function atualizarCronogramas(deps: DepsCronograma, anoMinimo: numb
   const resumo: ResumoCronograma = { lidos: 0, com_cronograma: 0, linhas: 0, falhas: 0 };
   const candidatos = await cf.d1(
     `SELECT p.url, p.titulo, p.hash FROM paginas p
-     WHERE p.status = 'ok' AND p.tipo IN ('pdf', 'html') AND p.ano >= ?
+     WHERE p.status = 'ok' AND p.tipo = 'pdf' AND p.ano >= ?
        AND EXISTS (SELECT 1 FROM trechos t WHERE t.url = p.url AND lower(t.texto) LIKE '%cronograma%')
      ORDER BY p.data_publicacao DESC`,
     [anoMinimo],
@@ -108,8 +109,8 @@ export async function atualizarCronogramas(deps: DepsCronograma, anoMinimo: numb
     }
   }
 
-  // Página que saiu do índice leva o cronograma junto.
-  await cf.d1("DELETE FROM cronograma WHERE url NOT IN (SELECT url FROM paginas WHERE status = 'ok')");
-  await cf.d1("DELETE FROM cronograma_fontes WHERE url NOT IN (SELECT url FROM paginas WHERE status = 'ok')");
+  // Página que saiu do índice (ou que não é PDF) leva o cronograma junto.
+  await cf.d1("DELETE FROM cronograma WHERE url NOT IN (SELECT url FROM paginas WHERE status = 'ok' AND tipo = 'pdf')");
+  await cf.d1("DELETE FROM cronograma_fontes WHERE url NOT IN (SELECT url FROM paginas WHERE status = 'ok' AND tipo = 'pdf')");
   return resumo;
 }

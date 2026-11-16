@@ -91,7 +91,8 @@ describe('atualizarCronogramas', () => {
   it('limpa cronograma de página que saiu do índice', async () => {
     const { cf, sqls } = cfFalso([]);
     await atualizarCronogramas({ cf, gerador: gerador('{}'), agora }, 2026);
-    expect(sqls.some((s) => s.startsWith('DELETE FROM cronograma WHERE url NOT IN'))).toBe(true);
+    expect(sqls.some((s) => s.startsWith('DELETE FROM cronograma WHERE url NOT IN') && s.includes("tipo = 'pdf'"))).toBe(true);
+    expect(sqls.some((s) => s.includes("p.tipo = 'pdf'"))).toBe(true);
     expect(sqls.some((s) => s.startsWith('DELETE FROM cronograma_fontes WHERE url NOT IN'))).toBe(true);
   });
 });

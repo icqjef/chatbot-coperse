@@ -418,3 +418,4 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - "Próximas datas": `GET /proximas` (origens da FURG, mesmo limite por visitante), sem IA e sem gastar a cota. No vestibular.furg.br e no sisu.furg.br mostra só o processo do site; no coperse, até 3 processos com as datas mais próximas. O widget ganhou o botão "📅 Próximas datas".
 - Tabelas `cronograma` e `cronograma_fontes` (migration 0009). Só dados públicos dos editais.
 - Teto do widget passa de 20 para 32 KB (ficou em 22,1 KB; 8,1 KB comprimido). Os próximos itens da checklist também crescem o widget.
+- Ajuste no mesmo dia, depois da primeira extração real (37 documentos, 464 etapas): só PDFs entram. Páginas HTML de notícia e de listagem traziam prazo de antes da prorrogação ("inscrição até 01/10/2026"), datas de 2024 e datas sem ano; por serem mais novas que o edital, passariam por cima dele.
