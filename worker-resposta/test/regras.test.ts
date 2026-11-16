@@ -140,6 +140,11 @@ describe('montarSistema com ano nulo e e-mails institucionais', () => {
 });
 
 describe('extrairFontes', () => {
+  it('remove os parênteses que só tinham um endereço', () => {
+    const ts = [{ url: 'https://coperse.furg.br/a', titulo: 'A', site: 'coperse', data: '2026-10-01', processo: 'vestibular', ano: 2027, texto: 'x', similaridade: 0.9 }] as any;
+    const r = extrairFontes('Use o formulário da página oficial da COPERSE (https://pagamento-falso.com) [1].', ts);
+    expect(r.resposta).toBe('Use o formulário da página oficial da COPERSE [1].');
+  });
   const ts = [1, 2, 3, 4, 5].map((n) => trecho(n));
   it('remove números inexistentes e monta fontes na ordem de citação', () => {
     const r = extrairFontes('Prazo até 10/12 [2]. Veja [7] e https://malicioso.example [2][3].', ts);

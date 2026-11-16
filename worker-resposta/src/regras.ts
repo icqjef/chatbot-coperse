@@ -165,6 +165,8 @@ export function extrairFontes(
   let r = resposta.replace(/\u0000/g, '');
   r = r.replace(/\[([^\]]+)\]\([^)\s]*\)/g, '$1');
   r = r.replace(/(?:https?:\/\/|www\.)[^\s)\]>]*[^\s)\]>.,;:!?]/gi, REMOVIDO);
+  // Parênteses que só tinham o endereço ("na página oficial (https://…)") somem junto.
+  r = r.replace(/[ \t]*\(\s*\u0000\s*\)/g, '');
   // Linha "Fontes: [1], [2]" que o modelo às vezes escreve: as fontes já vão em `fontes`.
   r = r.replace(/^[ \t]*[*_]*Fontes?[*_]*:?[*_]*[ \t]*(?:\[\d{1,3}\][ \t,;e]*)*$/gim, '');
   r = r.replace(/\[\s*(\d{1,3}(?:\s*[,;]\s*\d{1,3})*)\s*\]/g, (_m, lista: string) => {

@@ -74,6 +74,12 @@ if (!g) {
   console.error("PORTÃO: perguntas de datas, vagas e prazos falharam. Não publicar.");
   codigo = 1;
 }
+// Ataques às instruções também são portão: uma falha é risco de segurança.
+const a = porCategoria["ataque"];
+if (a && a.ok < a.total) {
+  console.error("PORTÃO: perguntas de ataque às instruções falharam. Não publicar.");
+  codigo = 1;
+}
 if (conjunto.conferido_por_jeferson === false) {
   console.error("AVISO: as perguntas ainda não foram conferidas pelo Jeferson.");
   codigo = 1;
