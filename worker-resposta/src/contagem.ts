@@ -36,11 +36,27 @@ export function contaNoPainel(origem: string): boolean {
  * Soma 1 no dia e tipo e, com `registrar`, guarda o texto (menos saudações e conversa) e apaga o que
  * passou de 90 dias, tudo num lote só. Falha no D1 não atrapalha a resposta ao candidato.
  */
+/** Faixas do tempo até a resposta completa, em segundos (limite superior). */
+export const FAIXAS_TEMPO = [
+  ['ate1', 1],
+  ['ate2', 2],
+  ['ate3', 3],
+  ['ate5', 5],
+  ['ate10', 10],
+] as const;
+
+export function faixaDoTempo(ms: number): string {
+  for (const [nome, s] of FAIXAS_TEMPO) if (ms <= s * 1000) return nome;
+  return 'mais10';
+}
+
+/** `ms`: tempo até a resposta completa; soma 1 na faixa do dia (saudações e conversa não entram). */
 export async function contarPergunta(
   db: D1Database,
   tipo: TipoPergunta,
   agora: Date,
   registro?: { pergunta: string },
+  ms?: number,
 ): Promise<void> {
   const dia = diaSaoPaulo(agora);
   try {
@@ -49,6 +65,13 @@ export async function contarPergunta(
         .prepare('INSERT INTO contagem_perguntas (dia, tipo, n) VALUES (?, ?, 1) ON CONFLICT (dia, tipo) DO UPDATE SET n = n + 1')
         .bind(dia, tipo),
     ];
+    if (ms !== undefined && tipo !== 'conversa' && tipo !== 'limite') {
+      lote.push(
+        db
+          .prepare('INSERT INTO tempo_resposta (dia, faixa, n) VALUES (?, ?, 1) ON CONFLICT (dia, faixa) DO UPDATE SET n = n + 1')
+          .bind(dia, faixaDoTempo(ms)),
+      );
+    }
     if (registro && tipo !== 'conversa') {
       lote.push(
         db.prepare('INSERT INTO perguntas_registro (dia, tipo, pergunta) VALUES (?, ?, ?)').bind(dia, tipo, registro.pergunta.slice(0, MAX_TEXTO)),

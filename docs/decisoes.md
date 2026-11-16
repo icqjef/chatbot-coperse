@@ -400,3 +400,10 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 
 - Motivo: o PR #50 (Dependabot) levou o @types/node para a 26, mas a indexação roda no Node 22 (`.nvmrc`). Com os tipos da 26, a checagem aprovaria funções que o Node 22 não tem, e a indexação só falharia na hora de rodar.
 - Mudança: @types/node ^22.20.5 em `comum` e `worker-indexacao`. O Dependabot passa a ignorar as versões maiores do @types/node. Ao trocar o `.nvmrc`, troca-se também a regra.
+## 16/11/2026 — Tempo de resposta no painel
+
+- Motivo: não havia como saber se o assistente estava ficando lento, por exemplo com o Gemini sobrecarregado em semana de inscrição ou com o modelo reserva entrando com frequência.
+- Mudança: tabela `tempo_resposta` (migration 0008) com a contagem por dia e faixa (até 1, 2, 3, 5 e 10 s, e mais de 10 s). O tempo vai da chegada da pergunta ao Worker até a resposta completa, e inclui as respostas do cache. Saudações e perguntas barradas pela cota não entram. Só os sites da FURG contam, como no resto do painel.
+- Painel: a mediana (faixa onde chega a metade das respostas) e a porcentagem acima de 5 s.
+- Faixas em vez do tempo exato: bastam para ver tendência, ocupam uma linha por faixa e dia, e não guardam nada que identifique uma pergunta.
+- Limite: o tempo medido é o do servidor. A rede até o celular do candidato fica de fora.
