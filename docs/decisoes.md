@@ -313,3 +313,15 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
   - `semAvisoVencido`: tira a linha "Fique atento:" quando todas as datas dela já passaram.
 - No Worker: com erro de tempo, o modelo reescreve uma vez, com a correção no sistema (hoje, a data e o tempo esperado). Fica a nova versão só se tiver menos erros e continuar citando trechos. A segunda chamada não passa pela cota diária (é rara). Não troco o verbo no código porque frases como "foram prorrogadas até 20/12" estão certas.
 - No teste de qualidade, `verificar.mjs` importa o mesmo `tempo.ts` (o Node 24 roda TypeScript simples) e reprova resposta com tempo verbal errado ou aviso vencido, em todas as perguntas. Aplicada às ~180 respostas dos 4 últimos testes, só apontou o caso real ("Fique atento" com o recurso de 15/10/2026).
+
+## 2026-11-15 — Conformidade: LGPD, leis da web, acessibilidade e segurança
+
+- Pedido do Jeferson. Quadro completo em `docs/conformidade.md`.
+- Fontes conferidas: LGPD, LBI e Marco Civil no site do Planalto; eMAG 3.1 no gov.br (baseado na WCAG 2.0); termos adicionais da API Gemini (em vigor desde 23/03/2026); páginas de privacidade da FURG (Encarregada designada pela Portaria nº 869/2025; formulário em lgpd.furg.br/contato; PPDP Resolução 27/CONSUN/2023).
+- O Jeferson confirmou que o projeto do Gemini tem faturamento ativo. Nesse caso, pelos termos, o Google não usa as perguntas para melhorar produtos e atua como operador (Data Processing Addendum).
+- Aviso de privacidade em `GET /privacidade`: página estática, sem script, com CSP; link "Privacidade" no aviso do widget. Um teste prende os prazos do aviso (90 dias e 1 ano) às constantes do código.
+- Minimização: a máscara passa a trocar também o nome declarado ("meu nome é…", "me chamo…") e o número de inscrição, matrícula ou protocolo (5 ou mais dígitos seguidos; datas e anos ficam). Avaliações passam a ser apagadas depois de 1 ano, no mesmo lote da gravação.
+- Transparência sobre IA: o cabeçalho do widget diz "Respostas automáticas (inteligência artificial)".
+- Acessibilidade: teste automático com axe-core (WCAG 2.2 A/AA) no widget fechado, aberto e com resposta, com zero violações. Bordas do campo e dos votos passaram de 1,82:1 para 3,76:1 (WCAG 1.4.11). `lang="pt-BR"` no widget.
+- Segurança: respostas JSON com `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.
+- Pendente fora do código: termos do Gemini proíbem uso em serviço provavelmente acessado por menores de 18; validação do aviso pela Encarregada; inventário e RIPD; teste manual com leitor de tela.

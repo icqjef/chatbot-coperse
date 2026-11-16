@@ -44,7 +44,11 @@ describe('montar', () => {
     expect(painel.getAttribute('role')).toBe('dialog');
     expect(painel.getAttribute('aria-labelledby')).toBe('titulo');
     expect(w.raiz.getElementById('titulo')!.textContent).toBe('Assistente COPERSE');
-    expect(q('.cab p').textContent).toBe('Respostas com base nas páginas oficiais da FURG');
+    expect(q('.cab p').textContent).toBe('Respostas automáticas (inteligência artificial) com base nas páginas oficiais da FURG');
+    const priv = q<HTMLAnchorElement>('.aviso a.privacidade');
+    expect(priv.href).toBe('https://w.example/privacidade');
+    expect(priv.rel).toBe('noopener');
+    expect(w.host.lang).toBe('pt-BR');
     expect(q('.aviso').textContent).toContain('Não digite CPF, nome ou outros dados pessoais.');
     expect(q('.aviso').textContent).toContain('As perguntas são guardadas sem identificação por 90 dias');
     expect(q('.msg.bot').textContent).toContain(
@@ -290,7 +294,7 @@ describe('conversa', () => {
     }
   });
 
-  it('Tab e Shift+Tab passam pelos links das fontes', async () => {
+  it('Tab e Shift+Tab passam pelos links das fontes e pelo link de privacidade', async () => {
     montarCom(vi.fn().mockResolvedValue(ok));
     digitar('A');
     clicarEnviar();
@@ -301,7 +305,7 @@ describe('conversa', () => {
     expect(w.raiz.activeElement).toBe(q('textarea'));
     link.focus();
     tecla(link, 'Tab', true);
-    expect(w.raiz.activeElement).toBe(q('.fechar'));
+    expect(w.raiz.activeElement).toBe(q('.privacidade')); // ordem: fechar, link de privacidade do aviso, mensagens
     q<HTMLElement>('textarea').focus();
     tecla(q('textarea'), 'Tab', true);
     expect(w.raiz.activeElement).toBe(link);

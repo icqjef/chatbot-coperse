@@ -7,25 +7,28 @@ const CHAVE = 'CHAVE-SECRETA-123';
 
 function montar(opcoes: { falhar?: boolean; filtro?: boolean } = {}) {
   const gravados: unknown[][] = [];
+  const apagados: { sql: string; p: unknown[] }[] = [];
   const db = {
-    prepare: () => ({
+    prepare: (sql: string) => ({
       bind: (...p: unknown[]) => ({
+        sql,
+        p,
         // SELECT url FROM paginas: só esta URL existe no índice
         all: async () => ({ results: p.includes('https://sisu.furg.br/edital') ? [{ url: 'https://sisu.furg.br/edital' }] : [] }),
-        run: async () => {
-          if (opcoes.falhar) throw new Error('d1');
-          gravados.push(p);
-          return {};
-        },
       }),
     }),
+    batch: async (lote: { sql: string; p: unknown[] }[]) => {
+      if (opcoes.falhar) throw new Error('d1');
+      for (const c of lote) (c.sql.startsWith('INSERT') ? gravados.push(c.p) : apagados.push(c));
+      return [];
+    },
   } as unknown as D1Database;
   const env = {
     DB: db,
     GEMINI_API_KEY: CHAVE,
     FILTRO: { limit: async () => ({ success: opcoes.filtro ?? true }) },
   } as unknown as Env;
-  return { env, gravados };
+  return { env, gravados, apagados };
 }
 
 async function avaliar(env: Env, corpo: unknown, origem = ORIGEM) {
@@ -61,6 +64,16 @@ describe('POST /avaliar', () => {
     expect(util).toBe(0);
     expect(guardada).toBe(resposta);
     expect(JSON.stringify(gravados)).not.toContain('203.0.113.7');
+  });
+  it('apaga as avaliações com mais de 1 ano no mesmo lote da gravação', async () => {
+    const { env, apagados } = montar();
+    const resposta = 'O prazo é 10/12/2026 [1].';
+    expect((await avaliar(env, { util: true, resposta, assinatura: await assinar(resposta, CHAVE) })).status).toBe(200);
+    expect(apagados).toHaveLength(1);
+    expect(apagados[0]!.sql).toBe('DELETE FROM avaliacoes WHERE dia < ?');
+    const corte = Date.parse(String(apagados[0]!.p[0]));
+    expect((Date.now() - corte) / 86_400_000).toBeGreaterThan(364);
+    expect((Date.now() - corte) / 86_400_000).toBeLessThan(367);
   });
   it('assinatura inválida ou ausente -> 400 sem gravar', async () => {
     const { env, gravados } = montar();

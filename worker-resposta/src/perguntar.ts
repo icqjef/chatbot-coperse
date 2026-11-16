@@ -221,7 +221,7 @@ async function prepararEntrada(e: { pergunta: string; historico: MensagemRecebid
 export function json(corpo: unknown, status: number, cors: Record<string, string>): Response {
   return new Response(JSON.stringify(corpo), {
     status,
-    headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8' },
+    headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
   });
 }
 

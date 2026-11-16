@@ -26,6 +26,26 @@ describe('SEM_BASE', () => {
 });
 
 describe('mascararDadosPessoais', () => {
+  it.each([
+    ['meu nome é Ana Paula da Silva, quando é a prova?', 'meu nome é [removido], quando é a prova?'],
+    ['Meu nome é joão e quero saber a taxa', 'Meu nome é [removido] e quero saber a taxa'],
+    ['me chamo Maria dos Santos', 'me chamo [removido]'],
+    ['minha inscrição é 2026123456, foi homologada?', 'minha inscrição é [removido], foi homologada?'],
+    ['número de inscrição 98765432', 'número de inscrição [removido]'],
+    ['matrícula nº 123456', 'matrícula nº [removido]'],
+    ['protocolo: 445566', 'protocolo: [removido]'],
+  ])('mascara nome declarado e número de inscrição: "%s"', (entrada, saida) => {
+    expect(mascararDadosPessoais(entrada)).toBe(saida);
+  });
+  it.each([
+    'As inscrições vão de 13/08/2026 a 07/10/2026 [1].',
+    'A inscrição no Vestibular 2027 custa R$ 85,00.',
+    'Qual o nome do curso de Medicina?',
+    'Como faço a matrícula em 2027?',
+    'Foram 12345 inscritos no total.',
+  ])('não mexe em datas, anos, valores nem perguntas comuns: "%s"', (t) => {
+    expect(mascararDadosPessoais(t)).toBe(t);
+  });
   it('remove CPF, e-mail e telefone', () => {
     const r = mascararDadosPessoais('meu CPF é 123.456.789-09 e o e-mail fulano@x.com, fone (53) 99999-1234');
     expect(r).not.toContain('123.456.789-09');
@@ -61,7 +81,7 @@ describe('mascararDadosPessoais', () => {
     for (const t of [
       'Vestibular 2027 tem 1063 vagas',
       'Prazo até 10/12/2026',
-      'Inscrição 123456789 confirmada',
+      'Inscrições até 07/10/2026',
       'Edital 12/2026, 2027/1',
     ]) {
       expect(mascararDadosPessoais(t)).toBe(t);

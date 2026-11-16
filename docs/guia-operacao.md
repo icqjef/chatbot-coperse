@@ -116,10 +116,13 @@ A revisão de segurança ([revisao-seguranca-2026-11.md](revisao-seguranca-2026-
 
 ## 9. O que o assistente guarda
 
+O candidato vê tudo isso no aviso de privacidade (`/privacidade`, link "Privacidade" no aviso amarelo do widget). Se mudar o que é guardado ou por quanto tempo, mude o aviso junto: um teste falha se os prazos do código e do aviso divergirem. O quadro completo, com o que cada lei exige, está em `docs/conformidade.md`.
+
+
 - Nada além da conversa na aba do navegador do candidato, que some ao fechar a aba.
-- Desde 15/11/2026, o Worker grava o texto das perguntas feitas nos sites da FURG (`REGISTRAR_PERGUNTAS = "true"` em `worker-resposta/wrangler.toml`, decisão do Jeferson). CPF, e-mail e telefone são trocados por [removido] antes de gravar; não há IP, nome de usuário nem identificador de quem perguntou; saudações não são gravadas; e cada pergunta é apagada depois de 90 dias. O aviso do assistente informa o candidato. Para desligar, mude para `"false"` por pull request; para apagar tudo, rode no Console do D1: `DELETE FROM perguntas_registro;`.
+- Desde 15/11/2026, o Worker grava o texto das perguntas feitas nos sites da FURG (`REGISTRAR_PERGUNTAS = "true"` em `worker-resposta/wrangler.toml`, decisão do Jeferson). CPF, e-mail, telefone, nome declarado ("meu nome é…") e número de inscrição, matrícula ou protocolo são trocados por [removido] antes de gravar e antes de enviar ao Gemini; não há IP, nome de usuário nem identificador de quem perguntou; saudações não são gravadas; e cada pergunta é apagada depois de 90 dias. O aviso do assistente informa o candidato. Para desligar, mude para `"false"` por pull request; para apagar tudo, rode no Console do D1: `DELETE FROM perguntas_registro;`.
 - Para limitar o uso, o Worker guarda apenas um código derivado do endereço IP e da data, nunca o IP.
-- Quando o candidato clica em 👍 ou 👎 ("Esta resposta ajudou?"), o Worker guarda o dia, o voto, o começo da resposta do bot e os endereços das páginas citadas nela. Não guarda a pergunta nem nada que identifique a pessoa.
+- Quando o candidato clica em 👍 ou 👎 ("Esta resposta ajudou?"), o Worker guarda o dia, o voto, o começo da resposta do bot e os endereços das páginas citadas nela. Não guarda a pergunta nem nada que identifique a pessoa. Cada avaliação é apagada depois de 1 ano.
 - Para cada pergunta, o Worker soma 1 na contagem do dia (respondida, não encontrada, recusada, conversa ou barrada pela cota).
 
 ### Resumo semanal
