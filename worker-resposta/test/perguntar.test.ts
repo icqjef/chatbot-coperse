@@ -722,7 +722,8 @@ describe('registro de perguntas no fluxo', () => {
     const inserir = lotes[0]!.find((s) => s.sql.includes('perguntas_registro') && s.sql.startsWith('INSERT'))!;
     expect(inserir.params[2]).toBe('meu CPF é [removido], qual o prazo?');
     await pedir(env, { pergunta: 'qual o prazo?' }, { Origin: 'https://chatbot-coperse.coperse-furg.workers.dev' });
-    expect(lotes).toHaveLength(1);
+    // O outro lote é o do cache da resposta.
+    expect(lotes.filter((l) => l.some((s) => s.sql.includes('contagem_perguntas')))).toHaveLength(1);
   });
   it('desligado: só o contador', async () => {
     const { env } = montar({});
@@ -736,5 +737,68 @@ describe('registro de perguntas no fluxo', () => {
     const lotes = comLote(env);
     expect((await pedir(env, { pergunta: 'qual o prazo?' })).status).toBe(429);
     expect(lotes[0]![0]!.params[1]).toBe('limite');
+  });
+});
+
+describe('cache de respostas no fluxo', () => {
+  /** D1 em memória só para a tabela respostas_cache; o resto ignora. */
+  function comCache(env: Env) {
+    const tabela = new Map<string, { resultado: string; criado: number }>();
+    const prep = (sql: string) => ({
+      bind: (...p: any[]) => ({
+        sql,
+        p,
+        async first() {
+          if (!sql.includes('respostas_cache')) return null;
+          const l = tabela.get(p[0]);
+          return l && l.criado >= p[1] ? { resultado: l.resultado } : null;
+        },
+        async all() {
+          return { results: [] };
+        },
+      }),
+    });
+    const base = env.DB as any;
+    env.DB = {
+      prepare: (sql: string) => (sql.includes('respostas_cache') || sql.includes('contagem') || sql.includes('registro') ? prep(sql) : base.prepare(sql)),
+      batch: async (l: any[]) => {
+        for (const s of l) if (s.sql.startsWith('INSERT OR REPLACE INTO respostas_cache')) tabela.set(s.p[0], { resultado: s.p[1], criado: s.p[2] });
+        return [];
+      },
+    } as unknown as D1Database;
+    return tabela;
+  }
+  const geracoes = (c: Ctx) => c.chamadas.filter((x) => x.url.includes('generateContent')).length;
+
+  it('pergunta repetida (mesmo texto normalizado) não chama o Gemini nem a cota', async () => {
+    const c = montar({});
+    let cota = 0;
+    c.env.COTA = { consumir: async () => (cota++, true) };
+    const tabela = comCache(c.env);
+    const a = await (await pedir(c.env, { pergunta: 'Qual o prazo?' })).json() as any;
+    const b = await (await pedir(c.env, { pergunta: '  qual o PRAZO ' })).json() as any;
+    expect(tabela.size).toBe(1);
+    expect(geracoes(c)).toBe(1);
+    expect(cota).toBe(1);
+    expect(b.resposta).toBe(a.resposta);
+    expect(b.fontes).toEqual(a.fontes);
+    expect(b.assinatura).toBe(a.assinatura);
+  });
+
+  it('página de teste e resposta sem fonte não usam o cache', async () => {
+    const c = montar({});
+    const tabela = comCache(c.env);
+    await pedir(c.env, { pergunta: 'qual o prazo?' }, { Origin: 'https://chatbot-coperse.coperse-furg.workers.dev' });
+    expect(tabela.size).toBe(0);
+    const s = montar({ texto: 'Não encontrei essa informação.' });
+    const t2 = comCache(s.env);
+    await pedir(s.env, { pergunta: 'qual o prazo?' });
+    expect(t2.size).toBe(0);
+  });
+
+  it('falha no D1 do cache não atrapalha a resposta', async () => {
+    const c = montar({});
+    const r = await pedir(c.env, { pergunta: 'qual o prazo?' });
+    expect(r.status).toBe(200);
   });
 });

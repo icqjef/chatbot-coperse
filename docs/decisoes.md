@@ -346,3 +346,12 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Mudança: `comEncaminhamento` (em `regras.ts`) reconhece a pergunta sobre a própria situação. Ou um possessivo da 1ª pessoa ("minha", "meu") perto de inscrição, isenção, homologação, nota, recurso, classificação, resultado, situação, matrícula, pedido ou aferição; ou "fui homologado/aprovado/classificado…" e "passei". Se a resposta não tem o e-mail, ganha a linha "Para a sua situação individual, consulte o sistema de inscrição ou escreva para coperse@furg.br."
 - Vale também para a recusa sem citação: com o e-mail acrescentado, ela passa como encaminhamento em vez de virar SEM_BASE.
 - Perguntas gerais ("Quando sai a homologação?", "Qual a nota mínima?", "meu curso tem quantas vagas?") não são afetadas.
+
+## 16/11/2026 — Cache das respostas às perguntas repetidas
+
+- Motivo: perguntas como "quando é a prova?" se repetem muito em época de inscrição. Cada uma chamava o Gemini de novo (custo, cerca de 2 a 4 s de espera e cota diária) e podia sair com redação diferente.
+- Mudança: `worker-resposta/src/cache.ts` e tabela `respostas_cache` (migration 0007). A chave é o SHA-256 do dia de Brasília e da pergunta normalizada (minúsculas, sem acento, sem pontuação). A resposta vale por 2 horas e só no mesmo dia. Só entram a primeira pergunta da conversa (seguimentos dependem do histórico), respostas com fonte e perguntas vindas dos sites da FURG. A página de teste e a avaliação automática sempre geram de novo, para medir o modelo de verdade.
+- A pergunta respondida pelo cache conta no painel e no registro como as outras, mas não gasta a cota diária.
+- Por que D1 e não o Cache API da Cloudflare: o Cache API não guarda nada em endereços *.workers.dev, que é onde o Worker roda.
+- Prazo de 2 horas: a indexação já leva de 2 a 8 horas para trazer uma novidade dos sites. Duas horas a mais no pior caso não mudam muito, e respostas datadas ("hoje", "encerrado") não atravessam a meia-noite.
+- Privacidade: o aviso `/privacidade` e o inventário em `docs/conformidade.md` incluem a tabela nova.

@@ -1,6 +1,7 @@
 import { carregarRegras, inferirProcesso } from '@chatbot/comum/classificar';
 import listasJson from '../../config/listas.json';
 import processosJson from '../../config/processos.json';
+import { chaveCache, gravarCache, lerCache } from './cache';
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type LinhaDiagnostico, type Trecho } from './busca';
@@ -291,6 +292,13 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
   // Saudação, agradecimento, "quem é você", data e hora: resposta pronta, sem gastar a cota do Gemini.
   const social = respostaSocial(entrada.pergunta, agora());
   if (social) return responder({ resposta: social, fontes: [], sugestoes: [], contato: false }, true);
+  // Pergunta repetida nos sites da FURG: resposta guardada, sem Gemini e sem gastar a cota. A página de teste
+  // e a avaliação automática (*.workers.dev) sempre geram de novo, para medir o modelo de verdade.
+  const chave = contar && entrada.historico.length === 0 ? await chaveCache(entrada.pergunta, agora()) : null;
+  if (chave) {
+    const guardada = await lerCache(env.DB, chave, agora());
+    if (guardada) return responder(guardada);
+  }
   if (env.COTA) {
     let liberada = false;
     try {
@@ -324,7 +332,9 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
     });
     // Página de teste e avaliação automática (origem *.workers.dev): mostra por que cada página entrou ou não.
     // Só URLs públicas e notas; nunca vai para os sites da FURG.
-    return await responder(contar || !diagnostico ? resultado : { ...resultado, diagnostico });
+    const resposta = await responder(contar || !diagnostico ? resultado : { ...resultado, diagnostico });
+    if (chave) await gravarCache(env.DB, chave, resultado, agora());
+    return resposta;
   } catch (e) {
     // Só a parte inicial ("... HTTP 429"); o texto do provedor (depois do travessão) não vai ao log.
     const msg = String(e instanceof Error ? e.message : e).split(env.GEMINI_API_KEY).join('[chave]');
