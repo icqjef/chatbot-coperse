@@ -194,6 +194,19 @@ describe('conversa', () => {
     await pronto();
     expect(q('.msgs .oficial').textContent).toBe('✔ Resposta conferida pela COPERSE');
   });
+  it('sugestões do uso real entram antes das fixas, até 4, ao abrir', async () => {
+    document.body.replaceChildren();
+    sessionStorage.clear();
+    const sugestoes = vi.fn().mockResolvedValue(['Qual o valor da taxa?']);
+    w = montar(config, { enviar: vi.fn() as unknown as Enviar, sugestoes });
+    w.abrir();
+    await pronto();
+    const botoes = [...w.raiz.querySelectorAll('.sugestoes button')].map((b) => b.textContent);
+    expect(botoes[0]).toBe('Qual o valor da taxa?');
+    expect(botoes.length).toBe(4);
+    w.abrir();
+    expect(sugestoes).toHaveBeenCalledTimes(1);
+  });
   it('sem proximas nas dependências, o botão não aparece', () => {
     document.body.replaceChildren();
     w = montar(config, {});

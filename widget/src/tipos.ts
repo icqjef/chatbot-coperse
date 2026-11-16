@@ -13,4 +13,6 @@ export type Enviar = (pergunta: string, historico: Mensagem[], aoParcial?: (text
 export type EtapaProxima = { etapa: string; quando: string; fonte: { titulo: string; url: string } };
 export type Proximas = { processos: { nome: string; ano: number; etapas: EtapaProxima[] }[] };
 export type BuscarProximas = () => Promise<Proximas>;
+/** Perguntas mais feitas na semana no site (GET /sugestoes). */
+export type BuscarSugestoes = () => Promise<string[]>;
 export type Avaliar = (dados: { util: boolean; resposta: string; assinatura: string; fontes: string[] }) => Promise<void>;
