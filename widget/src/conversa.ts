@@ -1,4 +1,4 @@
-import type { Avaliar, BuscarProximas, Enviar, Fonte, Mensagem, Proximas, Resposta } from './tipos';
+import type { Avaliar, Aviso, BuscarProximas, Enviar, Fonte, Mensagem, Proximas, Resposta } from './tipos';
 
 export class ErroWidget extends Error {
   mensagem: string;
@@ -90,8 +90,18 @@ export function criarEnviar(api: string, fetchFn: typeof fetch = (...a) => fetch
     if (sugestoes.length) r.sugestoes = sugestoes;
     if (c.contato === true) r.contato = true;
     if (c.oficial === true) r.oficial = true;
+    const aviso = filtrarAviso(c.aviso);
+    if (aviso) r.aviso = aviso;
     return r;
   };
+}
+
+/** Aviso de retificação bem formado, com endereço http(s); qualquer outra coisa é descartada. */
+export function filtrarAviso(x: unknown): Aviso | undefined {
+  const a = x as Partial<Aviso> | null;
+  if (!a || (a.tipo !== 'info' && a.tipo !== 'atencao')) return undefined;
+  if (typeof a.texto !== 'string' || typeof a.titulo !== 'string' || typeof a.url !== 'string' || !/^https?:\/\//.test(a.url)) return undefined;
+  return { tipo: a.tipo, texto: a.texto.slice(0, 300), url: a.url, titulo: a.titulo.slice(0, 200) };
 }
 
 /** Até 3 textos curtos: viram botões que enviam a pergunta. */

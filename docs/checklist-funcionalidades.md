@@ -4,8 +4,8 @@ Ordem de execução definida pelo Jeferson. Cada item vira um PR; marcar aqui qu
 
 - [x] 1. Cronograma como dados fixos: o indexador lê os cronogramas (inclusive retificados) e guarda etapa e data; as respostas sobre datas usam essa lista conferida; botão "Próximas datas" no widget. No ar em 16/11 (PRs #60, #61); avaliação 53/53.
 - [x] 2. Respostas oficiais da COPERSE pelo painel: a equipe marca a resposta errada, escreve a correta com a fonte, e a mesma pergunta passa a receber a resposta oficial. No ar em 16/11 (PR #62); falta o teste com a senha do painel.
-- [ ] 3. E-mail já preenchido: "Escrever para a COPERSE" abre o e-mail com a pergunta e a resposta do bot.
-- [ ] 4. Copiar a resposta e baixá-la como documento.
+- [x] 3. E-mail já preenchido: "Escrever para a COPERSE" abre o e-mail com a pergunta e a resposta do bot. No ar em 16/11 (PR #63).
+- [x] 4. Copiar a resposta e baixá-la como documento. No ar em 16/11 (PR #63), em texto simples (.txt).
 - [ ] 5. Aviso de retificação: quando há edital ou cronograma retificado, a resposta avisa e prioriza a versão nova.
 - [ ] 6. Página atual como contexto: o widget envia a página em que o candidato está, para desfazer perguntas ambíguas.
 - [ ] 7. Link para a página certa do PDF citado (guardar o número da página na indexação).

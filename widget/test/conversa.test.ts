@@ -153,3 +153,14 @@ describe('próximas datas', () => {
     expect(e.mensagem).toBe('Agora não.');
   });
 });
+
+describe('filtrarAviso', () => {
+  it('aceita só tipo conhecido e endereço http(s)', async () => {
+    const { filtrarAviso } = await import('../src/conversa');
+    const bom = { tipo: 'info', texto: 't', url: 'https://x/a.pdf', titulo: 'A' };
+    expect(filtrarAviso(bom)).toEqual(bom);
+    expect(filtrarAviso({ ...bom, url: 'javascript:alert(1)' })).toBeUndefined();
+    expect(filtrarAviso({ ...bom, tipo: 'outro' })).toBeUndefined();
+    expect(filtrarAviso(null)).toBeUndefined();
+  });
+});

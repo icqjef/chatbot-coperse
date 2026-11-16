@@ -1,9 +1,9 @@
 import type { Config } from './config';
 import { ESTILOS } from './estilos';
-import { filtrarFontes, filtrarSugestoes, historicoParaEnvio } from './conversa';
+import { filtrarAviso, filtrarFontes, filtrarSugestoes, historicoParaEnvio } from './conversa';
 import { perfilDoSite } from './perfil';
 import { renderResposta } from './render';
-import type { Avaliar, BuscarProximas, Enviar, Fonte, Mensagem } from './tipos';
+import type { Avaliar, Aviso, BuscarProximas, Enviar, Fonte, Mensagem } from './tipos';
 
 export type Widget = { host: HTMLElement; abrir(): void; fechar(): void; raiz: ShadowRoot };
 
@@ -16,7 +16,7 @@ const MAILTO = `mailto:${EMAIL}?subject=${encodeURIComponent('Dúvida sobre proc
 export const ESPERA_CONVITE_MS = 15_000;
 
 /** `avaliado`: a pessoa já respondeu "Esta resposta ajudou?". */
-type Item = Mensagem & { fontes?: Fonte[]; sugestoes?: string[]; contato?: boolean; oficial?: boolean; avaliado?: boolean };
+type Item = Mensagem & { fontes?: Fonte[]; sugestoes?: string[]; contato?: boolean; oficial?: boolean; aviso?: Aviso; avaliado?: boolean };
 /** `convidado`: o convite proativo já apareceu nesta sessão. */
 type Estado = { aberto: boolean; itens: Item[]; convidado?: boolean };
 
@@ -37,6 +37,8 @@ function lerEstado(): Estado {
           if (sugestoes.length) item.sugestoes = sugestoes;
           if (i.contato === true) item.contato = true;
           if (i.oficial === true) item.oficial = true;
+          const aviso = filtrarAviso(i.aviso);
+          if (aviso) item.aviso = aviso;
           if (i.avaliado === true) item.avaliado = true;
         }
         itens.push(item);
@@ -298,6 +300,15 @@ export function montar(
     const fontes = item.fontes ?? [];
     const bolha = renderResposta(item.texto, fontes);
     if (item.oficial) bolha.insertBefore(el('p', 'oficial', '✔ Resposta conferida pela COPERSE'), bolha.firstChild);
+    if (item.aviso) {
+      const p = el('p', `retificacao ${item.aviso.tipo}`, `${item.aviso.texto} `);
+      const a = el('a', undefined, item.aviso.titulo);
+      a.href = item.aviso.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      p.append(a);
+      bolha.querySelector('.texto')?.after(p);
+    }
     if (item.contato) {
       const acao = el('div', 'acao');
       acao.append(linkContato('Escrever para a COPERSE', mailtoContato(pergunta, item.texto, item.fontes)));
@@ -367,6 +378,7 @@ export function montar(
       if (r.sugestoes?.length) modelo.sugestoes = r.sugestoes;
       if (r.contato) modelo.contato = true;
       if (r.oficial) modelo.oficial = true;
+      if (r.aviso) modelo.aviso = r.aviso;
       mostrar(modelo, true, pergunta);
       estado.itens.push({ papel: 'usuario', texto: pergunta }, modelo);
       salvar();

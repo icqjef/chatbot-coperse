@@ -50,6 +50,10 @@ sup { font-weight: 700; color: var(--cor-escura); margin-left: 1px; }
 .oficial { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; color: #1e6b3a; }
 .guardar { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: #3c444d; }
 .acao-guardar { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid #8a939c; background: #fff; color: #3c444d; cursor: pointer; min-height: 24px; }
+.retificacao { margin: 8px 0 0; font-size: 13px; line-height: 1.45; }
+.retificacao.info { color: #3c444d; }
+.retificacao.atencao { background: #fff4d6; border: 1px solid #c98a00; border-radius: 8px; padding: 6px 8px; color: #4a3500; }
+.retificacao a { color: inherit; }
 .atalhos { display: flex; margin: 0 0 8px; }
 .datas { font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--cor); color: var(--cor-escura); background: #fff; cursor: pointer; }
 .datas:disabled { color: #5d6670; border-color: #8a939c; cursor: default; }
