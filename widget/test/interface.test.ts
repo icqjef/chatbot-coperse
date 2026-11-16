@@ -154,6 +154,13 @@ describe('conversa', () => {
     expect(msgs).toContain('Aplicação da prova: 22/11/2026');
     expect(q<HTMLAnchorElement>('.msgs .fontes a').href).toBe('https://coperse.furg.br/c.pdf');
   });
+  it('resposta oficial mostra o selo da COPERSE', async () => {
+    montarCom(vi.fn().mockResolvedValue({ ...ok, oficial: true }));
+    digitar('Quando é a prova?');
+    clicarEnviar();
+    await pronto();
+    expect(q('.msgs .oficial').textContent).toBe('✔ Resposta conferida pela COPERSE');
+  });
   it('sem proximas nas dependências, o botão não aparece', () => {
     document.body.replaceChildren();
     w = montar(config, {});

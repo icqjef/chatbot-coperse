@@ -3,6 +3,7 @@ import listasJson from '../../config/listas.json';
 import processosJson from '../../config/processos.json';
 import { chaveCache, gravarCache, lerCache } from './cache';
 import { cronogramaComoTrechos, perguntaDeData } from './cronograma';
+import { buscarOficial, comMemoria } from './oficiais';
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type LinhaDiagnostico, type Trecho } from './busca';
@@ -66,6 +67,8 @@ export interface DepsResposta {
   aoParcial?: (texto: string) => void;
   /** Cronograma conferido do processo (cronograma.ts): entra à frente dos trechos nas perguntas sobre datas. */
   cronograma?: (processo: string) => Promise<Trecho[]>;
+  /** Resposta oficial da COPERSE (oficiais.ts) para a mesma pergunta: vale mais que a gerada. */
+  oficial?: (consulta: string, processo: string | null) => Promise<Resultado | null>;
 }
 
 const FIM_DE_FRASE = /[.!?](?=\s)|\n/g;
@@ -129,6 +132,8 @@ export interface Resultado {
   fontes: Fonte[];
   sugestoes: string[];
   contato: boolean;
+  /** Resposta escrita pela COPERSE no painel (o widget mostra "Resposta conferida pela COPERSE"). */
+  oficial?: boolean;
 }
 
 const NAO_ACHOU: Resultado = { resposta: SEM_BASE, fontes: [], sugestoes: [], contato: true };
@@ -136,6 +141,10 @@ const NAO_ACHOU: Resultado = { resposta: SEM_BASE, fontes: [], sugestoes: [], co
 async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta): Promise<Resultado> {
   const consulta = consultaDeBusca(entrada.pergunta, entrada.historico);
   const processo = inferirProcesso([entrada.pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS);
+  if (deps.oficial) {
+    const oficial = await deps.oficial(consulta, processo).catch(() => null);
+    if (oficial) return oficial;
+  }
   const { trechos: achados } = await deps.buscar(consulta, processo);
   let trechos = achados;
   // Pergunta sobre data de um processo: o cronograma conferido vem primeiro e substitui o texto cru do mesmo documento.
@@ -379,7 +388,7 @@ export async function tratarPerguntar(
   let diagnostico: { consulta: string; trechos: LinhaDiagnostico[] } | undefined;
   // Provedores criados aqui dentro: configuração inválida vira 503 (ou {"erro"}) no try de quem chama.
   const gerarResposta = (aoParcial?: (texto: string) => void) => {
-    const embedder = criarEmbedder(env, undefined, { tempoMs: TEMPO_EMBEDDING_MS });
+    const embedder = comMemoria(criarEmbedder(env, undefined, { tempoMs: TEMPO_EMBEDDING_MS }));
     const base = criarGerador(env);
     const gerador: Gerador = {
       gerar: (sistema, mensagens) => base.gerar(sistema, mensagens, { ate }),
@@ -399,6 +408,10 @@ export async function tratarPerguntar(
       agora,
       aoParcial,
       cronograma: (processo) => cronogramaComoTrechos(env.DB, processo, agora()),
+      oficial: async (consulta, processo) => {
+        const [vetor] = await embedder.embed([consulta], 'RETRIEVAL_QUERY');
+        return vetor ? buscarOficial(env.DB, vetor, processo) : null;
+      },
     });
   };
   // Página de teste e avaliação automática (origem *.workers.dev): mostra por que cada página entrou ou não.

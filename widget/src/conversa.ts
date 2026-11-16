@@ -89,6 +89,7 @@ export function criarEnviar(api: string, fetchFn: typeof fetch = (...a) => fetch
     const sugestoes = filtrarSugestoes(c.sugestoes);
     if (sugestoes.length) r.sugestoes = sugestoes;
     if (c.contato === true) r.contato = true;
+    if (c.oficial === true) r.oficial = true;
     return r;
   };
 }

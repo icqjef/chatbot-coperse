@@ -4,10 +4,18 @@
  * ficaram sem resposta. Os dados exigem a mesma senha da reindexação manual (REINDEX_TOKEN) e passam
  * pelo limite por minuto do visitante antes da senha, para frear tentativas de adivinhá-la.
  */
+import { carregarRegras, inferirProcesso } from '@chatbot/comum/classificar';
+import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
+import listasJson from '../../config/listas.json';
+import processosJson from '../../config/processos.json';
 import type { Env } from './index';
 import { iguaisEmTempoConstante } from './operacao';
 import { aplicarLimite, json } from './perguntar';
 import { diaSaoPaulo } from './limites';
+import { MAX_PERGUNTA_OFICIAL, MAX_RESPOSTA_OFICIAL } from './oficiais';
+import { mascararDadosPessoais } from './regras';
+
+const REGRAS_PROCESSO = carregarRegras(processosJson, listasJson);
 
 const MIN_SENHA = 32;
 const PERIODOS = new Set([7, 30, 90]);
@@ -67,13 +75,82 @@ export function contarUrls(listas: (string | null)[], maximo = MAX_PAGINAS_RUINS
   return [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, maximo);
 }
 
-export async function tratarPainelDados(req: Request, env: Env, agora = new Date()): Promise<Response> {
-  const cab = { 'Cache-Control': 'no-store' };
+/** Limite por visitante antes da senha (frear tentativas) e a senha da reindexação. Null = liberado. */
+async function negarAcesso(req: Request, env: Env, cab: Record<string, string>): Promise<Response | null> {
   if (!env.REINDEX_TOKEN || env.REINDEX_TOKEN.length < MIN_SENHA) return json({ erro: 'Painel indisponível.' }, 503, cab);
   const negado = await aplicarLimite(req, env.LIMITADOR, cab);
   if (negado) return negado;
   const enviado = /^Bearer (.+)$/.exec(req.headers.get('Authorization') ?? '')?.[1] ?? '';
   if (!(await iguaisEmTempoConstante(enviado, env.REINDEX_TOKEN))) return json({ erro: 'Senha incorreta.' }, 401, cab);
+  return null;
+}
+
+/**
+ * Respostas oficiais (checklist, item 2): POST /painel/oficiais/listar, /salvar e /desativar. Salvar ou
+ * desativar apaga o cache de respostas, para nenhuma resposta antiga continuar saindo.
+ */
+export async function tratarPainelOficiais(req: Request, env: Env, acao: string, agora = new Date()): Promise<Response> {
+  const cab = { 'Cache-Control': 'no-store' };
+  const negado = await negarAcesso(req, env, cab);
+  if (negado) return negado;
+  let corpo: Record<string, unknown> = {};
+  try {
+    const t = await req.text();
+    corpo = t ? (JSON.parse(t) as Record<string, unknown>) : {};
+  } catch {
+    return json({ erro: 'Pedido inválido.' }, 400, cab);
+  }
+  try {
+    if (acao === 'listar') {
+      const { results } = await env.DB.prepare(
+        `SELECT o.id, o.pergunta, o.resposta, o.fonte_url, o.processo, o.criada, p.titulo AS fonte_titulo
+         FROM respostas_oficiais o LEFT JOIN paginas p ON p.url = o.fonte_url WHERE o.ativa = 1 ORDER BY o.id DESC`,
+      ).all();
+      return json({ oficiais: results }, 200, cab);
+    }
+    if (acao === 'desativar') {
+      const id = Number(corpo.id);
+      if (!Number.isInteger(id) || id <= 0) return json({ erro: 'Pedido inválido.' }, 400, cab);
+      await env.DB.batch([
+        env.DB.prepare('UPDATE respostas_oficiais SET ativa = 0 WHERE id = ?').bind(id),
+        env.DB.prepare('DELETE FROM respostas_cache'),
+      ]);
+      return json({ ok: true }, 200, cab);
+    }
+    if (acao === 'salvar') {
+      const pergunta = mascararDadosPessoais(String(corpo.pergunta ?? '').trim());
+      const resposta = mascararDadosPessoais(String(corpo.resposta ?? '').trim());
+      const fonte = String(corpo.fonte ?? '').trim();
+      if (pergunta.length < 5 || pergunta.length > MAX_PERGUNTA_OFICIAL)
+        return json({ erro: `Escreva a pergunta (5 a ${MAX_PERGUNTA_OFICIAL} caracteres).` }, 400, cab);
+      if (resposta.length < 10 || resposta.length > MAX_RESPOSTA_OFICIAL)
+        return json({ erro: `Escreva a resposta (10 a ${MAX_RESPOSTA_OFICIAL} caracteres).` }, 400, cab);
+      const pagina = /^https:\/\//.test(fonte)
+        ? await env.DB.prepare("SELECT url FROM paginas WHERE url = ? AND status = 'ok'").bind(fonte).first<{ url: string }>()
+        : null;
+      if (!pagina) return json({ erro: 'A fonte precisa ser uma página oficial que o assistente já lê (copie o endereço de uma fonte citada).' }, 400, cab);
+      const [vetor] = await criarEmbedder(env).embed([pergunta], 'RETRIEVAL_QUERY');
+      if (!vetor) return json({ erro: 'Não foi possível salvar agora. Tente de novo.' }, 503, cab);
+      const processo = inferirProcesso([pergunta], REGRAS_PROCESSO) ?? null;
+      await env.DB.batch([
+        env.DB.prepare('INSERT INTO respostas_oficiais (pergunta, resposta, fonte_url, processo, vetor, criada) VALUES (?, ?, ?, ?, ?, ?)').bind(
+          pergunta, resposta, pagina.url, processo, JSON.stringify(vetor), agora.toISOString(),
+        ),
+        env.DB.prepare('DELETE FROM respostas_cache'),
+      ]);
+      return json({ ok: true, processo }, 200, cab);
+    }
+    return json({ erro: 'Ação desconhecida.' }, 404, cab);
+  } catch {
+    console.error('Falha nas respostas oficiais');
+    return json({ erro: 'Não foi possível concluir agora. Tente de novo.' }, 503, cab);
+  }
+}
+
+export async function tratarPainelDados(req: Request, env: Env, agora = new Date()): Promise<Response> {
+  const cab = { 'Cache-Control': 'no-store' };
+  const negado = await negarAcesso(req, env, cab);
+  if (negado) return negado;
 
   const pedido = Number(new URL(req.url).searchParams.get('dias'));
   const dias = PERIODOS.has(pedido) ? pedido : 30;
@@ -204,6 +281,10 @@ th { color: var(--texto-2); font-weight: 600; }
 .paginas .n { min-width: 2.5em; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .ajuda { color: var(--texto-3); font-size: 13px; margin: 4px 0 8px; }
 .secao { margin-top: 12px; }
+.formulario label { display: block; margin: 10px 0 4px; font-weight: 600; font-size: 14px; }
+.formulario textarea, .formulario input { width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--borda); border-radius: 8px; background: var(--fundo); color: var(--texto); font: inherit; }
+.formulario .botao { margin-top: 10px; }
+.lista .leve { margin-top: 6px; }
 .etiqueta { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--borda); color: var(--texto-2); margin-left: 6px; }
 .alerta { color: var(--erro); font-weight: 600; }
 .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
@@ -263,6 +344,24 @@ th { color: var(--texto-2); font-weight: 600; }
       <h2>Perguntas sem resposta</h2>
       <p class="ajuda" id="ajuda-sem-resposta">As mais recentes primeiro (até 100). Perguntas que se repetem mostram o que falta nas páginas ou no edital. Dados pessoais aparecem como [removido].</p>
       <ul class="lista" id="sem-resposta"></ul>
+    </div>
+
+    <h3>Respostas oficiais</h3>
+    <div class="cartao secao" id="cartao-oficiais">
+      <h2>Escrever uma resposta oficial</h2>
+      <p class="ajuda">Use quando o assistente errar ou não souber. Perguntas de mesmo sentido, no mesmo processo seletivo, passam a receber esta resposta, com a página indicada como fonte. Use os botões "Responder" e "Corrigir" das listas para começar. Não escreva dados pessoais.</p>
+      <form id="form-oficial" class="formulario">
+        <label for="of-pergunta">Pergunta do candidato</label>
+        <textarea id="of-pergunta" maxlength="300" rows="2" required></textarea>
+        <label for="of-resposta">Resposta oficial</label>
+        <textarea id="of-resposta" maxlength="1500" rows="4" required></textarea>
+        <label for="of-fonte">Endereço da página oficial que confirma a resposta</label>
+        <input id="of-fonte" type="url" required placeholder="https://coperse.furg.br/...">
+        <button class="botao" type="submit">Salvar resposta oficial</button>
+        <p id="of-msg" class="ajuda" role="status"></p>
+      </form>
+      <h2>Em uso</h2>
+      <ul class="lista" id="oficiais"></ul>
     </div>
 
     <h3>Avaliações das respostas</h3>
@@ -328,6 +427,45 @@ const PAINEL_JS = `(() => {
   };
 
   function erro(id, msg) { const p = $(id); p.textContent = msg; p.hidden = !msg; }
+
+  async function api(caminho, corpo) {
+    const r = await fetch(caminho, { method: 'POST', headers: { Authorization: 'Bearer ' + senha, 'Content-Type': 'application/json' }, body: JSON.stringify(corpo || {}) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.erro || 'Não foi possível concluir. Tente de novo.');
+    return j;
+  }
+  function preencher(pergunta, fonte) {
+    if (pergunta) $('of-pergunta').value = pergunta;
+    if (fonte) $('of-fonte').value = fonte;
+    $('of-msg').textContent = '';
+    $('cartao-oficiais').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    (pergunta ? $('of-resposta') : $('of-pergunta')).focus();
+  }
+  async function oficiais() {
+    const ul = $('oficiais');
+    try {
+      const j = await api('/painel/oficiais/listar');
+      ul.replaceChildren();
+      if (!j.oficiais.length) { ul.append(el('li', { class: 'vazio' }, 'Nenhuma resposta oficial ainda.')); return; }
+      for (const o of j.oficiais) {
+        const li = el('li');
+        const dia = el('div', { class: 'dia' }, brAno(String(o.criada).slice(0, 10)));
+        if (o.processo) dia.append(el('span', { class: 'etiqueta' }, o.processo));
+        const f = el('div', { class: 'fontes' }, 'Fonte: ');
+        f.append(link(o.fonte_url, o.fonte_titulo || o.fonte_url));
+        const b = el('button', { type: 'button', class: 'leve' }, 'Desativar');
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          try { await api('/painel/oficiais/desativar', { id: o.id }); $('of-msg').textContent = 'Resposta oficial desativada.'; oficiais(); }
+          catch (e) { b.disabled = false; $('of-msg').textContent = e.message; }
+        });
+        li.append(dia, el('p', {}, 'Pergunta: ' + o.pergunta), el('p', {}, o.resposta), f, b);
+        ul.append(li);
+      }
+    } catch (e) {
+      ul.replaceChildren(el('li', { class: 'vazio' }, e.message));
+    }
+  }
 
   async function carregar() {
     erro('erro-painel', '');
@@ -503,7 +641,9 @@ const PAINEL_JS = `(() => {
       const li = el('li');
       const dia = el('div', { class: 'dia' }, brAno(p.dia));
       dia.append(el('span', { class: 'etiqueta' }, TIPOS[p.tipo] || p.tipo));
-      li.append(dia, el('p', {}, p.pergunta));
+      const responder = el('button', { type: 'button', class: 'leve' }, 'Responder');
+      responder.addEventListener('click', () => preencher(p.pergunta, ''));
+      li.append(dia, el('p', {}, p.pergunta), responder);
       ul.append(li);
     }
   }
@@ -531,11 +671,14 @@ const PAINEL_JS = `(() => {
         n.fontes.forEach((x, i) => { if (i) f.append('; '); f.append(link(x.url, x.titulo)); });
         li.append(f);
       }
+      const corrigir = el('button', { type: 'button', class: 'leve' }, 'Corrigir');
+      corrigir.addEventListener('click', () => preencher('', n.fontes && n.fontes[0] ? n.fontes[0].url : ''));
+      li.append(corrigir);
       ul.append(li);
     }
   }
 
-  function entrar() { $('entrar').hidden = true; $('painel').hidden = false; desenhar(); }
+  function entrar() { $('entrar').hidden = true; $('painel').hidden = false; desenhar(); oficiais(); }
   function sair() { senha = ''; dados = null; gravar(CHAVE, ''); $('painel').hidden = true; $('entrar').hidden = false; $('senha').value = ''; $('senha').focus(); }
 
   $('entrar').addEventListener('submit', async (e) => {
@@ -551,6 +694,22 @@ const PAINEL_JS = `(() => {
     carregar();
   }));
   $('atualizar').addEventListener('click', carregar);
+  $('form-oficial').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const botao = e.target.querySelector('button');
+    botao.disabled = true;
+    $('of-msg').textContent = 'Salvando…';
+    try {
+      const j = await api('/painel/oficiais/salvar', { pergunta: $('of-pergunta').value, resposta: $('of-resposta').value, fonte: $('of-fonte').value });
+      $('of-msg').textContent = 'Resposta oficial salva' + (j.processo ? ' (processo: ' + j.processo + ').' : ' (vale para qualquer processo).');
+      $('of-pergunta').value = ''; $('of-resposta').value = ''; $('of-fonte').value = '';
+      oficiais();
+    } catch (err) {
+      $('of-msg').textContent = err.message;
+    } finally {
+      botao.disabled = false;
+    }
+  });
   $('sair').addEventListener('click', sair);
   document.querySelectorAll('.ver-tabela').forEach((b) => b.addEventListener('click', () => {
     const nome = b.dataset.alvo;

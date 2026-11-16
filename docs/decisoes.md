@@ -419,3 +419,12 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Tabelas `cronograma` e `cronograma_fontes` (migration 0009). Só dados públicos dos editais.
 - Teto do widget passa de 20 para 32 KB (ficou em 22,1 KB; 8,1 KB comprimido). Os próximos itens da checklist também crescem o widget.
 - Ajuste no mesmo dia, depois da primeira extração real (37 documentos, 464 etapas): só PDFs entram. Páginas HTML de notícia e de listagem traziam prazo de antes da prorrogação ("inscrição até 01/10/2026"), datas de 2024 e datas sem ano; por serem mais novas que o edital, passariam por cima dele.
+
+## 16/11/2026 — Respostas oficiais da COPERSE pelo painel (checklist, item 2)
+
+- Motivo: corrigir na hora, sem programação, as respostas erradas (👎) e as perguntas sem resposta que aparecem no painel.
+- Painel: formulário "Escrever uma resposta oficial" (pergunta, resposta, página de fonte), botões "Responder" (perguntas sem resposta) e "Corrigir" (respostas com 👎), lista "Em uso" com "Desativar". Rotas `POST /painel/oficiais/listar|salvar|desativar`, com a mesma senha e limite do painel.
+- A fonte precisa ser uma página que o assistente já lê (`paginas`, status ok); se ela sair do índice, a resposta oficial deixa de valer. CPF, e-mail e outros dados são mascarados ao salvar.
+- Reconhecimento: cosseno entre o vetor da pergunta do candidato e o da pergunta oficial, mínimo 0,92. Se a oficial é de um processo (inferido da pergunta escrita), a pergunta do candidato precisa ser do mesmo processo; oficial sem processo vale para qualquer pergunta. O vetor da pergunta é o mesmo da busca (calculado uma vez só).
+- A resposta oficial vem antes da busca e do Gemini, com a fonte e o selo "Resposta conferida pela COPERSE" no widget. Salvar ou desativar apaga o cache de respostas.
+- Tabela `respostas_oficiais` (migration 0010). Desativar não apaga a linha.
