@@ -138,6 +138,28 @@ describe('conversa', () => {
 
   beforeEach(() => sessionStorage.clear());
 
+  it('Próximas datas: lista as etapas com a fonte, sem usar o enviar', async () => {
+    document.body.replaceChildren();
+    const env = vi.fn();
+    const proximas = vi.fn().mockResolvedValue({
+      processos: [{ nome: 'Vestibular', ano: 2027, etapas: [{ etapa: 'Aplicação da prova', quando: '22/11/2026', fonte: { titulo: 'Cronograma', url: 'https://coperse.furg.br/c.pdf' } }] }],
+    });
+    w = montar(config, { enviar: env as unknown as Enviar, proximas });
+    w.abrir();
+    q<HTMLButtonElement>('.datas').click();
+    await pronto();
+    expect(env).not.toHaveBeenCalled();
+    const msgs = q('.msgs').textContent ?? '';
+    expect(msgs).toContain('Vestibular 2027');
+    expect(msgs).toContain('Aplicação da prova: 22/11/2026');
+    expect(q<HTMLAnchorElement>('.msgs .fontes a').href).toBe('https://coperse.furg.br/c.pdf');
+  });
+  it('sem proximas nas dependências, o botão não aparece', () => {
+    document.body.replaceChildren();
+    w = montar(config, {});
+    expect(w.raiz.querySelector('.datas')).toBeNull();
+  });
+
   it('prévia aparece só para quem vê a tela e some com a resposta final', async () => {
     let soltar: (v: unknown) => void = () => {};
     const env = vi.fn((_p: string, _h: unknown, aoParcial?: (t: string) => void) => {

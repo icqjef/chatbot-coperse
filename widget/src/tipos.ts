@@ -5,4 +5,8 @@ export type Fonte = { titulo: string; url: string; site: string; data: string };
 export type Resposta = { resposta: string; fontes: Fonte[]; assinatura?: string; sugestoes?: string[]; contato?: boolean };
 /** `aoParcial`: prévia da resposta enquanto o assistente escreve (texto já com as citações [n]). */
 export type Enviar = (pergunta: string, historico: Mensagem[], aoParcial?: (texto: string) => void) => Promise<Resposta>;
+/** Próximas etapas dos cronogramas conferidos (GET /proximas). */
+export type EtapaProxima = { etapa: string; quando: string; fonte: { titulo: string; url: string } };
+export type Proximas = { processos: { nome: string; ano: number; etapas: EtapaProxima[] }[] };
+export type BuscarProximas = () => Promise<Proximas>;
 export type Avaliar = (dados: { util: boolean; resposta: string; assinatura: string; fontes: string[] }) => Promise<void>;
