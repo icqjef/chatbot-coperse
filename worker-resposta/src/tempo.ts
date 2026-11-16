@@ -19,12 +19,17 @@ const PASSADO = [
 const FUTURO = [
   'será', 'serão', 'ocorrerá', 'ocorrerão', 'acontecerá', 'acontecerão', 'terminará', 'terminarão', 'encerrará',
   'encerrarão', 'começará', 'começarão', 'iniciará', 'iniciarão', 'terá', 'terão', 'sairá', 'sairão', 'estará',
-  'estarão', 'realizará', 'realizarão', 'vai', 'vão',
+  'estarão', 'realizará', 'realizarão', 'aplicará', 'aplicarão', 'vai', 'vão',
 ];
 /** Verbos no presente: se o último verbo antes da data é um destes, não há o que conferir ("a prova é em"). */
 const NEUTRO = ['é', 'são', 'está', 'estão', 'ocorre', 'acontece', 'termina', 'começa', 'fica', 'ficam', 'vale', 'valem'];
 /** "foram prorrogadas até 20/12": o passado é da mudança, não do prazo. */
 const MUDANCA = /prorrogad|adiad|alterad|remarcad|antecipad|transferid|estendid|retificad|publicad|divulgad/;
+/** "foi divulgada em 08/12/2026": a data é da própria divulgação, então o tempo é conferido. */
+const SO_DIVULGACAO = /^\s*(?:publicad|divulgad)[ao]s?\s+(?:em|até|no dia|dia|a partir de)\s*$/u;
+/** Troca de tempo, posição a posição (PASSADO[i] ↔ FUTURO[i]); "vai" e "vão" ficam sem par. */
+const PARA_FUTURO = new Map(PASSADO.map((v, i) => [v, FUTURO[i]!] as const));
+const PARA_PASSADO = new Map(PASSADO.map((v, i) => [FUTURO[i]!, v] as const));
 
 const VERBO = new RegExp(`(?<!\\p{L})(${[...PASSADO, ...FUTURO, ...NEUTRO].join('|')})(?!\\p{L})`, 'gu');
 const TEMPO = new Map<string, 'passado' | 'futuro' | 'neutro'>([
@@ -37,6 +42,8 @@ export interface ProblemaTempo {
   data: string;
   verbo: string;
   esperado: 'futuro' | 'passado';
+  /** Onde o verbo começa no texto. */
+  posicao: number;
 }
 
 const iso = (m: RegExpMatchArray) => `${m[3]}-${m[2]}-${m[1]}`;
@@ -44,23 +51,46 @@ const iso = (m: RegExpMatchArray) => `${m[3]}-${m[2]}-${m[1]}`;
 /** Erros de tempo verbal perto de datas dd/mm/aaaa. `hoje` em AAAA-MM-DD (Brasília). */
 export function problemasDeTempo(texto: string, hoje: string): ProblemaTempo[] {
   const out: ProblemaTempo[] = [];
-  for (const frase of texto.split(/(?<=[.!?])\s+|\n+/)) {
+  let base = 0;
+  // O separador fica no resultado (grupo de captura) para a posição de cada frase no texto ser conhecida.
+  for (const frase of texto.split(/((?<=[.!?])\s+|\n+)/)) {
+    const deslocamento = base;
+    base += frase.length;
     let inicio = 0;
     for (const m of frase.matchAll(DATA)) {
-      const antes = frase.slice(Math.max(inicio, m.index! - JANELA), m.index).toLowerCase();
+      const comeco = Math.max(inicio, m.index! - JANELA);
+      const antes = frase.slice(comeco, m.index).toLowerCase();
       inicio = m.index! + m[0].length;
       const verbos = [...antes.matchAll(VERBO)];
       const ultimo = verbos[verbos.length - 1];
       if (!ultimo) continue;
       const depois = antes.slice(ultimo.index! + ultimo[0].length);
-      if (MUDANCA.test(depois)) continue;
+      if (MUDANCA.test(depois) && !SO_DIVULGACAO.test(depois)) continue;
       const tempo = TEMPO.get(ultimo[1]!);
       const data = iso(m);
-      if (data > hoje && tempo === 'passado') out.push({ data: m[0], verbo: ultimo[1]!, esperado: 'futuro' });
-      else if (data < hoje && tempo === 'futuro') out.push({ data: m[0], verbo: ultimo[1]!, esperado: 'passado' });
+      const posicao = deslocamento + comeco + ultimo.index!;
+      if (data > hoje && tempo === 'passado') out.push({ data: m[0], verbo: ultimo[1]!, esperado: 'futuro', posicao });
+      else if (data < hoje && tempo === 'futuro') out.push({ data: m[0], verbo: ultimo[1]!, esperado: 'passado', posicao });
     }
   }
   return out;
+}
+
+/**
+ * Último recurso, quando a reescrita pelo modelo não resolveu: troca cada verbo errado pelo par no tempo certo
+ * ("foram realizadas em 13/12/2026" → "serão realizadas"), mantendo a maiúscula inicial.
+ */
+export function corrigirTempo(texto: string, hoje: string): string {
+  let saida = texto;
+  // Do fim para o começo, para as posições anteriores continuarem valendo.
+  for (const p of problemasDeTempo(texto, hoje).sort((a, b) => b.posicao - a.posicao)) {
+    const novo = (p.esperado === 'futuro' ? PARA_FUTURO : PARA_PASSADO).get(p.verbo);
+    if (!novo) continue;
+    const original = saida.slice(p.posicao, p.posicao + p.verbo.length);
+    const troca = original[0] !== original[0]!.toLowerCase() ? novo[0]!.toUpperCase() + novo.slice(1) : novo;
+    saida = saida.slice(0, p.posicao) + troca + saida.slice(p.posicao + p.verbo.length);
+  }
+  return saida;
 }
 
 /** Tira as linhas "Fique atento:" cujas datas já passaram todas (a regra 12 só vale para prazo por vir). */
