@@ -396,6 +396,10 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Embeddings: uma nova tentativa em falha passageira, sem reserva (vetores de outro modelo não se comparam aos do índice). 6 s por chamada na pergunta; 30 s no indexador.
 - Padrão adotado: o mesmo das bibliotecas oficiais (repetição com espera); não houve projeto do GitHub a adaptar para um trecho tão pequeno.
 
+## 16/11/2026 — @types/node de volta à versão 22
+
+- Motivo: o PR #50 (Dependabot) levou o @types/node para a 26, mas a indexação roda no Node 22 (`.nvmrc`). Com os tipos da 26, a checagem aprovaria funções que o Node 22 não tem, e a indexação só falharia na hora de rodar.
+- Mudança: @types/node ^22.20.5 em `comum` e `worker-indexacao`. O Dependabot passa a ignorar as versões maiores do @types/node. Ao trocar o `.nvmrc`, troca-se também a regra.
 ## 16/11/2026 — Tempo de resposta no painel
 
 - Motivo: não havia como saber se o assistente estava ficando lento, por exemplo com o Gemini sobrecarregado em semana de inscrição ou com o modelo reserva entrando com frequência.
