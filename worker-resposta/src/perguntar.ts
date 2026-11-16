@@ -23,6 +23,7 @@ export interface EnvPerguntar {
   COTA?: { consumir(): Promise<boolean> };
   PROVEDOR_LLM: string;
   MODELO_RESPOSTA?: string;
+  MODELO_RESERVA?: string;
   MODELO_EMBEDDING?: string;
   DIMENSAO_EMBEDDING?: string;
   LIMIAR_SIMILARIDADE?: string;
@@ -37,6 +38,10 @@ const MAX_MENSAGEM = 2000;
 const MAX_CORPO_BYTES = 48 * 1024;
 const LIMIAR_PADRAO = 0.5;
 const MAX_RECUSA = 400;
+// O widget desiste em 30 s; o Worker para de tentar o Gemini antes, para ainda responder com a mensagem de indisponível.
+const PRAZO_GEMINI_MS = 26_000;
+// Embedding da pergunta: texto curto, resposta rápida; tempo maior só atrasaria a reserva da geração.
+const TEMPO_EMBEDDING_MS = 6_000;
 
 const MSG_GRANDE = 'Pergunta grande demais.';
 export const MSG_LIMITE = 'Muitas perguntas em pouco tempo. Aguarde um minuto e tente de novo.';
@@ -305,8 +310,10 @@ export async function tratarPerguntar(req: Request, env: EnvPerguntar, origens: 
     }
   }
   try {
-    const embedder = criarEmbedder(env);
-    const gerador = criarGerador(env);
+    const ate = Date.now() + PRAZO_GEMINI_MS;
+    const embedder = criarEmbedder(env, undefined, { tempoMs: TEMPO_EMBEDDING_MS });
+    const base = criarGerador(env);
+    const gerador: Gerador = { gerar: (sistema, mensagens) => base.gerar(sistema, mensagens, { ate }) };
     const limiar = Number(env.LIMIAR_SIMILARIDADE);
     let diagnostico: { consulta: string; trechos: LinhaDiagnostico[] } | undefined;
     const resultado = await responderPergunta(entrada, {
