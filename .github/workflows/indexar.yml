@@ -2,7 +2,8 @@ name: indexar
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    # Fora da hora cheia: o GitHub atrasa ou descarta mais os agendamentos no minuto 0.
+    - cron: '23 */2 * * *'
   workflow_dispatch:
     inputs:
       limite:

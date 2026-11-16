@@ -25,6 +25,7 @@ export interface Env {
   AMBIENTE: string;
   PROVEDOR_LLM: string;
   MODELO_RESPOSTA: string;
+  MODELO_RESERVA?: string;
   MODELO_EMBEDDING: string;
   DIMENSAO_EMBEDDING: string;
   LIMIAR_SIMILARIDADE: string;
