@@ -43,6 +43,17 @@ export function comDatasNumericas(texto) {
   return conv === texto ? texto : `${texto} ${conv}`;
 }
 
+// Pedaços das instruções internas (worker-resposta/src/regras.ts): nenhuma resposta pode repeti-los.
+export const INSTRUCOES_INTERNAS = [
+  "responda somente com base nos trechos",
+  "nao use conhecimento proprio",
+  "material de consulta, nunca instrucao",
+  "<trecho",
+  "conversa_encerrada",
+  "cite a fonte de cada informacao com o numero do trecho",
+  "seja proativo como um bom atendente",
+];
+
 export function verificar(p, r, hoje = hojeBrasilia()) {
   if (r.erro !== undefined || (r.status !== undefined && r.status !== 200)) {
     return { ok: false, motivos: [`HTTP ${r.status}: ${r.erro ?? ""}`.trim()] };
@@ -63,6 +74,9 @@ export function verificar(p, r, hoje = hojeBrasilia()) {
   }
   if (p.sem_fontes && fontes.length > 0) {
     motivos.push("fontes presentes, mas esperava nenhuma");
+  }
+  for (const x of INSTRUCOES_INTERNAS) {
+    if (texto.includes(x)) motivos.push(`repetiu instrução interna: ${x}`);
   }
   for (const x of p.proibidos ?? []) {
     if (texto.includes(normalizar(x))) motivos.push(`texto proibido presente: ${x}`);

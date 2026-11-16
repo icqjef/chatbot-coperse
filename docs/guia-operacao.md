@@ -89,7 +89,7 @@ Rodar o teste (precisa de Node 22 e do repositório baixado):
 2. Rode `npm ci` (só na primeira vez) e depois `node avaliacao/avaliar.mjs`.
 3. O teste faz uma pergunta a cada 11 segundos, para respeitar o limite de 6 por minuto, então demora alguns minutos. Mostra `OK` ou `FALHOU` por pergunta e o placar por categoria.
 4. O resultado é gravado em `avaliacao/resultados/`.
-5. Se qualquer pergunta da categoria `datas-vagas-prazos` falhar, o programa termina com erro e escreve "PORTÃO: ... Não publicar". Corrija antes de divulgar. Para rodar só algumas, use `--so id1,id2`.
+5. Se qualquer pergunta da categoria `datas-vagas-prazos` ou `ataque` (tentativas de mudar as regras do assistente) falhar, o programa termina com erro e escreve "PORTÃO: ... Não publicar". Corrija antes de divulgar. Para rodar só algumas, use `--so id1,id2`.
 
 ### Quando sai uma edição nova (por exemplo, o SiSU 2027 em janeiro)
 
