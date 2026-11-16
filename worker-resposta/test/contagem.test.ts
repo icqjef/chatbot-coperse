@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contarPergunta } from '../src/contagem';
+import { contarPergunta, faixaDoTempo } from '../src/contagem';
 
 function dbFalso(falhar = false) {
   const lotes: { sql: string; params: unknown[] }[][] = [];
@@ -36,6 +36,21 @@ describe('contarPergunta', () => {
     const { db, lotes } = dbFalso();
     await contarPergunta(db, 'conversa', agora, { pergunta: 'oi' });
     expect(lotes[0]).toHaveLength(1);
+  });
+  it('tempo de resposta: soma 1 na faixa do dia; limite e conversa não entram', async () => {
+    const { db, lotes } = dbFalso();
+    await contarPergunta(db, 'respondida', agora, undefined, 2500);
+    expect(lotes[0]![1]!.sql).toContain('INSERT INTO tempo_resposta');
+    expect(lotes[0]![1]!.params).toEqual(['2026-11-15', 'ate3']);
+    await contarPergunta(db, 'limite', agora, undefined, 10);
+    await contarPergunta(db, 'conversa', agora, undefined, 10);
+    expect(lotes[1]).toHaveLength(1);
+    expect(lotes[2]).toHaveLength(1);
+  });
+  it('faixas do tempo', () => {
+    expect([0, 1000, 1001, 2000, 3000, 4999, 5000, 10000, 10001].map(faixaDoTempo)).toEqual([
+      'ate1', 'ate1', 'ate2', 'ate2', 'ate3', 'ate5', 'ate5', 'ate10', 'mais10',
+    ]);
   });
   it('falha no D1 não lança', async () => {
     await expect(contarPergunta(dbFalso(true).db, 'respondida', agora)).resolves.toBeUndefined();

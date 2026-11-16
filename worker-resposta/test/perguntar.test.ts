@@ -735,11 +735,18 @@ describe('registro de perguntas no fluxo', () => {
     // O outro lote é o do cache da resposta.
     expect(lotes.filter((l) => l.some((s) => s.sql.includes('contagem_perguntas')))).toHaveLength(1);
   });
-  it('desligado: só o contador', async () => {
+  it('desligado: só o contador e a faixa do tempo de resposta', async () => {
     const { env } = montar({});
     const lotes = comLote(env);
     await pedir(env, { pergunta: 'qual o prazo?' });
-    expect(lotes[0]).toHaveLength(1);
+    expect(lotes[0]!.map((s) => s.sql.split(' ')[2])).toEqual(['contagem_perguntas', 'tempo_resposta']);
+    expect(lotes[0]![1]!.params[1]).toMatch(/^ate\d+$|^mais10$/);
+  });
+  it('saudação não entra no tempo de resposta', async () => {
+    const { env } = montar({});
+    const lotes = comLote(env);
+    await pedir(env, { pergunta: 'oi' });
+    expect(lotes[0]!.some((s) => s.sql.includes('tempo_resposta'))).toBe(false);
   });
   it('cota esgotada conta como limite', async () => {
     const { env } = montar({});

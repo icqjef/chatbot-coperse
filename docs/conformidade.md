@@ -17,6 +17,7 @@ Este documento não é parecer jurídico. Os itens marcados como **decisão** de
 | O mesmo texto, sem identificação, só das perguntas feitas nos sites da FURG e sem saudações | Idem | Ver o que ficou sem resposta | D1, tabela `perguntas_registro` | 90 dias (apagado automaticamente) |
 | Avaliação 👍/👎, resposta do assistente (600 caracteres) e páginas citadas | Clique do candidato | Qualidade das respostas | D1, tabela `avaliacoes` | 1 ano (apagado automaticamente) |
 | Contagem de perguntas por dia e desfecho | Worker | Painel e resumo semanal | D1, tabela `contagem_perguntas` | Sem prazo (só números) |
+| Contagem de respostas por dia e faixa de tempo (até 1, 2, 3, 5 ou 10 s, ou mais) | Worker | Acompanhar se o assistente está lento | D1, tabela `tempo_resposta` | Sem prazo (só números) |
 | Resposta do assistente às perguntas com fonte, ligada ao SHA-256 do dia e do texto normalizado da pergunta (a pergunta não é guardada) | Worker | Responder igual e mais rápido à mesma pergunta, sem nova chamada ao Gemini | D1, tabela `respostas_cache` | 2 horas, no mesmo dia (apagado automaticamente) |
 | Código derivado do IP e da data | Requisição | Limite de uso por visitante | Memória do Durable Object | O dia corrente; o IP não é guardado |
 | Conversa na tela | Widget | Continuar a conversa | `sessionStorage` do navegador do candidato | Até fechar a aba ou clicar em "Nova conversa" |
