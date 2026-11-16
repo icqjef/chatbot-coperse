@@ -444,3 +444,11 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Se já cita a retificação ou um documento mais novo: nota discreta "Esta resposta considera a retificação publicada em dd/mm/aaaa", só nos 60 dias depois da publicação (para não aparecer em toda resposta o ano inteiro).
 - A versão nova já tem prioridade na busca (data mais recente), na regra 7 do prompt e no cronograma conferido (item 1).
 - O aviso vai no campo `aviso` da resposta, entra no cache e o widget mostra logo depois do texto. Endereço do aviso só http(s).
+
+## 16/11/2026 — Página atual como contexto (checklist, item 6)
+
+- Motivo: "Quando sai o resultado?" é ambígua; feita na página do SiSU ou do processo para Indígenas, a pessoa quer saber daquele processo.
+- Widget: envia `pagina` com o endereço sem parâmetros (origem + caminho) e o título da página.
+- Worker (`worker-resposta/src/sites.ts`): deduz o processo pelo caminho e pelo título (as mesmas regras de `config/processos.json`); se não der, usa o processo do site (vestibular.furg.br, sisu.furg.br). Página de endereço diferente da origem do pedido é ignorada. O endereço e o título não são guardados.
+- Vale só quando a pergunta não diz o processo: entra como bônus na busca, escolhe o cronograma conferido e a resposta oficial, e o prompt ganha a linha "A pessoa está numa página sobre o <processo>". Só o nome fixo do processo vai ao prompt, nunca o título da página (que vem do navegador e poderia trazer instruções).
+- O cache passa a separar as respostas pelo processo da página.

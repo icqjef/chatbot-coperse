@@ -56,7 +56,16 @@ async function lerGradual(resp: Response, aoParcial?: (texto: string) => void): 
   return fim;
 }
 
-export function criarEnviar(api: string, fetchFn: typeof fetch = (...a) => fetch(...a)): Enviar {
+/** Página onde o widget está: só endereço (sem parâmetros) e título, para o assistente saber o processo seletivo. */
+export function paginaAtual(): { url: string; titulo: string } {
+  return { url: location.origin + location.pathname, titulo: document.title.slice(0, 150) };
+}
+
+export function criarEnviar(
+  api: string,
+  fetchFn: typeof fetch = (...a) => fetch(...a),
+  pagina: () => { url: string; titulo: string } = paginaAtual,
+): Enviar {
   return async (pergunta, historico, aoParcial) => {
     let resp: Response;
     let corpo: unknown;
@@ -69,7 +78,7 @@ export function criarEnviar(api: string, fetchFn: typeof fetch = (...a) => fetch
         // O Worker responde aos poucos (NDJSON) quando pode; erros e respostas prontas vêm em JSON.
         headers: { 'content-type': 'application/json', accept: 'application/x-ndjson, application/json' },
         signal: controle.signal,
-        body: JSON.stringify({ pergunta, historico }),
+        body: JSON.stringify({ pergunta, historico, pagina: pagina() }),
       });
       corpo = (resp.headers.get('content-type') ?? '').includes('application/x-ndjson')
         ? await lerGradual(resp, aoParcial)

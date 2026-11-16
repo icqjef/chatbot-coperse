@@ -1,7 +1,7 @@
 import { carregarOrigens } from '@chatbot/comum';
 import origensJson from '../../config/origens.json';
-import sitesJson from '../../config/sites.json';
 import { tratarProximas } from './cronograma';
+import { processoDoSite } from './sites';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { tratarReindexar, tratarSaude } from './operacao';
 import { comFiltro, criarLimites, type CotaDiaria, type FiltroNativo } from './limites';
@@ -43,16 +43,6 @@ export { Limites } from './limites';
 
 const ORIGENS = carregarOrigens(origensJson);
 
-/** Site com processo próprio (vestibular.furg.br, sisu.furg.br): "Próximas datas" mostra só aquele processo. */
-function processoDoSite(origem: string): string | undefined {
-  try {
-    const host = new URL(origem).hostname.replace(/^www\./, '');
-    const sites = sitesJson as { base: string; processo_padrao?: string; hosts_antigos?: string[] }[];
-    return sites.find((s) => new URL(s.base).hostname.replace(/^www\./, '') === host || s.hosts_antigos?.includes(host))?.processo_padrao;
-  } catch {
-    return undefined;
-  }
-}
 
 export default {
   async fetch(req: Request, envBruto: Env, ctx?: ExecutionContext): Promise<Response> {

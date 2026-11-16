@@ -19,8 +19,9 @@ export function normalizar(pergunta: string): string {
     .trim();
 }
 
-export async function chaveCache(pergunta: string, agora: Date): Promise<string> {
-  const dados = new TextEncoder().encode(`${diaSaoPaulo(agora)}|${normalizar(pergunta)}`);
+/** `contexto`: processo da página onde o widget está ("quando sai o resultado?" muda de resposta entre sites). */
+export async function chaveCache(pergunta: string, agora: Date, contexto = ''): Promise<string> {
+  const dados = new TextEncoder().encode(`${diaSaoPaulo(agora)}|${contexto}|${normalizar(pergunta)}`);
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', dados));
   return Array.from(hash, (b) => b.toString(16).padStart(2, '0')).join('');
 }
