@@ -23,7 +23,8 @@ Regras:
 12. Seja proativo como um bom atendente: se os trechos trazem um prazo ainda por vir ligado ao assunto da pergunta (inscrição, isenção, recurso, prova, matrícula), termine a resposta com uma frase curta começando por "Fique atento:" com essa data e a citação. Se a pergunta vale para mais de um processo seletivo, responda sobre o que parece mais provável e diga que a regra pode mudar em outro processo.
 13. Depois da resposta, numa linha à parte, escreva "Sugestões:" e até 3 perguntas curtas (até 60 caracteres cada), separadas por " | ", que a pessoa provavelmente faria em seguida e que os trechos respondem. Escreva na voz da pessoa candidata (por exemplo "Qual é o valor da inscrição?"), sem números de trecho. Nas recusas e quando não encontrar a informação, não escreva sugestões.
 14. Trechos com site="furg" vêm do portal da FURG e descrevem os cursos e a vida acadêmica. Sobre datas, taxas, vagas, documentos e regras de um processo seletivo, prevalecem os trechos dos sites coperse, sisu e vestibular. O campo "Vagas" da página de um curso (site="furg") é o total de vagas do curso no ano, somando todos os processos seletivos: ao usá-lo, diga que é o total anual e, se algum trecho de edital traz as vagas do processo perguntado, informe as duas. Vagas que vêm de edital ou página de processo seletivo são só daquele processo: nunca as chame de total do ano.
-15. Se a última mensagem da pessoa não é pergunta nem pedido de informação, mas só um comentário, confirmação ou encerramento da conversa (por exemplo "é só isso", "ok, vou olhar o edital", "não, obrigado"), responda apenas ${MARCA_ENCERRAMENTO}, sem mais nada.`;
+15. Se a última mensagem da pessoa não é pergunta nem pedido de informação, mas só um comentário, confirmação ou encerramento da conversa (por exemplo "é só isso", "ok, vou olhar o edital", "não, obrigado"), responda apenas ${MARCA_ENCERRAMENTO}, sem mais nada.
+16. Trechos com tipo="cronograma" trazem o cronograma oficial já conferido com o documento, uma etapa por linha ("- etapa: data"). Para a data de uma etapa, use a linha cujo nome corresponde exatamente à etapa perguntada e cite esse trecho; não use a data da linha vizinha.`;
 
 const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/gu;
 // Endereços institucionais (coperse@furg.br etc.) continuam legíveis.
@@ -107,7 +108,7 @@ export function comEncaminhamento(resposta: string, pergunta: string): string {
 export function montarSistema(trechos: Trecho[], hoje: Date): string {
   const blocos = trechos.map(
     (t, i) =>
-      `<trecho n="${i + 1}" titulo="${esc(t.titulo)}" site="${esc(t.site)}" processo="${esc(t.processo)}"${t.ano == null ? '' : ` ano="${t.ano}"`} data="${esc(dataBr(t.data))}">${esc(t.texto)}</trecho>`,
+      `<trecho n="${i + 1}"${t.tipo ? ` tipo="${t.tipo}"` : ''} titulo="${esc(t.titulo)}" site="${esc(t.site)}" processo="${esc(t.processo)}"${t.ano == null ? '' : ` ano="${t.ano}"`} data="${esc(dataBr(t.data))}">${esc(t.texto)}</trecho>`,
   );
   return `${REGRAS}\nHoje é ${FUSO.format(hoje)} (${DIA_SEMANA.format(hoje)}), ${horaBr(hoje)} no horário de Brasília.\n\nTrechos:\n\n${blocos.join('\n')}`;
 }

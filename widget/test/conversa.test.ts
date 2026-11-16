@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { criarEnviar, ErroWidget, historicoParaEnvio } from '../src/conversa';
+import { criarEnviar, criarProximas, ErroWidget, historicoParaEnvio } from '../src/conversa';
 import type { Mensagem } from '../src/tipos';
 
 const resp = (status: number, corpo: unknown) =>
@@ -130,5 +130,26 @@ describe('assinatura das respostas (M4)', () => {
       { papel: 'modelo', texto: 'b', assinatura: 'sig' },
     ]);
     expect(h).toEqual([{ papel: 'usuario', texto: 'a' }, { papel: 'modelo', texto: 'b', assinatura: 'sig' }]);
+  });
+});
+
+describe('próximas datas', () => {
+  it('criarProximas faz GET /proximas e filtra o formato', async () => {
+    const corpo = {
+      processos: [
+        { nome: 'Vestibular', ano: 2027, etapas: [{ etapa: 'Aplicação da prova', quando: '22/11/2026', fonte: { titulo: 'Cronograma', url: 'https://coperse.furg.br/c.pdf' } }, { etapa: 3 }] },
+        { nome: 'Sem etapas', ano: 2027, etapas: [] },
+        { nome: 7 },
+      ],
+    };
+    const f = vi.fn().mockResolvedValue(new Response(JSON.stringify(corpo), { status: 200 }));
+    const r = await criarProximas('https://w', f)();
+    expect(f.mock.calls[0]![0]).toBe('https://w/proximas');
+    expect(r).toEqual({ processos: [{ nome: 'Vestibular', ano: 2027, etapas: [corpo.processos[0]!.etapas![0]] }] });
+  });
+  it('erro do servidor vira ErroWidget com a mensagem', async () => {
+    const f = vi.fn().mockResolvedValue(new Response(JSON.stringify({ erro: 'Agora não.' }), { status: 503 }));
+    const e = await criarProximas('https://w', f)().catch((x) => x);
+    expect(e.mensagem).toBe('Agora não.');
   });
 });

@@ -8,7 +8,7 @@ describe('cabecalhosCors', () => {
     const h = cabecalhosCors('https://coperse.furg.br', permitidas);
     expect(h['Access-Control-Allow-Origin']).toBe('https://coperse.furg.br');
     expect(h['Vary']).toBe('Origin');
-    expect(h['Access-Control-Allow-Methods']).toBe('POST, OPTIONS');
+    expect(h['Access-Control-Allow-Methods']).toBe('GET, POST, OPTIONS');
     expect(h['Access-Control-Allow-Headers']).toBe('Content-Type');
   });
   it('devolve só Vary para origem não permitida', () => {

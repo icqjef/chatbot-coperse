@@ -2,6 +2,7 @@ import { carregarRegras, inferirProcesso } from '@chatbot/comum/classificar';
 import listasJson from '../../config/listas.json';
 import processosJson from '../../config/processos.json';
 import { chaveCache, gravarCache, lerCache } from './cache';
+import { cronogramaComoTrechos, perguntaDeData } from './cronograma';
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type LinhaDiagnostico, type Trecho } from './busca';
@@ -63,6 +64,8 @@ export interface DepsResposta {
   agora: () => Date;
   /** Resposta gradual: recebe a prévia já filtrada (só frases completas e com fonte) enquanto o modelo escreve. */
   aoParcial?: (texto: string) => void;
+  /** Cronograma conferido do processo (cronograma.ts): entra à frente dos trechos nas perguntas sobre datas. */
+  cronograma?: (processo: string) => Promise<Trecho[]>;
 }
 
 const FIM_DE_FRASE = /[.!?](?=\s)|\n/g;
@@ -132,7 +135,17 @@ const NAO_ACHOU: Resultado = { resposta: SEM_BASE, fontes: [], sugestoes: [], co
 
 async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta): Promise<Resultado> {
   const consulta = consultaDeBusca(entrada.pergunta, entrada.historico);
-  const { trechos } = await deps.buscar(consulta, inferirProcesso([entrada.pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS));
+  const processo = inferirProcesso([entrada.pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS);
+  const { trechos: achados } = await deps.buscar(consulta, processo);
+  let trechos = achados;
+  // Pergunta sobre data de um processo: o cronograma conferido vem primeiro e substitui o texto cru do mesmo documento.
+  if (processo && deps.cronograma && perguntaDeData(consulta)) {
+    const extra = await deps.cronograma(processo).catch(() => [] as Trecho[]);
+    if (extra.length) {
+      const urls = new Set(extra.map((t) => t.url));
+      trechos = [...extra, ...achados.filter((t) => !urls.has(t.url))];
+    }
+  }
   if (trechos.length === 0) return NAO_ACHOU;
   const sistema = montarSistema(trechos, deps.agora());
   const mensagens: Mensagem[] = [...entrada.historico, { papel: 'usuario', texto: entrada.pergunta }];
@@ -385,6 +398,7 @@ export async function tratarPerguntar(
       gerador,
       agora,
       aoParcial,
+      cronograma: (processo) => cronogramaComoTrechos(env.DB, processo, agora()),
     });
   };
   // Página de teste e avaliação automática (origem *.workers.dev): mostra por que cada página entrou ou não.

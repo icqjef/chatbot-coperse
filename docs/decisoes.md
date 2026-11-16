@@ -407,3 +407,14 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Painel: a mediana (faixa onde chega a metade das respostas) e a porcentagem acima de 5 s.
 - Faixas em vez do tempo exato: bastam para ver tendência, ocupam uma linha por faixa e dia, e não guardam nada que identifique uma pergunta.
 - Limite: o tempo medido é o do servidor. A rede até o celular do candidato fica de fora.
+
+## 16/11/2026 — Cronograma como dados (checklist, item 1)
+
+- Motivo: o erro que mais se repetia nas avaliações era a troca de datas vizinhas do cronograma, como 22/12 (chamada geral) no lugar de 21/12 (lista de classificação). No PDF, cada etapa se quebra em várias linhas e a data às vezes vem na linha seguinte, e o modelo confundia as linhas.
+- Indexador (`worker-indexacao/src/cronograma.ts`): depois da indexação, cada documento novo ou alterado das edições atuais (ano maior ou igual ao atual) que fala em cronograma passa uma vez pelo Gemini. Só entram os trechos com 3 ou mais datas. O Gemini devolve etapas e datas em JSON. Editais de fiscais, avaliadores, servidores e bolsistas ficam de fora pelo título e pela instrução. No máximo 40 documentos por execução; documento com o mesmo hash não volta ao Gemini.
+- Conferência no código (`comum/src/cronograma.ts`): a linha só fica se a data aparece no documento logo depois do nome da etapa (até 200 caracteres) e se é a primeira data depois dele. Data inventada, etapa inventada e a data da etapa vizinha são descartadas. O teste usa o texto real do cronograma retificado do Vestibular 2027.
+- Versões: vale o documento completo mais recente (8 etapas ou mais), com as retificações parciais mais novas por cima, etapa a etapa.
+- Resposta: em pergunta sobre data de um processo identificado, o cronograma conferido entra como trecho 1 (`tipo="cronograma"`, uma etapa por linha) e substitui o texto cru do mesmo documento. Regra 16 no prompt.
+- "Próximas datas": `GET /proximas` (origens da FURG, mesmo limite por visitante), sem IA e sem gastar a cota. No vestibular.furg.br e no sisu.furg.br mostra só o processo do site; no coperse, até 3 processos com as datas mais próximas. O widget ganhou o botão "📅 Próximas datas".
+- Tabelas `cronograma` e `cronograma_fontes` (migration 0009). Só dados públicos dos editais.
+- Teto do widget passa de 20 para 32 KB (ficou em 22,1 KB; 8,1 KB comprimido). Os próximos itens da checklist também crescem o widget.

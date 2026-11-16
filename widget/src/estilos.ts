@@ -47,6 +47,11 @@ sup { font-weight: 700; color: var(--cor-escura); margin-left: 1px; }
 .digitando i:nth-child(3) { animation-delay: .3s; }
 @keyframes pulo { 0%, 60%, 100% { transform: translateY(0); background: #b9c1ca; } 30% { transform: translateY(-4px); background: #5d6670; } }
 .so-leitor { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.atalhos { display: flex; margin: 0 0 8px; }
+.datas { font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--cor); color: var(--cor-escura); background: #fff; cursor: pointer; }
+.datas:disabled { color: #5d6670; border-color: #8a939c; cursor: default; }
+.lista-datas { margin: 4px 0 8px; padding-left: 18px; }
+.lista-datas li { margin: 2px 0; }
 .rodape { border-top: 1px solid #e1e5ea; padding: 10px 12px 8px; padding-bottom: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); background: #fff; }
 .entrada { display: flex; gap: 8px; }
 .entrada textarea { flex: 1; min-width: 0; resize: none; font-size: 14.5px; padding: 9px 11px; border: 1px solid #7a8591; border-radius: 10px; height: 42px; }

@@ -5,6 +5,8 @@ import {
   carregarRegras, ehListaDeCandidatos, inferirAno, inferirProcesso, nomeDoArquivo, pareceListaDeNomes, type RegrasClassificacao,
 } from '@chatbot/comum/classificar';
 import { criarEmbedder, ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
+import { criarGerador } from '@chatbot/comum/provedores/geracao';
+import { atualizarCronogramas } from './cronograma.js';
 import type { Site, TipoDocumento } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
@@ -503,8 +505,22 @@ async function main(): Promise<void> {
   };
 
   const resumo = await executar({ maxItens: limite, prazoMs: prazoMinutos * 60_000, sites, regras, tetoVetores }, deps);
+  // Cronograma como dados: falha aqui não derruba a indexação (a próxima execução tenta de novo).
+  let cronograma: unknown;
+  try {
+    const gerador = criarGerador(
+      { PROVEDOR_LLM: env.PROVEDOR_LLM || 'gemini', GEMINI_API_KEY: env.GEMINI_API_KEY!, MODELO_RESPOSTA: env.MODELO_RESPOSTA || undefined },
+      undefined,
+      { maxTokens: 8192, tempoMs: 90_000 },
+    );
+    const anoAtual = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric' }).format(new Date()));
+    cronograma = await atualizarCronogramas({ cf, gerador, agora: deps.agora }, anoAtual);
+  } catch (e) {
+    if (e instanceof ErroAutenticacaoProvedor) throw e;
+    cronograma = { erro: e instanceof Error ? e.message.split(' — ')[0] : String(e) };
+  }
   const falhas = (await cf.d1("SELECT url, erro FROM paginas WHERE erro IS NOT NULL AND status IN ('erro', 'ok')")).map((r) => ({ url: r.url, erro: r.erro }));
-  console.log(JSON.stringify({ ...resumo, limite, urls_com_erro: falhas }));
+  console.log(JSON.stringify({ ...resumo, limite, cronograma, urls_com_erro: falhas }));
   if (resumo.teto_atingido) console.error(`Teto de ${tetoVetores} vetores atingido: a indexação parou. Ver docs/decisoes.md.`);
   process.exitCode = codigoSaida(resumo);
 }

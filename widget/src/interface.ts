@@ -3,7 +3,7 @@ import { ESTILOS } from './estilos';
 import { filtrarFontes, filtrarSugestoes, historicoParaEnvio } from './conversa';
 import { perfilDoSite } from './perfil';
 import { renderResposta } from './render';
-import type { Avaliar, Enviar, Fonte, Mensagem } from './tipos';
+import type { Avaliar, BuscarProximas, Enviar, Fonte, Mensagem } from './tipos';
 
 export type Widget = { host: HTMLElement; abrir(): void; fechar(): void; raiz: ShadowRoot };
 
@@ -87,7 +87,10 @@ function linkContato(texto: string): HTMLAnchorElement {
   return a;
 }
 
-export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avaliar; host?: string } = {}): Widget {
+export function montar(
+  config: Config,
+  deps: { enviar?: Enviar; avaliar?: Avaliar; proximas?: BuscarProximas; host?: string } = {},
+): Widget {
   const perfil = perfilDoSite(deps.host ?? location.hostname);
   const host = el('div');
   host.id = 'chatbot-coperse';
@@ -156,7 +159,11 @@ export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avalia
   campo.setAttribute('aria-label', 'Sua pergunta');
   const enviar = botao('enviar', '➤', 'Enviar');
   entrada.append(campo, enviar);
-  rodape.append(entrada, el('p', 'nota', 'Pode conter erros. Confira sempre o edital oficial.'));
+  // "Próximas datas": direto dos cronogramas conferidos, sem IA e sem gastar a cota.
+  const datas = botao('datas', '📅 Próximas datas');
+  const atalhos = el('div', 'atalhos');
+  if (deps.proximas) atalhos.append(datas);
+  rodape.append(atalhos, entrada, el('p', 'nota', 'Pode conter erros. Confira sempre o edital oficial.'));
 
   painel.append(cab, aviso, msgs, rodape);
   raiz.append(estilo, convite, abrirBotao, painel);
@@ -312,6 +319,54 @@ export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avalia
       if (!painel.hidden) campo.focus();
     }
   }
+
+  async function mostrarDatas(): Promise<void> {
+    if (!deps.proximas || datas.disabled) return;
+    datas.disabled = true;
+    limparSugestoes();
+    msgs.querySelector('.erro')?.remove();
+    try {
+      const { processos } = await deps.proximas();
+      const bolha = el('div', 'msg bot');
+      if (!processos.length) {
+        bolha.append('Não encontrei datas futuras nos cronogramas publicados. Consulte o edital do processo ou escreva para ', linkContato(EMAIL), '.');
+      } else {
+        const fontes = new Map<string, string>();
+        for (const p of processos) {
+          bolha.append(el('strong', undefined, `${p.nome} ${p.ano}`));
+          const ul = el('ul', 'lista-datas');
+          for (const e of p.etapas) {
+            const li = el('li');
+            li.append(`${e.etapa}: `, el('strong', undefined, e.quando));
+            ul.append(li);
+            fontes.set(e.fonte.url, e.fonte.titulo);
+          }
+          bolha.append(ul);
+        }
+        const lista = el('ol', 'fontes');
+        for (const [url, t] of fontes) {
+          const li = el('li');
+          if (/^https?:\/\//.test(url)) {
+            const a = el('a', undefined, t);
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            li.append(a);
+          } else li.append(t);
+          lista.append(li);
+        }
+        bolha.append(el('p', 'nota', 'Datas do cronograma oficial, conferidas com o documento:'), lista);
+      }
+      msgs.append(bolha);
+    } catch (e) {
+      const m = (e as { mensagem?: unknown } | null)?.mensagem;
+      msgs.append(el('div', 'msg bot erro', typeof m === 'string' && m ? m : MSG_ERRO));
+    } finally {
+      datas.disabled = false;
+      rolar();
+    }
+  }
+  datas.addEventListener('click', () => void mostrarDatas());
 
   function recomecar(): void {
     if (enviando) return;

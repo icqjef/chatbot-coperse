@@ -48,7 +48,7 @@ const MINIMO_MS = 2_000;
 export function criarGerador(
   env: EnvGeracao,
   fetchFn: typeof fetch = fetch,
-  opcoes: OpcoesTentativa = {},
+  opcoes: OpcoesTentativa & { maxTokens?: number } = {},
 ): Gerador {
   if (env.PROVEDOR_LLM !== 'gemini') throw new Error(`PROVEDOR_LLM desconhecido: ${env.PROVEDOR_LLM}`);
   const principal = env.MODELO_RESPOSTA || 'gemini-3.5-flash-lite';
@@ -64,7 +64,7 @@ export function criarGerador(
         role: m.papel === 'usuario' ? 'user' : 'model',
         parts: [{ text: m.texto }],
       })),
-      generationConfig: { maxOutputTokens: 1024 },
+      generationConfig: { maxOutputTokens: opcoes.maxTokens ?? 1024 },
     });
   }
 

@@ -1,4 +1,4 @@
-import type { Avaliar, Enviar, Fonte, Mensagem, Resposta } from './tipos';
+import type { Avaliar, BuscarProximas, Enviar, Fonte, Mensagem, Proximas, Resposta } from './tipos';
 
 export class ErroWidget extends Error {
   mensagem: string;
@@ -97,6 +97,45 @@ export function criarEnviar(api: string, fetchFn: typeof fetch = (...a) => fetch
 export function filtrarSugestoes(x: unknown): string[] {
   if (!Array.isArray(x)) return [];
   return x.filter((s): s is string => typeof s === 'string' && s.trim().length > 0 && s.length <= 80).slice(0, 3);
+}
+
+const texto = (x: unknown): x is string => typeof x === 'string' && x.length > 0 && x.length <= 300;
+
+/** Mantém só processos e etapas bem formados (o servidor é confiável, mas o widget não confia em formato). */
+export function filtrarProximas(x: unknown): Proximas {
+  const processos = Array.isArray((x as { processos?: unknown })?.processos) ? (x as { processos: unknown[] }).processos : [];
+  return {
+    processos: processos
+      .map((p) => p as { nome?: unknown; ano?: unknown; etapas?: unknown })
+      .filter((p) => texto(p.nome) && typeof p.ano === 'number' && Array.isArray(p.etapas))
+      .map((p) => ({
+        nome: p.nome as string,
+        ano: p.ano as number,
+        etapas: (p.etapas as { etapa?: unknown; quando?: unknown; fonte?: { titulo?: unknown; url?: unknown } }[])
+          .filter((e) => texto(e?.etapa) && texto(e?.quando) && texto(e?.fonte?.titulo) && texto(e?.fonte?.url))
+          .map((e) => ({ etapa: e.etapa as string, quando: e.quando as string, fonte: { titulo: e.fonte!.titulo as string, url: e.fonte!.url as string } })),
+      }))
+      .filter((p) => p.etapas.length > 0),
+  };
+}
+
+/** "Próximas datas": sem IA, direto dos cronogramas conferidos. */
+export function criarProximas(api: string, fetchFn: typeof fetch = (...a) => fetch(...a)): BuscarProximas {
+  return async () => {
+    let resp: Response;
+    let corpo: unknown;
+    try {
+      resp = await fetchFn(`${api}/proximas`);
+      corpo = await resp.json();
+    } catch {
+      throw new ErroWidget(MSG_REDE);
+    }
+    if (!resp.ok) {
+      const erro = (corpo as { erro?: unknown })?.erro;
+      throw new ErroWidget(typeof erro === 'string' && erro ? erro : MSG_REDE);
+    }
+    return filtrarProximas(corpo);
+  };
 }
 
 /** Avaliação 👍/👎: falha de rede não incomoda a pessoa. */

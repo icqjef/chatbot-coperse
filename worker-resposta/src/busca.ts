@@ -10,6 +10,8 @@ export interface Trecho {
   ano: number | null;
   texto: string;
   similaridade: number;
+  /** 'cronograma': etapas e datas conferidas (cronograma.ts), não um trecho da página. */
+  tipo?: 'cronograma';
 }
 
 export interface DepsBusca {
