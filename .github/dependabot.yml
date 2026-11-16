@@ -5,6 +5,11 @@ updates:
     directory: /
     schedule: { interval: weekly, day: monday, timezone: America/Sao_Paulo }
     open-pull-requests-limit: 5
+    # @types/node acompanha o Node da indexação (.nvmrc = 22): tipos de versão maior aprovariam funções que
+    # o Node 22 não tem. Ao trocar o .nvmrc, troque também esta linha.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       desenvolvimento: { dependency-type: development }
       producao: { dependency-type: production }

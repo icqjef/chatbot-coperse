@@ -395,3 +395,8 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Reserva: `MODELO_RESERVA = "gemini-3.1-flash-lite"`, estável e de outra geração, com capacidade separada (aistudio.google.com/docs/models, 16/11/2026). Uso registrado no log ("resposta pelo modelo reserva"). Preço da reserva a conferir na página de preços antes de ela virar rotina; hoje é usada só em falha.
 - Embeddings: uma nova tentativa em falha passageira, sem reserva (vetores de outro modelo não se comparam aos do índice). 6 s por chamada na pergunta; 30 s no indexador.
 - Padrão adotado: o mesmo das bibliotecas oficiais (repetição com espera); não houve projeto do GitHub a adaptar para um trecho tão pequeno.
+
+## 16/11/2026 — @types/node de volta à versão 22
+
+- Motivo: o PR #50 (Dependabot) levou o @types/node para a 26, mas a indexação roda no Node 22 (`.nvmrc`). Com os tipos da 26, a checagem aprovaria funções que o Node 22 não tem, e a indexação só falharia na hora de rodar.
+- Mudança: @types/node ^22.20.5 em `comum` e `worker-indexacao`. O Dependabot passa a ignorar as versões maiores do @types/node. Ao trocar o `.nvmrc`, troca-se também a regra.
