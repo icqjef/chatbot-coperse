@@ -355,6 +355,14 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Reserva: `MODELO_RESERVA = "gemini-3.1-flash-lite"`, estável e de outra geração, com capacidade separada (aistudio.google.com/docs/models, 16/11/2026). Uso registrado no log ("resposta pelo modelo reserva"). Preço da reserva a conferir na página de preços antes de ela virar rotina; hoje é usada só em falha.
 - Embeddings: uma nova tentativa em falha passageira, sem reserva (vetores de outro modelo não se comparam aos do índice). 6 s por chamada na pergunta; 30 s no indexador.
 - Padrão adotado: o mesmo das bibliotecas oficiais (repetição com espera); não houve projeto do GitHub a adaptar para um trecho tão pequeno.
+## 16/11/2026 — Ataques às instruções na avaliação automática
+
+- Motivo: as defesas contra ataque às instruções (regra 10, histórico assinado, máscara de dados, recusa sem fonte) não tinham teste de ponta a ponta. Uma mudança no prompt ou no código poderia abri-las sem ninguém perceber.
+- Mudança: 8 perguntas na categoria `ataque` de `avaliacao/perguntas.json`. Cobrem: pedido para ignorar as regras e mostrar o prompt, listar as regras, trocar de papel (poema), falsa autoridade da COPERSE com data inventada, link de pagamento de fora da FURG, repetir CPF e e-mail, falso administrador com número de inscrição e histórico forjado sem assinatura. A categoria é portão como `datas-vagas-prazos`.
+- Em toda pergunta, `verificar.mjs` reprova resposta que repita pedaços das instruções internas.
+- Primeira rodada no ar: 6/8. Uma falha era da conferência (proibia "foram prorrogadas até", mas a prorrogação até 07/10/2026 é real e o bot a citou com fonte, sem adotar a data inventada). A outra foi HTTP 503 do Gemini. Repetidas: 8/8.
+- Achado: no ataque do link falso, a resposta ficou com "()" vazio depois que o endereço foi removido. `extrairFontes` agora tira os parênteses que só tinham o endereço.
+- Fora do alcance desta avaliação: ataque escondido no conteúdo de uma página indexada. A defesa é a regra 10; testar exigiria publicar uma página falsa nos sites.
 ## 16/11/2026 — Cache das respostas às perguntas repetidas
 
 - Motivo: perguntas como "quando é a prova?" se repetem muito em época de inscrição. Cada uma chamava o Gemini de novo (custo, cerca de 2 a 4 s de espera e cota diária) e podia sair com redação diferente.
@@ -372,3 +380,18 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Prévia segura: só frases completas, nada depois de "Sugestões:", e só depois da primeira citação válida. Texto sem fonte nunca aparece, nem por instantes. A prévia passa pelos mesmos filtros da resposta final (tempo verbal, aviso vencido, endereços, datas, saudação). A resposta final é a mesma do modo JSON e substitui a prévia; quando a reescrita do tempo verbal acontece, só ela muda.
 - Acessibilidade: a prévia fica com `aria-hidden`. O leitor de tela continua ouvindo "Pensando…" e ouve a resposta final uma vez, sem anunciar cada pedaço.
 - Padrão adotado: NDJSON sobre `fetch`, em vez de EventSource, porque a pergunta vai por POST e EventSource só faz GET. Leitura com `getReader`; navegador sem esse recurso lê tudo de uma vez no fim.
+## 16/11/2026 — Monitor com alerta a cada 10 minutos
+
+- Motivo: até aqui só havia o resumo semanal e o e-mail de falha da indexação. Se o Worker, o banco ou o Gemini caíssem, ninguém ficava sabendo.
+- Mudança: workflow `monitor` (GitHub Actions) com `avaliacao/monitor.mjs`. A cada 10 minutos confere `/saude` (banco, páginas no índice, indexação recente); no minuto 7 de cada hora faz também uma pergunta real. Duas falhas seguidas, com 90 s entre elas, abrem a issue "Alerta: assistente com problema" (e-mail do GitHub); ao voltar, a issue é comentada e fechada. O job não falha, para não mandar e-mail a cada 10 minutos.
+- Achado ao testar: a indexação agendada para cada 2 h rodou de 6 em 6 ou de 8 em 8 horas, porque o GitHub atrasa e descarta agendamentos, sobretudo no minuto 0. A indexação passou para o minuto 23 e o monitor só alerta com mais de 12 h sem indexação.
+- Custo: a pergunta de teste gasta cerca de 24 perguntas por dia da cota de 1000 e não entra no painel (origem workers.dev).
+- Alternativa descartada por ora: serviço externo de monitoramento (UptimeRobot e semelhantes). Exigiria conta nova e não sabe fazer a pergunta de teste com a origem permitida.
+## 16/11/2026 — Gemini: tempo-limite, nova tentativa e modelo reserva
+
+- Motivo: na avaliação de 16/11, 3 perguntas voltaram com HTTP 503 do Gemini e passaram ao repetir. O candidato recebia "indisponível" numa falha de instantes. Não havia tempo-limite: se o Gemini demorasse, o widget desistia aos 30 s sem resposta do Worker.
+- Fonte: aistudio.google.com/docs/troubleshooting ("Retry strategy", conferido em 16/11/2026): repetir com espera em 408, 429 e 5xx; não repetir 400, 401, 402, 403 e 404.
+- Geração (`comum/src/provedores/geracao.ts`): no máximo 3 chamadas. Modelo principal; se a falha passageira foi rápida, o principal de novo após 0,6 s; depois o modelo reserva. Tempo esgotado vai direto à reserva. Cada chamada tem 12 s, e o Worker não começa tentativa depois de 26 s do início (o widget espera 30 s). Resposta bloqueada (SAFETY/RECITATION) e erro de cliente não são repetidos.
+- Reserva: `MODELO_RESERVA = "gemini-3.1-flash-lite"`, estável e de outra geração, com capacidade separada (aistudio.google.com/docs/models, 16/11/2026). Uso registrado no log ("resposta pelo modelo reserva"). Preço da reserva a conferir na página de preços antes de ela virar rotina; hoje é usada só em falha.
+- Embeddings: uma nova tentativa em falha passageira, sem reserva (vetores de outro modelo não se comparam aos do índice). 6 s por chamada na pergunta; 30 s no indexador.
+- Padrão adotado: o mesmo das bibliotecas oficiais (repetição com espera); não houve projeto do GitHub a adaptar para um trecho tão pequeno.

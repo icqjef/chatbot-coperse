@@ -1,0 +1,82 @@
+name: monitor
+
+# A cada 10 minutos confere /saude (Worker, banco e indexação). Uma vez por hora (minuto 7) faz também uma
+# pergunta real ao Gemini (cerca de 24 por dia, dentro da cota de 1000). Se falhar duas vezes seguidas, com
+# 90 s entre elas, abre a issue "Alerta: assistente com problema"; o GitHub avisa por e-mail quem acompanha
+# o repositório. Quando volta ao normal, comenta e fecha a issue. O job não falha de propósito, para não
+# mandar um e-mail a cada 10 minutos enquanto o problema durar. Agendamento do GitHub é de melhor esforço:
+# pode atrasar ou pular execuções.
+on:
+  schedule:
+    - cron: '7 * * * *'
+    - cron: '17,27,37,47,57 * * * *'
+  workflow_dispatch:
+    inputs:
+      pergunta:
+        description: 'Fazer também a pergunta de teste'
+        type: boolean
+        default: true
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Conferir o assistente
+        id: conferir
+        env:
+          PERGUNTA: ${{ (github.event_name == 'schedule' && github.event.schedule == '7 * * * *') || (github.event_name == 'workflow_dispatch' && inputs.pergunta) }}
+        run: |
+          extra=""
+          if [ "$PERGUNTA" = "true" ]; then extra="--pergunta"; fi
+          if node avaliacao/monitor.mjs $extra --saida resultado.md; then
+            echo "estado=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "Falhou; nova tentativa em 90 s."
+            sleep 90
+            if node avaliacao/monitor.mjs $extra --saida resultado.md; then
+              echo "estado=ok" >> "$GITHUB_OUTPUT"
+            else
+              echo "estado=falha" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - name: Abrir ou fechar o alerta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ESTADO: ${{ steps.conferir.outputs.estado }}
+          EXECUCAO: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          aberta=$(gh issue list --state open --search 'in:title "Alerta: assistente com problema"' --json number --jq '.[0].number // empty')
+          if [ "$ESTADO" = "falha" ]; then
+            if [ -z "$aberta" ]; then
+              { cat resultado.md; echo; echo "Execução: $EXECUCAO"; echo; echo "O que fazer: veja docs/guia-operacao.md, seção \"Alerta do monitor\". Esta issue fecha sozinha quando o assistente voltar ao normal."; } > corpo.md
+              gh issue create --title "Alerta: assistente com problema" --body-file corpo.md
+            else
+              echo "Alerta #$aberta já aberto; sem novo aviso."
+            fi
+          elif [ "$ESTADO" = "ok" ] && [ -n "$aberta" ]; then
+            { echo "Voltou ao normal."; echo; cat resultado.md; } > corpo.md
+            gh issue close "$aberta" --comment "$(cat corpo.md)"
+          fi
+
+  workflow-keepalive:
+    if: github.event_name == 'schedule' && github.event.schedule == '7 * * * *'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: liskin/gh-workflow-keepalive@f72ff1a1336129f29bf0166c0fd0ca6cf1bcb38c # v1.2.1

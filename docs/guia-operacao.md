@@ -9,7 +9,7 @@ Endereço do Worker: `https://chatbot-coperse.coperse-furg.workers.dev`
 1. Abra no navegador `https://chatbot-coperse.coperse-furg.workers.dev/saude`.
 2. Leia o resultado:
    - `ok: true` significa que o banco responde. Se vier `ok: false` (erro 503), o banco falhou: espere alguns minutos e tente de novo; se persistir, avise quem mantém o código.
-   - `ultima_indexacao` mostra quando a última leitura dos sites começou (`inicio`) e terminou (`fim`), quantas páginas (`paginas`) e quantos erros (`erros`). A leitura roda a cada 2 horas; se o `inicio` for de mais de um dia atrás, algo parou (ver seção 2).
+   - `ultima_indexacao` mostra quando a última leitura dos sites começou (`inicio`) e terminou (`fim`), quantas páginas (`paginas`) e quantos erros (`erros`). A leitura está agendada a cada 2 horas, mas o GitHub às vezes atrasa ou pula execuções (intervalos de 6 a 8 horas são normais); se o `fim` for de mais de 12 horas atrás, algo parou (ver seção 2).
    - `fila` é quantas páginas esperam para ser lidas; `paginas_ok` é quantas já estão no assistente.
 3. Muitas consultas seguidas a `/saude` são freadas pelo mesmo limite das perguntas (6 por minuto).
 
@@ -27,6 +27,20 @@ Se quem falhar for o workflow `publicar` (publicação do Worker depois de uma m
 3. Depois de corrigir, rode de novo pela seção 3 e confira em `/saude`.
 
 O que já está no assistente continua valendo durante a falha; só as novidades deixam de entrar.
+
+## 2a. Alerta do monitor
+
+O workflow `monitor` confere o assistente a cada 10 minutos (o GitHub pode atrasar ou pular algumas execuções). Uma vez por hora ele faz uma pergunta de teste de verdade. Se a conferência falhar duas vezes seguidas, abre a issue **"Alerta: assistente com problema"** e o GitHub manda e-mail. Quando tudo volta ao normal, a issue é fechada sozinha com o comentário "Voltou ao normal".
+
+O que a issue pode dizer e o que fazer:
+
+- **`/saude` não respondeu** ou **HTTP 503**: o Worker ou o banco da Cloudflare está fora. Veja cloudflarestatus.com. Se a Cloudflare estiver normal, avise quem mantém o código.
+- **Indexação sem terminar há mais de 12 h**: siga a seção 2 (aba Actions, workflow `indexar`).
+- **Pergunta de teste com HTTP 503**: o Gemini falhou mesmo depois das novas tentativas e do modelo reserva. Veja aistudio.google.com/status e o saldo da conta de cobrança do Gemini: com saldo zero, a chave para.
+- **Pergunta de teste sem fonte**: a busca não achou nada; o índice pode ter sido esvaziado. Avise quem mantém o código.
+- **Só N páginas no índice**: a indexação removeu páginas demais (por exemplo, um site em erro). Avise quem mantém o código.
+
+Para conferir na hora, entre em Actions, workflow `monitor`, botão "Run workflow".
 
 ## 3. Reindexar (ler os sites agora)
 
@@ -75,7 +89,7 @@ Rodar o teste (precisa de Node 22 e do repositório baixado):
 2. Rode `npm ci` (só na primeira vez) e depois `node avaliacao/avaliar.mjs`.
 3. O teste faz uma pergunta a cada 11 segundos, para respeitar o limite de 6 por minuto, então demora alguns minutos. Mostra `OK` ou `FALHOU` por pergunta e o placar por categoria.
 4. O resultado é gravado em `avaliacao/resultados/`.
-5. Se qualquer pergunta da categoria `datas-vagas-prazos` falhar, o programa termina com erro e escreve "PORTÃO: ... Não publicar". Corrija antes de divulgar. Para rodar só algumas, use `--so id1,id2`.
+5. Se qualquer pergunta da categoria `datas-vagas-prazos` ou `ataque` (tentativas de mudar as regras do assistente) falhar, o programa termina com erro e escreve "PORTÃO: ... Não publicar". Corrija antes de divulgar. Para rodar só algumas, use `--so id1,id2`.
 
 ### Quando sai uma edição nova (por exemplo, o SiSU 2027 em janeiro)
 
