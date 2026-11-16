@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import worker, { type Env } from '../src/index';
 import { responderPergunta, chaveLimite, consultaDeBusca } from '../src/perguntar';
-import { SEM_BASE } from '../src/regras';
+import { ENCAMINHAMENTO_INDIVIDUAL, SEM_BASE } from '../src/regras';
 import { assinar, assinaturaValida } from '../src/historico';
 import { ENCERRAMENTO } from '../src/conversa';
 import type { Trecho } from '../src/busca';
@@ -473,18 +473,18 @@ describe('responderPergunta: saudação decidida no código', () => {
     expect(sistemas).toHaveLength(2);
     expect(sistemas[1]).toContain('22/11/2026 é depois de hoje');
   });
-  it('tempo verbal: se a nova versão não melhora ou perde a citação, fica a primeira', async () => {
+  it('tempo verbal: se a nova versão não melhora ou perde a citação, fica a primeira, com o verbo trocado direto', async () => {
     const respostas = ['A prova foi realizada em 22/11/2026 [1].', 'A prova será em 22/11/2026.'];
     const r = await responderPergunta(
       { pergunta: 'Quando é a prova?', historico: [] },
       { ...deps(''), gerador: { gerar: async () => respostas.shift()! } },
     );
-    expect(r.resposta).toBe('A prova foi realizada em 22/11/2026 [1].');
+    expect(r.resposta).toBe('A prova será realizada em 22/11/2026 [1].');
   });
   it('tempo certo: uma chamada só; "Fique atento" com prazo vencido sai', async () => {
     let chamadas = 0;
     const r = await responderPergunta(
-      { pergunta: 'Minha inscrição foi homologada?', historico: [] },
+      { pergunta: 'Como acompanho a homologação?', historico: [] },
       {
         ...deps(''),
         gerador: { gerar: async () => (chamadas++, 'Consulte o sistema de inscrição [1].\n\nFique atento: o recurso foi até 15/10/2026 [1].') },
@@ -582,6 +582,18 @@ describe('recusas sem fontes', () => {
     const { env } = montar({ texto });
     const r = await pedir(env, { pergunta: 'fui homologado?' });
     expect(await r.json()).toMatchObject({ resposta: texto, fontes: [] });
+  });
+  it('pergunta individual: resposta com fonte mas sem o e-mail ganha o encaminhamento', async () => {
+    const { env } = montar({ texto: 'Consulte a situação da sua inscrição no sistema de inscrição [1].' });
+    const r = (await (await pedir(env, { pergunta: 'Minha inscrição no vestibular foi homologada?' })).json()) as any;
+    expect(r.resposta).toContain(ENCAMINHAMENTO_INDIVIDUAL);
+    expect(r.fontes.length).toBeGreaterThan(0);
+  });
+  it('pergunta individual: recusa sem citação e sem o e-mail vira encaminhamento, não SEM_BASE', async () => {
+    const { env } = montar({ texto: 'Não posso verificar a sua situação individual.' });
+    const r = (await (await pedir(env, { pergunta: 'fui homologado?' })).json()) as any;
+    expect(r).toMatchObject({ fontes: [], contato: true });
+    expect(r.resposta).toContain('coperse@furg.br');
   });
   it('resposta longa sem citação, mesmo com o e-mail -> SEM_BASE', async () => {
     const { env } = montar({ texto: 'O prazo é 10/12. '.repeat(30) + 'coperse@furg.br' });

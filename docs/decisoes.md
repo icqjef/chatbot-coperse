@@ -325,3 +325,24 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Acessibilidade: teste automático com axe-core (WCAG 2.2 A/AA) no widget fechado, aberto e com resposta, com zero violações. Bordas do campo e dos votos passaram de 1,82:1 para 3,76:1 (WCAG 1.4.11). `lang="pt-BR"` no widget.
 - Segurança: respostas JSON com `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.
 - Pendente fora do código: termos do Gemini proíbem uso em serviço provavelmente acessado por menores de 18; validação do aviso pela Encarregada; inventário e RIPD; teste manual com leitor de tela.
+
+## 15/11/2026 — Tempo verbal: troca direta quando a reescrita falha
+
+- Motivo: no teste completo depois do #48, duas respostas ainda saíram com "foram realizadas em 13/12/2026" e "foram aplicadas em 22/11/2026". O modelo reescreveu uma vez, avisado do erro, e errou de novo.
+- Mudança: depois da reescrita, cada verbo que ainda não combina com a data é trocado pelo par no outro tempo (`corrigirTempo`, em `tempo.ts`): "foi" ↔ "será", "foram" ↔ "serão", "ocorreu" ↔ "ocorrerá" etc. "Vai" e "vão" ficam sem troca.
+- "Foi divulgada em" e "foi publicada até" seguidos de data futura passam a ser conferidos. Antes eram isentos junto com "foram prorrogadas até", mas ali a data é da própria divulgação.
+- Na mesma rodada, vest-classificacao respondeu 22/12 (chamada geral) em vez de 21/12 (lista de classificação, conferido no cronograma retificado e no edital, item 8.1). Repetida 5 vezes, acertou todas: oscilação do modelo, sem mudança de código.
+
+## 16/11/2026 — Regra 8: etapas parecidas do cronograma
+
+- Motivo: vest-classificacao errou nas duas rodadas completas seguidas (respondeu 22/12, da chamada geral, em vez de 21/12, da lista de classificação) e acertou 6 de 6 quando rodada sozinha. Os trechos escolhidos são os mesmos nos dois casos: o modelo escolhe a linha errada do cronograma.
+- A temperatura fica no padrão: o Google recomenda não baixá-la nos modelos Gemini 3.
+- Mudança: a regra 8 manda usar a linha da etapa exatamente perguntada e diz que lista de classificação, chamada geral e lista de espera são etapas diferentes.
+- Na mesma rodada, 3 perguntas voltaram com HTTP 503 (Gemini indisponível por instantes); repetidas, passaram.
+
+## 16/11/2026 — Regra 4 garantida no código: contato da COPERSE em pergunta individual
+
+- Motivo: armadilha-individual oscila. Na última rodada a resposta foi só "Consulte a situação da sua inscrição acessando o sistema de inscrição em [1].", sem coperse@furg.br e citando trecho, contra a regra 4.
+- Mudança: `comEncaminhamento` (em `regras.ts`) reconhece a pergunta sobre a própria situação. Ou um possessivo da 1ª pessoa ("minha", "meu") perto de inscrição, isenção, homologação, nota, recurso, classificação, resultado, situação, matrícula, pedido ou aferição; ou "fui homologado/aprovado/classificado…" e "passei". Se a resposta não tem o e-mail, ganha a linha "Para a sua situação individual, consulte o sistema de inscrição ou escreva para coperse@furg.br."
+- Vale também para a recusa sem citação: com o e-mail acrescentado, ela passa como encaminhamento em vez de virar SEM_BASE.
+- Perguntas gerais ("Quando sai a homologação?", "Qual a nota mínima?", "meu curso tem quantas vagas?") não são afetadas.

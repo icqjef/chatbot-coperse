@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes } from '../src/regras';
+import { ENCAMINHAMENTO_INDIVIDUAL, SEM_BASE, comEncaminhamento, extrairFontes, perguntaIndividual, mascararDadosPessoais, montarSistema, separarSugestoes } from '../src/regras';
 import type { Trecho } from '../src/busca';
 
 function trecho(n: number, extra: Partial<Trecho> = {}): Trecho {
@@ -234,5 +234,36 @@ describe('separarSugestoes', () => {
   it('descarta link, dado pessoal, longa demais e repetida da pergunta', () => {
     const r = separarSugestoes(`R [1].\nSugestões: Veja https://x.furg.br | Meu CPF 123.456.789-09 vale? | ${'a'.repeat(90)} | Qual o PRAZO? | Tem taxa?`, 'qual o prazo')
     expect(r.sugestoes).toEqual(['Veja', 'Tem taxa?']);
+  });
+});
+
+describe('perguntaIndividual e comEncaminhamento (regra 4 no código)', () => {
+  it('reconhece pergunta sobre a própria situação', () => {
+    for (const p of [
+      'Meu CPF é [removido]. Minha inscrição no vestibular foi homologada?',
+      'qual foi a minha nota na redação?',
+      'meu pedido de isenção foi aceito?',
+      'Fui homologado?',
+      'passei no vestibular?',
+      'como está a situação da minha matrícula',
+    ]) expect(perguntaIndividual(p), p).toBe(true);
+  });
+  it('não confunde com pergunta geral', () => {
+    for (const p of [
+      'Quando sai a homologação das inscrições?',
+      'Como faço a inscrição no Vestibular 2027?',
+      'Qual a nota mínima da redação?',
+      'meu curso tem quantas vagas?',
+      'Quanto custa o passe do ônibus?',
+    ]) expect(perguntaIndividual(p), p).toBe(false);
+  });
+  it('acrescenta o contato só quando falta', () => {
+    const p = 'Minha inscrição foi homologada?';
+    expect(comEncaminhamento('Consulte o sistema de inscrição [1].', p)).toBe(
+      `Consulte o sistema de inscrição [1].\n\n${ENCAMINHAMENTO_INDIVIDUAL}`,
+    );
+    const com = 'Consulte o sistema de inscrição ou escreva para coperse@furg.br.';
+    expect(comEncaminhamento(com, p)).toBe(com);
+    expect(comEncaminhamento('A prova será em 22/11/2026 [1].', 'Quando é a prova?')).toBe('A prova será em 22/11/2026 [1].');
   });
 });

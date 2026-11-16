@@ -5,12 +5,12 @@ import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type LinhaDiagnostico, type Trecho } from './busca';
 import { diaSaoPaulo } from './limites';
-import { correcaoDeTempo, problemasDeTempo, semAvisoVencido } from './tempo';
+import { corrigirTempo, correcaoDeTempo, problemasDeTempo, semAvisoVencido } from './tempo';
 import { assinar, paresAutenticos, type MensagemRecebida } from './historico';
 import { ENCERRAMENTO, limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { contaNoPainel, contarPergunta, tipoDaResposta } from './contagem';
-import { MARCA_ENCERRAMENTO, SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes, type Fonte } from './regras';
+import { MARCA_ENCERRAMENTO, SEM_BASE, comEncaminhamento, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes, type Fonte } from './regras';
 
 export interface RateLimit {
   limit(opcoes: { key: string; diario?: boolean }): Promise<{ success: boolean; motivo?: 'minuto' | 'dia' }>;
@@ -117,7 +117,7 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
   if (bruta.includes(MARCA_ENCERRAMENTO)) return { resposta: ENCERRAMENTO, fontes: [], sugestoes: [], contato: false };
   const hoje = diaSaoPaulo(deps.agora());
   // Tempo verbal que não combina com a data ("foi realizada em" data futura): o modelo reescreve uma vez,
-  // avisado do erro. Fica a nova versão só se ela errar menos e continuar citando trechos.
+  // avisado do erro. Fica a nova versão só se ela errar menos e continuar citando trechos; o resto é trocado direto.
   const problemas = problemasDeTempo(bruta, hoje);
   if (problemas.length) {
     try {
@@ -126,11 +126,16 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
     } catch {
       // fica a primeira versão
     }
+    // O que a reescrita não resolveu é trocado direto, verbo a verbo.
+    bruta = corrigirTempo(bruta, hoje);
   }
   const separada = separarSugestoes(bruta, entrada.pergunta);
   const sugestoes = separada.sugestoes;
   const texto = semAvisoVencido(separada.texto, hoje);
-  const { resposta, fontes, citou } = extrairFontes(texto, trechos);
+  const extraida = extrairFontes(texto, trechos);
+  const { fontes, citou } = extraida;
+  // Regra 4 garantida no código: pergunta sobre a própria situação sempre leva o contato da COPERSE.
+  const resposta = comEncaminhamento(extraida.resposta, entrada.pergunta);
   if (fontes.length === 0) {
     // Recusa ou encaminhamento (regras 3 a 5): curta, sem citar número algum e apontando para a COPERSE.
     // Qualquer outra resposta sem citação vira SEM_BASE, para não passar conteúdo sem fonte.
