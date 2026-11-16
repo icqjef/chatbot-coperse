@@ -1,0 +1,15 @@
+# Checklist de funcionalidades (pedido do Jeferson em 16/11/2026)
+
+Ordem de execução definida pelo Jeferson. Cada item vira um PR; marcar aqui quando estiver no ar.
+
+- [ ] 1. Cronograma como dados fixos: o indexador lê os cronogramas (inclusive retificados) e guarda etapa e data; as respostas sobre datas usam essa lista conferida; botão "Próximas datas" no widget.
+- [ ] 2. Respostas oficiais da COPERSE pelo painel: a equipe marca a resposta errada, escreve a correta com a fonte, e a mesma pergunta passa a receber a resposta oficial.
+- [ ] 3. E-mail já preenchido: "Escrever para a COPERSE" abre o e-mail com a pergunta e a resposta do bot.
+- [ ] 4. Copiar a resposta e baixá-la como documento.
+- [ ] 5. Aviso de retificação: quando há edital ou cronograma retificado, a resposta avisa e prioriza a versão nova.
+- [ ] 6. Página atual como contexto: o widget envia a página em que o candidato está, para desfazer perguntas ambíguas.
+- [ ] 7. Link para a página certa do PDF citado (guardar o número da página na indexação).
+- [ ] 8. Perguntas sugeridas a partir do uso real (as mais feitas na semana, do registro de perguntas).
+- [ ] 9. Entrada por voz no widget (onde o navegador permitir).
+
+Fora da lista por decisão do Jeferson: versão em espanhol. "Adicionar à agenda" (.ics) não foi pedido nesta rodada.
