@@ -2,7 +2,8 @@ import { carregarRegras, inferirProcesso } from '@chatbot/comum/classificar';
 import listasJson from '../../config/listas.json';
 import processosJson from '../../config/processos.json';
 import { chaveCache, gravarCache, lerCache } from './cache';
-import { cronogramaComoTrechos, perguntaDeData } from './cronograma';
+import { cronogramaComoTrechos, NOMES, perguntaDeData } from './cronograma';
+import { processoDaPagina } from './sites';
 import { buscarOficial, comMemoria } from './oficiais';
 import { decidirAviso, edicaoCitada, ultimaRetificacao, type Aviso, type Retificacao } from './retificacao';
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
@@ -58,6 +59,8 @@ const MSG_INDISPONIVEL =
 export interface EntradaPergunta {
   pergunta: string;
   historico: Mensagem[];
+  /** Processo da página onde o widget está (sites.ts); vale quando a pergunta não diz o processo. */
+  processoPagina?: string | null;
 }
 
 export interface DepsResposta {
@@ -145,7 +148,10 @@ const NAO_ACHOU: Resultado = { resposta: SEM_BASE, fontes: [], sugestoes: [], co
 
 async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta): Promise<Resultado> {
   const consulta = consultaDeBusca(entrada.pergunta, entrada.historico);
-  const processo = inferirProcesso([entrada.pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS);
+  const daPergunta = inferirProcesso([entrada.pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS);
+  const processo = daPergunta ?? entrada.processoPagina ?? null;
+  // Só o nome fixo do processo vai ao prompt (nunca o título da página, que vem do navegador).
+  const contextoPagina = !daPergunta && entrada.processoPagina ? NOMES[entrada.processoPagina] : undefined;
   if (deps.oficial) {
     const oficial = await deps.oficial(consulta, processo).catch(() => null);
     if (oficial) return oficial;
@@ -161,7 +167,7 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
     }
   }
   if (trechos.length === 0) return NAO_ACHOU;
-  const sistema = montarSistema(trechos, deps.agora());
+  const sistema = montarSistema(trechos, deps.agora(), contextoPagina);
   const mensagens: Mensagem[] = [...entrada.historico, { papel: 'usuario', texto: entrada.pergunta }];
   const hoje = diaSaoPaulo(deps.agora());
   let bruta: string;
@@ -268,9 +274,9 @@ export async function aplicarLimite(
 }
 
 /** Formato e tamanhos; a assinatura das falas do modelo é conferida depois (`paresAutenticos`). */
-function validar(corpo: unknown): { pergunta: string; historico: MensagemRecebida[] } | null {
+function validar(corpo: unknown): { pergunta: string; historico: MensagemRecebida[]; pagina?: unknown } | null {
   if (typeof corpo !== 'object' || corpo === null) return null;
-  const { pergunta, historico = [] } = corpo as Record<string, unknown>;
+  const { pergunta, historico = [], pagina } = corpo as Record<string, unknown>;
   if (typeof pergunta !== 'string') return null;
   const p = pergunta.trim();
   if (p.length === 0 || pergunta.length > MAX_PERGUNTA) return null;
@@ -286,7 +292,7 @@ function validar(corpo: unknown): { pergunta: string; historico: MensagemRecebid
     if (texto.length > MAX_MENSAGEM) return null;
     msgs.push(esperado === 'modelo' ? { papel: esperado, texto, assinatura } : { papel: esperado, texto });
   }
-  return { pergunta: p, historico: msgs };
+  return { pergunta: p, historico: msgs, pagina };
 }
 
 /** Descarta pares com resposta sem assinatura válida e mascara dados pessoais. */
@@ -361,7 +367,7 @@ export async function tratarPerguntar(
   }
 
   const segredo = env.GEMINI_API_KEY;
-  const entrada = await prepararEntrada(recebida, segredo);
+  const entrada = { ...(await prepararEntrada(recebida, segredo)), processoPagina: processoDaPagina(recebida.pagina, origem!, REGRAS) };
   const agora = () => new Date();
   const contar = contaNoPainel(origem);
   const registro = env.REGISTRAR_PERGUNTAS === 'true' ? { pergunta: entrada.pergunta } : undefined;
@@ -376,7 +382,7 @@ export async function tratarPerguntar(
   if (social) return responder({ resposta: social, fontes: [], sugestoes: [], contato: false }, true);
   // Pergunta repetida nos sites da FURG: resposta guardada, sem Gemini e sem gastar a cota. A página de teste
   // e a avaliação automática (*.workers.dev) sempre geram de novo, para medir o modelo de verdade.
-  const chave = contar && entrada.historico.length === 0 ? await chaveCache(entrada.pergunta, agora()) : null;
+  const chave = contar && entrada.historico.length === 0 ? await chaveCache(entrada.pergunta, agora(), entrada.processoPagina ?? '') : null;
   if (chave) {
     const guardada = await lerCache(env.DB, chave, agora());
     if (guardada) return responder(guardada);

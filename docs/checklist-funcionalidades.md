@@ -6,7 +6,7 @@ Ordem de execução definida pelo Jeferson. Cada item vira um PR; marcar aqui qu
 - [x] 2. Respostas oficiais da COPERSE pelo painel: a equipe marca a resposta errada, escreve a correta com a fonte, e a mesma pergunta passa a receber a resposta oficial. No ar em 16/11 (PR #62); falta o teste com a senha do painel.
 - [x] 3. E-mail já preenchido: "Escrever para a COPERSE" abre o e-mail com a pergunta e a resposta do bot. No ar em 16/11 (PR #63).
 - [x] 4. Copiar a resposta e baixá-la como documento. No ar em 16/11 (PR #63), em texto simples (.txt).
-- [ ] 5. Aviso de retificação: quando há edital ou cronograma retificado, a resposta avisa e prioriza a versão nova.
+- [x] 5. Aviso de retificação: quando há edital ou cronograma retificado, a resposta avisa e prioriza a versão nova. No ar em 16/11 (PR #65).
 - [ ] 6. Página atual como contexto: o widget envia a página em que o candidato está, para desfazer perguntas ambíguas.
 - [ ] 7. Link para a página certa do PDF citado (guardar o número da página na indexação).
 - [ ] 8. Perguntas sugeridas a partir do uso real (as mais feitas na semana, do registro de perguntas).

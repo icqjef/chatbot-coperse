@@ -105,12 +105,14 @@ export function comEncaminhamento(resposta: string, pergunta: string): string {
   return `${resposta.trimEnd()}\n\n${ENCAMINHAMENTO_INDIVIDUAL}`;
 }
 
-export function montarSistema(trechos: Trecho[], hoje: Date): string {
+/** `pagina`: nome do processo da página onde a pessoa está (só nomes fixos de cronograma.ts). */
+export function montarSistema(trechos: Trecho[], hoje: Date, pagina?: string): string {
   const blocos = trechos.map(
     (t, i) =>
       `<trecho n="${i + 1}"${t.tipo ? ` tipo="${t.tipo}"` : ''} titulo="${esc(t.titulo)}" site="${esc(t.site)}" processo="${esc(t.processo)}"${t.ano == null ? '' : ` ano="${t.ano}"`} data="${esc(dataBr(t.data))}">${esc(t.texto)}</trecho>`,
   );
-  return `${REGRAS}\nHoje é ${FUSO.format(hoje)} (${DIA_SEMANA.format(hoje)}), ${horaBr(hoje)} no horário de Brasília.\n\nTrechos:\n\n${blocos.join('\n')}`;
+  const naPagina = pagina ? `\nA pessoa está numa página sobre o ${pagina}. Se a pergunta não diz o processo seletivo, responda sobre esse.` : '';
+  return `${REGRAS}\nHoje é ${FUSO.format(hoje)} (${DIA_SEMANA.format(hoje)}), ${horaBr(hoje)} no horário de Brasília.${naPagina}\n\nTrechos:\n\n${blocos.join('\n')}`;
 }
 
 export interface Fonte {

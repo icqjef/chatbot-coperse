@@ -40,7 +40,7 @@ describe('criarEnviar', () => {
     const e = await criarEnviar('https://w', f)('oi', []).catch((x) => x);
     expect(e.mensagem).toMatch(/Não consegui falar/);
   });
-  it('200 devolve o objeto e o corpo enviado é {pergunta, historico}', async () => {
+  it('200 devolve o objeto e o corpo enviado é {pergunta, historico, pagina}', async () => {
     const f = vi.fn().mockResolvedValue(resp(200, { resposta: 'ok', fontes: [] }));
     const h: Mensagem[] = [
       { papel: 'usuario', texto: 'a' },
@@ -49,7 +49,7 @@ describe('criarEnviar', () => {
     expect(await criarEnviar('https://w', f)('oi', h)).toEqual({ resposta: 'ok', fontes: [] });
     expect(f.mock.calls[0]![0]).toBe('https://w/perguntar');
     expect(f.mock.calls[0]![1].method).toBe('POST');
-    expect(JSON.parse(f.mock.calls[0]![1].body)).toEqual({ pergunta: 'oi', historico: h });
+    expect(JSON.parse(f.mock.calls[0]![1].body)).toEqual({ pergunta: 'oi', historico: h, pagina: { url: location.origin + location.pathname, titulo: document.title } });
   });
   it('429 lança com a mensagem do servidor', async () => {
     const f = vi.fn().mockResolvedValue(resp(429, { erro: 'Muitas perguntas, aguarde.' }));
