@@ -347,6 +347,13 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Vale também para a recusa sem citação: com o e-mail acrescentado, ela passa como encaminhamento em vez de virar SEM_BASE.
 - Perguntas gerais ("Quando sai a homologação?", "Qual a nota mínima?", "meu curso tem quantas vagas?") não são afetadas.
 
+## 16/11/2026 — Monitor com alerta a cada 10 minutos
+
+- Motivo: até aqui só havia o resumo semanal e o e-mail de falha da indexação. Se o Worker, o banco ou o Gemini caíssem, ninguém ficava sabendo.
+- Mudança: workflow `monitor` (GitHub Actions) com `avaliacao/monitor.mjs`. A cada 10 minutos confere `/saude` (banco, páginas no índice, indexação recente); no minuto 7 de cada hora faz também uma pergunta real. Duas falhas seguidas, com 90 s entre elas, abrem a issue "Alerta: assistente com problema" (e-mail do GitHub); ao voltar, a issue é comentada e fechada. O job não falha, para não mandar e-mail a cada 10 minutos.
+- Achado ao testar: a indexação agendada para cada 2 h rodou de 6 em 6 ou de 8 em 8 horas, porque o GitHub atrasa e descarta agendamentos, sobretudo no minuto 0. A indexação passou para o minuto 23 e o monitor só alerta com mais de 12 h sem indexação.
+- Custo: a pergunta de teste gasta cerca de 24 perguntas por dia da cota de 1000 e não entra no painel (origem workers.dev).
+- Alternativa descartada por ora: serviço externo de monitoramento (UptimeRobot e semelhantes). Exigiria conta nova e não sabe fazer a pergunta de teste com a origem permitida.
 ## 16/11/2026 — Gemini: tempo-limite, nova tentativa e modelo reserva
 
 - Motivo: na avaliação de 16/11, 3 perguntas voltaram com HTTP 503 do Gemini e passaram ao repetir. O candidato recebia "indisponível" numa falha de instantes. Não havia tempo-limite: se o Gemini demorasse, o widget desistia aos 30 s sem resposta do Worker.
