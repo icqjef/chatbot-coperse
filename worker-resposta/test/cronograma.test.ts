@@ -66,6 +66,15 @@ describe('cronograma no Worker', () => {
     expect(p!.etapas[0]!.fonte.url).toBe(RET);
   });
 
+  it('Vestibular e SiSU vêm antes dos específicos, até 4 processos', () => {
+    const ed = (processo: string, fim: string) => ({
+      processo, ano: 2027,
+      itens: [{ linha: { etapa: 'x', quando: fim, inicio: fim, fim }, fonte: { url: 'u', titulo: 't', site: 's', data: 'd', linhas: [] } }],
+    });
+    const r = proximasEtapas([ed('quilombolas', '2026-11-16'), ed('indigenas', '2026-11-16'), ed('transgeneros', '2026-11-17'), ed('ead', '2026-11-18'), ed('vestibular', '2026-11-22')], '2026-11-16');
+    expect(r.map((p) => p.processo)).toEqual(['vestibular', 'quilombolas', 'indigenas', 'transgeneros']);
+  });
+
   it('perguntaDeData', () => {
     expect(perguntaDeData('Até quando posso me inscrever no Vestibular?')).toBe(true);
     expect(perguntaDeData('Qual o período de isenção?')).toBe(true);

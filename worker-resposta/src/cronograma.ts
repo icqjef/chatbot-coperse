@@ -105,9 +105,11 @@ export async function cronogramaComoTrechos(db: D1Database, processo: string, ag
 }
 
 const MAX_ETAPAS = 4;
-const MAX_PROCESSOS = 3;
+const MAX_PROCESSOS = 4;
+/** Os de maior público vêm antes dos específicos, mesmo com data mais distante. */
+const PRINCIPAIS = ['vestibular', 'sisu'];
 
-/** Próximas etapas (fim de hoje em diante) de cada processo, os mais próximos primeiro. */
+/** Próximas etapas (fim de hoje em diante) de cada processo: Vestibular e SiSU primeiro, depois os mais próximos. */
 export function proximasEtapas(edicoes: Edicao[], hoje: string) {
   // Ordem pelo fim: etapa em andamento (começou antes de hoje) vem antes da que ainda vai começar.
   const chave = (l: LinhaDatada) => `${l.fim}|${l.inicio ?? ''}`;
@@ -125,7 +127,11 @@ export function proximasEtapas(edicoes: Edicao[], hoje: string) {
       };
     })
     .filter((p) => p.etapas.length > 0)
-    .sort((a, b) => a.primeira.localeCompare(b.primeira))
+    .sort((a, b) => {
+      const pa = PRINCIPAIS.indexOf(a.processo), pb = PRINCIPAIS.indexOf(b.processo);
+      if (pa !== pb) return (pa < 0 ? 99 : pa) - (pb < 0 ? 99 : pb);
+      return a.primeira.localeCompare(b.primeira);
+    })
     .slice(0, MAX_PROCESSOS)
     .map(({ primeira: _p, ...p }) => p);
 }
