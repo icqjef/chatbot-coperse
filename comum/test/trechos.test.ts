@@ -74,3 +74,13 @@ describe('prefixarTrecho', () => {
     expect(prefixarTrecho('c', { titulo: 'T', data: 'lixo', processo: 'geral', ano: null })).toBe('T\n\nc');
   });
 });
+
+describe('paginasDosTrechos', () => {
+  it('página onde cada trecho começa; sem inícios, nulo', async () => {
+    const { paginasDosTrechos } = await import('../src/trechos');
+    const texto = 'aaa bbb ccc ddd eee';
+    expect(paginasDosTrechos(texto, ['aaa bbb', 'ccc ddd', 'ddd eee'], [0, 8, 12])).toEqual([1, 2, 3]);
+    expect(paginasDosTrechos(texto, ['zzz'], [0])).toEqual([null]);
+    expect(paginasDosTrechos(texto, ['aaa'], [])).toEqual([null]);
+  });
+});

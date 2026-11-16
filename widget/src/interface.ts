@@ -97,7 +97,7 @@ export function textoParaGuardar(pergunta: string | undefined, resposta: string,
     ...(pergunta ? ['Pergunta: ' + pergunta, ''] : []),
     `Resposta do Assistente COPERSE (${dia}):`,
     resposta.trim(),
-    ...(fontes.length ? ['', 'Fontes:', ...fontes.map((f, i) => `${i + 1}. ${f.titulo} - ${f.url}`)] : []),
+    ...(fontes.length ? ['', 'Fontes:', ...fontes.map((f, i) => `${i + 1}. ${f.titulo}${f.pagina ? ` (p. ${f.pagina})` : ''} - ${f.url}`)] : []),
     '',
     'Resposta automática. Confira sempre o edital oficial.',
   ].join('\n');

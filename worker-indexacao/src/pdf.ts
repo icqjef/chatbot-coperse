@@ -30,7 +30,7 @@ async function textoDaPagina(doc: Documento, n: number): Promise<string> {
   return items.filter((i) => i.str != null).map((i) => i.str + (i.hasEOL ? '\n' : '')).join('');
 }
 
-async function lerPaginas(doc: Documento, lim: Limites, cancelado: () => boolean): Promise<string> {
+async function lerPaginas(doc: Documento, lim: Limites, cancelado: () => boolean): Promise<{ junto: string; textos: string[] }> {
   const textos: string[] = [];
   let total = 0;
   const ultima = Math.min(doc.numPages, lim.maxPaginas);
@@ -40,14 +40,33 @@ async function lerPaginas(doc: Documento, lim: Limites, cancelado: () => boolean
     total += t.length;
   }
   const junto = textos.join('\n').replace(/[^\S\n]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n');
-  return junto.slice(0, lim.maxCaracteres);
+  return { junto: junto.slice(0, lim.maxCaracteres), textos };
+}
+
+/**
+ * Onde cada página começa no texto final: procura, a partir do início da página anterior, a primeira linha
+ * não vazia da página (com os mesmos espaços do texto final). Página sem texto começa onde a anterior começou.
+ */
+export function inicioDasPaginas(texto: string, paginas: string[]): number[] {
+  const inicios: number[] = [];
+  let cursor = 0;
+  for (const p of paginas) {
+    const linha = p
+      .split('\n')
+      .map((l) => l.replace(/\s+/g, ' ').trim())
+      .find((l) => l.length > 0);
+    const pos = linha ? texto.indexOf(linha.slice(0, 40), cursor) : -1;
+    if (pos >= 0) cursor = pos;
+    inicios.push(cursor);
+  }
+  return inicios;
 }
 
 export async function extrairPdf(
   bytes: Uint8Array,
   limites: Partial<Limites> = {},
   abrir: (b: Uint8Array) => Promise<Documento> = getDocumentProxy as unknown as (b: Uint8Array) => Promise<Documento>,
-): Promise<{ texto: string; paginas: number }> {
+): Promise<{ texto: string; paginas: number; inicioPaginas: number[] }> {
   const lim = { ...LIMITES_PDF, ...limites };
   let doc: Documento | undefined;
   let estourou = false;
@@ -60,19 +79,19 @@ export async function extrairPdf(
   });
   const leitura = (async () => {
     doc = await abrir(bytes);
-    const bruto = await lerPaginas(doc, lim, () => estourou);
+    const { junto: bruto, textos } = await lerPaginas(doc, lim, () => estourou);
     if (doc.numPages > lim.maxPaginas) console.error(`PDF com ${doc.numPages} páginas: lidas só ${lim.maxPaginas}`);
-    return { bruto, paginas: doc.numPages };
+    return { bruto, paginas: doc.numPages, textos };
   })();
   try {
-    const { bruto, paginas } = await Promise.race([leitura, prazo]);
+    const { bruto, paginas, textos } = await Promise.race([leitura, prazo]);
     const texto = bruto
       .split('\n')
       .map((l) => l.replace(/[ \t ]+/g, ' ').trim())
       .join('\n')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
-    return { texto, paginas };
+    return { texto, paginas, inicioPaginas: inicioDasPaginas(texto, textos) };
   } catch (e) {
     const msg = (e as Error).message;
     throw new Error(msg.startsWith('PDF inválido') ? msg : `PDF inválido: ${msg}`);

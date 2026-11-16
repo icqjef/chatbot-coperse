@@ -8,7 +8,7 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
   let insertsTrecho = 0;
   const paginas = new Map<string, Linha>();
   const fila = new Map<string, Linha>(); // ordem de inserção = rowid
-  let trechos: { id: string; url: string; ordem: number; texto: string }[] = [];
+  let trechos: { id: string; url: string; ordem: number; texto: string; pagina?: number | null }[] = [];
   let fts: { texto: string; trecho_id: string }[] = [];
   const registro = { upserts: [] as VetorTrecho[][], apagados: [] as string[][], deletes: 0, eventos: [] as string[], linhas: {} as Record<string, Record<string, unknown>[]>, execucoes: [] as Linha[] };
 
@@ -18,6 +18,14 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
       if (/^SELECT hash, status FROM paginas/i.test(s)) {
         const p = paginas.get(params[0] as string);
         return p ? [{ hash: p.hash, status: p.status }] : [];
+      }
+      if (/^SELECT COUNT\(\*\) AS n FROM trechos WHERE url = \? AND pagina IS NULL$/i.test(s)) {
+        return [{ n: trechos.filter((t) => t.url === params[0] && t.pagina == null).length }];
+      }
+      if (/^UPDATE trechos SET pagina = \? WHERE id = \?$/i.test(s)) {
+        const t = trechos.find((x) => x.id === params[1]);
+        if (t) t.pagina = params[0] as number;
+        return [];
       }
       if (/^SELECT id FROM trechos/i.test(s)) {
         return trechos.filter((t) => t.url === params[0]).map((t) => ({ id: t.id }));

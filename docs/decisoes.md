@@ -452,3 +452,11 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Worker (`worker-resposta/src/sites.ts`): deduz o processo pelo caminho e pelo título (as mesmas regras de `config/processos.json`); se não der, usa o processo do site (vestibular.furg.br, sisu.furg.br). Página de endereço diferente da origem do pedido é ignorada. O endereço e o título não são guardados.
 - Vale só quando a pergunta não diz o processo: entra como bônus na busca, escolhe o cronograma conferido e a resposta oficial, e o prompt ganha a linha "A pessoa está numa página sobre o <processo>". Só o nome fixo do processo vai ao prompt, nunca o título da página (que vem do navegador e poderia trazer instruções).
 - O cache passa a separar as respostas pelo processo da página.
+
+## 16/11/2026 — Link para a página certa do PDF (checklist, item 7)
+
+- Motivo: editais têm 20 a 40 páginas; o link da fonte abria o PDF na primeira e o candidato tinha de procurar.
+- Leitura do PDF (`worker-indexacao/src/pdf.ts`): guarda o texto de cada página e acha onde ela começa no texto final (primeira linha não vazia da página, procurada a partir da anterior). O texto final, e portanto o hash, não muda.
+- Indexação: coluna `trechos.pagina` (migration 0011) com a página onde o trecho começa. PDF já indexado e sem mudança recebe a página na próxima visita, sem novo embedding (o texto é o mesmo, a divisão em trechos também).
+- Resposta: a fonte leva `pagina`; o widget monta o link com `#page=N` (os visualizadores de PDF do Chrome, Edge, Firefox e Safari abrem na página; os que não entendem só abrem o PDF) e mostra "(p. N)" no título. Copiar e Baixar também levam a página.
+- Conferido com o edital dos Quilombolas 2026 (16 páginas): páginas em ordem e cada trecho na página onde começa.

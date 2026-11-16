@@ -295,4 +295,30 @@ describe('registrarErro e removerPagina', () => {
     expect(f.fts()).toHaveLength(0);
     expect(f.paginas.get(doc.url)).toMatchObject({ status: 'removida' });
   });
+
+  describe('página do PDF (checklist, item 7)', () => {
+    // Palavras únicas: num texto repetitivo o começo de um trecho casaria antes da hora.
+    const texto = Array.from({ length: 6 }, (_, i) => `Parágrafo ${i} ` + Array.from({ length: 300 }, (_, j) => `p${i}w${j}`).join(' ')).join(String.fromCharCode(10, 10));
+    const meio = texto.indexOf('Parágrafo 3');
+    const pdf = { ...doc, url: 'https://coperse.furg.br/e.pdf', tipo: 'pdf' as const, texto, inicioPaginas: [0, meio] };
+
+    it('grava a página de cada trecho', async () => {
+      const { f, deps } = montar();
+      expect(await indexarDocumento(pdf, deps)).toBe('nova');
+      const pags = f.trechos().map((t) => t.pagina);
+      expect(pags[0]).toBe(1);
+      expect(pags.at(-1)).toBe(2);
+    });
+
+    it('PDF igual indexado sem página ganha a página sem novo embedding', async () => {
+      const { f, deps, embeds } = montar();
+      await indexarDocumento({ ...pdf, inicioPaginas: undefined }, deps);
+      expect(f.trechos().every((t) => t.pagina == null)).toBe(true);
+      const antes = embeds();
+      expect(await indexarDocumento(pdf, deps)).toBe('igual');
+      expect(embeds()).toBe(antes);
+      expect(f.trechos()[0]!.pagina).toBe(1);
+      expect(f.trechos().at(-1)!.pagina).toBe(2);
+    });
+  });
 });

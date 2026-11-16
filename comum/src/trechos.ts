@@ -13,6 +13,23 @@ function ultimoFimDeFrase(s: string, minimo: number): number {
 }
 
 /** Divide em trechos de até `maxCaracteres`, cortando em parágrafo, depois fim de frase, depois espaço. */
+/**
+ * Página (1, 2, ...) onde cada trecho começa, a partir do início de cada página no texto do PDF.
+ * Trechos se sobrepõem, mas começam em ordem: a busca de cada um parte do início do anterior.
+ */
+export function paginasDosTrechos(texto: string, trechos: string[], inicioPaginas: number[]): (number | null)[] {
+  if (!inicioPaginas.length) return trechos.map(() => null);
+  let cursor = 0;
+  return trechos.map((t) => {
+    const pos = texto.indexOf(t.slice(0, 60), cursor);
+    if (pos < 0) return null;
+    cursor = pos;
+    let pagina = 1;
+    for (let i = 0; i < inicioPaginas.length; i++) if (inicioPaginas[i]! <= pos) pagina = i + 1;
+    return pagina;
+  });
+}
+
 export function dividirEmTrechos(
   texto: string,
   opcoes: { maxCaracteres?: number; sobreposicao?: number } = {},

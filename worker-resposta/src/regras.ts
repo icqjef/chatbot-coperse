@@ -120,6 +120,8 @@ export interface Fonte {
   url: string;
   site: string;
   data: string;
+  /** Página do PDF do trecho citado: o widget abre o link nela (#page=N). */
+  pagina?: number;
 }
 
 const REMOVIDO = '\u0000';
@@ -181,7 +183,7 @@ export function extrairFontes(
       if (!t) continue;
       let novo = numeros.get(t.url);
       if (novo === undefined) {
-        fontes.push({ titulo: t.titulo, url: t.url, site: t.site, data: t.data });
+        fontes.push({ titulo: t.titulo, url: t.url, site: t.site, data: t.data, ...(t.pagina ? { pagina: t.pagina } : {}) });
         novo = fontes.length;
         numeros.set(t.url, novo);
       }

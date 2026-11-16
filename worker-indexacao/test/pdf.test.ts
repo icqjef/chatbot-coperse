@@ -8,6 +8,15 @@ describe('extrairPdf', () => {
     const r = await extrairPdf(bytes);
     expect(r.texto).toContain('ESPECÍFICO PARA INGRESSO DE ESTUDANTES QUILOMBOLAS');
     expect(r.paginas).toBeGreaterThanOrEqual(1);
+    expect(r.inicioPaginas).toHaveLength(r.paginas);
+    expect(r.inicioPaginas[0]).toBe(0);
+    expect([...r.inicioPaginas].sort((a, b) => a - b)).toEqual(r.inicioPaginas);
+  });
+  it('inicioDasPaginas acha a primeira linha de cada página no texto final', async () => {
+    const { inicioDasPaginas } = await import('../src/pdf.js');
+    const texto = ['Edital 1', 'Item A', 'Página dois começa', 'Item B', 'Terceira'].join('\n');
+    const paginas = [['  Edital   1', 'Item A'].join('\n'), ['Página dois   começa', 'Item B'].join('\n'), '', 'Terceira'];
+    expect(inicioDasPaginas(texto, paginas)).toEqual([0, 16, 16, 42]);
   });
   it('lança erro para bytes que não são PDF', async () => {
     await expect(extrairPdf(new Uint8Array([1, 2, 3]))).rejects.toThrow('PDF inválido');

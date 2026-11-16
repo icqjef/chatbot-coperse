@@ -38,10 +38,11 @@ export function renderResposta(texto: string, fontes: Fonte[]): HTMLElement {
       const li = document.createElement('li');
       if (urlSegura(f.url)) {
         const a = document.createElement('a');
-        a.href = f.url;
+        // Visualizadores de PDF dos navegadores abrem na página indicada por #page=N.
+        a.href = f.pagina ? `${f.url.split('#')[0]}#page=${f.pagina}` : f.url;
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
-        a.textContent = f.titulo;
+        a.textContent = f.pagina ? `${f.titulo} (p. ${f.pagina})` : f.titulo;
         li.append(a);
       } else li.append(document.createTextNode(f.titulo));
       const data = formatarData(f.data);
