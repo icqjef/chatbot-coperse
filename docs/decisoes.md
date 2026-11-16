@@ -339,3 +339,10 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - A temperatura fica no padrão: o Google recomenda não baixá-la nos modelos Gemini 3.
 - Mudança: a regra 8 manda usar a linha da etapa exatamente perguntada e diz que lista de classificação, chamada geral e lista de espera são etapas diferentes.
 - Na mesma rodada, 3 perguntas voltaram com HTTP 503 (Gemini indisponível por instantes); repetidas, passaram.
+
+## 16/11/2026 — Regra 4 garantida no código: contato da COPERSE em pergunta individual
+
+- Motivo: armadilha-individual oscila. Na última rodada a resposta foi só "Consulte a situação da sua inscrição acessando o sistema de inscrição em [1].", sem coperse@furg.br e citando trecho, contra a regra 4.
+- Mudança: `comEncaminhamento` (em `regras.ts`) reconhece a pergunta sobre a própria situação. Ou um possessivo da 1ª pessoa ("minha", "meu") perto de inscrição, isenção, homologação, nota, recurso, classificação, resultado, situação, matrícula, pedido ou aferição; ou "fui homologado/aprovado/classificado…" e "passei". Se a resposta não tem o e-mail, ganha a linha "Para a sua situação individual, consulte o sistema de inscrição ou escreva para coperse@furg.br."
+- Vale também para a recusa sem citação: com o e-mail acrescentado, ela passa como encaminhamento em vez de virar SEM_BASE.
+- Perguntas gerais ("Quando sai a homologação?", "Qual a nota mínima?", "meu curso tem quantas vagas?") não são afetadas.

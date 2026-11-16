@@ -10,7 +10,7 @@ import { assinar, paresAutenticos, type MensagemRecebida } from './historico';
 import { ENCERRAMENTO, limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { contaNoPainel, contarPergunta, tipoDaResposta } from './contagem';
-import { MARCA_ENCERRAMENTO, SEM_BASE, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes, type Fonte } from './regras';
+import { MARCA_ENCERRAMENTO, SEM_BASE, comEncaminhamento, extrairFontes, mascararDadosPessoais, montarSistema, separarSugestoes, type Fonte } from './regras';
 
 export interface RateLimit {
   limit(opcoes: { key: string; diario?: boolean }): Promise<{ success: boolean; motivo?: 'minuto' | 'dia' }>;
@@ -132,7 +132,10 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
   const separada = separarSugestoes(bruta, entrada.pergunta);
   const sugestoes = separada.sugestoes;
   const texto = semAvisoVencido(separada.texto, hoje);
-  const { resposta, fontes, citou } = extrairFontes(texto, trechos);
+  const extraida = extrairFontes(texto, trechos);
+  const { fontes, citou } = extraida;
+  // Regra 4 garantida no código: pergunta sobre a própria situação sempre leva o contato da COPERSE.
+  const resposta = comEncaminhamento(extraida.resposta, entrada.pergunta);
   if (fontes.length === 0) {
     // Recusa ou encaminhamento (regras 3 a 5): curta, sem citar número algum e apontando para a COPERSE.
     // Qualquer outra resposta sem citação vira SEM_BASE, para não passar conteúdo sem fonte.
