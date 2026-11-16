@@ -32,9 +32,39 @@ const CPF = /(?<![\d.\/-])\d{3}[. ]?\d{3}[. ]?\d{3}[-. ]?\d{2}(?![\d\/])/g;
 // Telefone brasileiro: DDD obrigatório, 8 ou 9 dígitos (10-11 no total).
 const TELEFONE = /(?<![\d\/.-])(?:\+55\s?)?(?:\(\d{2}\)\s?|\d{2}\s?)9?\d{4}[-\s]?\d{4}(?![\d\/])/g;
 
-/** Substitui CPF, e-mail e telefone brasileiro por [removido]. */
+// Número de inscrição, matrícula ou protocolo dito como tal ("minha inscrição é 2026123456", "matrícula nº 123456").
+// Só sequências de 5+ dígitos sem barra: datas ("inscrições até 07/10/2026") e anos ficam.
+const NUMERO_IDENTIFICADOR =
+  /((?:n[uú]mero\s+(?:d[ae]\s+)?|n[º°o]\.?\s*(?:d[ae]\s+)?)?(?:inscri[cç][aã]o|matr[ií]cula|protocolo|rg)\s*(?:n[º°o]\.?\s*|n[uú]mero\s*|[ée]\s+(?:o\s+)?|:\s*|-\s*)?)(\d{5,})(?![\d\/])/giu;
+// Nome declarado: "meu nome é Ana Paula da Silva", "me chamo joão". Para no primeiro sinal de pontuação,
+// palavra comum ("e", "quero", "gostaria"…) ou depois de 6 palavras.
+const NOME_DECLARADO = /(?<!\p{L})(meu nome (?:é|e|eh)|me chamo|meu nome:)(\s+)([\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,7})/giu;
+const LIGA_NOME = new Set(['da', 'de', 'do', 'das', 'dos']);
+const FIM_NOME = new Set([
+  'e', 'eu', 'quero', 'queria', 'gostaria', 'preciso', 'sou', 'tenho', 'fiz', 'vou', 'estou', 'to', 'tô', 'minha', 'meu', 'qual',
+  'quando', 'como', 'onde', 'porque', 'por', 'pra', 'para', 'a', 'o', 'mas', 'aqui', 'candidato', 'candidata',
+]);
+
+function mascararNome(t: string): string {
+  return t.replace(NOME_DECLARADO, (_m, gatilho: string, espaco: string, palavras: string) => {
+    const ps = palavras.split(/\s+/);
+    let n = 0;
+    while (n < ps.length && n < 6 && !FIM_NOME.has(ps[n]!.toLowerCase())) n++;
+    while (n > 0 && LIGA_NOME.has(ps[n - 1]!.toLowerCase())) n--;
+    if (!n) return _m;
+    return [gatilho + espaco + '[removido]', ...ps.slice(n)].join(' ');
+  });
+}
+
+/** Substitui CPF, e-mail, telefone brasileiro, nome declarado e número de inscrição/matrícula/protocolo por [removido]. */
 export function mascararDadosPessoais(t: string): string {
-  return t.replace(EMAIL, (m) => (EMAIL_FURG.test(m) ? m : '[removido]')).replace(CPF, '[removido]').replace(TELEFONE, '[removido]');
+  return mascararNome(
+    t
+      .replace(EMAIL, (m) => (EMAIL_FURG.test(m) ? m : '[removido]'))
+      .replace(NUMERO_IDENTIFICADOR, (_m, prefixo: string) => `${prefixo}[removido]`)
+      .replace(CPF, '[removido]')
+      .replace(TELEFONE, '[removido]'),
+  );
 }
 
 const FUSO = new Intl.DateTimeFormat('pt-BR', {

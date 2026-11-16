@@ -91,6 +91,8 @@ export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avalia
   const perfil = perfilDoSite(deps.host ?? location.hostname);
   const host = el('div');
   host.id = 'chatbot-coperse';
+  // O widget fala português mesmo em página de outro idioma (leitor de tela usa a pronúncia certa).
+  host.lang = 'pt-BR';
   // Inline para vencer regras da página (div { ... }, * { ... }) que superam :host.
   host.style.cssText =
     'all: initial !important; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif !important; color: #1d232a !important; position: fixed !important; z-index: 2147483000 !important; right: 20px !important; bottom: 20px !important;';
@@ -121,7 +123,7 @@ export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avalia
   const titulos = el('div');
   const titulo = el('h2', undefined, 'Assistente COPERSE');
   titulo.id = 'titulo';
-  titulos.append(titulo, el('p', undefined, 'Respostas com base nas páginas oficiais da FURG'));
+  titulos.append(titulo, el('p', undefined, 'Respostas automáticas (inteligência artificial) com base nas páginas oficiais da FURG'));
   const nova = botao('nova', '↺', 'Nova conversa');
   nova.title = 'Nova conversa';
   const fechar = botao('fechar', '✕', 'Fechar');
@@ -130,7 +132,16 @@ export function montar(config: Config, deps: { enviar?: Enviar; avaliar?: Avalia
   const aviso = el('div', 'aviso');
   const alerta = el('span', undefined, '⚠');
   alerta.setAttribute('aria-hidden', 'true');
-  aviso.append(alerta, 'Não digite CPF, nome ou outros dados pessoais. As perguntas são guardadas sem identificação por 90 dias para melhorar o assistente.');
+  const textoAviso = el('span', undefined, 'Não digite CPF, nome ou outros dados pessoais. As perguntas são guardadas sem identificação por 90 dias para melhorar o assistente. ');
+  if (config.api) {
+    const privacidade = el('a', 'privacidade', 'Privacidade') as HTMLAnchorElement;
+    privacidade.href = `${config.api}/privacidade`;
+    privacidade.target = '_blank';
+    privacidade.rel = 'noopener';
+    privacidade.setAttribute('aria-label', 'Privacidade (abre em nova aba)');
+    textoAviso.append(privacidade);
+  }
+  aviso.append(alerta, textoAviso);
 
   const msgs = el('div', 'msgs');
   msgs.setAttribute('aria-live', 'polite');

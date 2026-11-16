@@ -8,6 +8,7 @@ import { tratarAvaliar } from './avaliar';
 import { paginaPainel, scriptPainel, tratarPainelDados } from './painel';
 import { WIDGET } from './widget-gerado';
 import { DEMO_HTML } from './demo';
+import { paginaPrivacidade } from './privacidade';
 
 export interface Env {
   DB: D1Database;
@@ -55,6 +56,7 @@ export default {
       if (req.method === 'POST') return tratarReindexar(req, env);
       return new Response(null, { status: 405, headers: { Allow: 'POST' } });
     }
+    if (url.pathname === '/privacidade' && req.method === 'GET') return paginaPrivacidade();
     if (url.pathname === '/painel' && req.method === 'GET') return paginaPainel();
     if (url.pathname === '/painel.js' && req.method === 'GET') return scriptPainel();
     if (url.pathname === '/painel/dados') {

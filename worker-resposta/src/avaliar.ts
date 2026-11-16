@@ -20,6 +20,9 @@ export interface EnvAvaliar {
 const MAX_CORPO = 8 * 1024;
 const MAX_RESPOSTA = 2000;
 const GUARDA_RESPOSTA = 600;
+/** Avaliações (resposta do assistente e páginas citadas) ficam 1 ano; ver /privacidade. */
+export const DIAS_AVALIACAO = 365;
+const MS_DIA = 86_400_000;
 const MAX_FONTES = 8;
 
 /** URLs enviadas pelo widget que existem na tabela `paginas`; o resto é descartado. */
@@ -65,9 +68,15 @@ export async function tratarAvaliar(req: Request, env: EnvAvaliar, origens: stri
   }
   try {
     const urls = await fontesConhecidas(env.DB, fontes);
-    await env.DB.prepare('INSERT INTO avaliacoes (dia, util, resposta, fontes) VALUES (?, ?, ?, ?)')
-      .bind(diaSaoPaulo(agora), util ? 1 : 0, mascararDadosPessoais(resposta.slice(0, GUARDA_RESPOSTA)), urls.length ? JSON.stringify(urls) : null)
-      .run();
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO avaliacoes (dia, util, resposta, fontes) VALUES (?, ?, ?, ?)').bind(
+        diaSaoPaulo(agora),
+        util ? 1 : 0,
+        mascararDadosPessoais(resposta.slice(0, GUARDA_RESPOSTA)),
+        urls.length ? JSON.stringify(urls) : null,
+      ),
+      env.DB.prepare('DELETE FROM avaliacoes WHERE dia < ?').bind(diaSaoPaulo(new Date(agora.getTime() - DIAS_AVALIACAO * MS_DIA))),
+    ]);
   } catch {
     console.error('Falha ao gravar avaliação');
     return json({ erro: 'Não foi possível registrar a avaliação.' }, 503, cors);

@@ -8,6 +8,7 @@
     "build": "node build.mjs"
   },
   "devDependencies": {
+    "axe-core": "^4.10.2",
     "esbuild": "^0.28.2",
     "happy-dom": "^21.0.4",
     "typescript": "^5.9.3",
