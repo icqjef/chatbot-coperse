@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ESTILOS } from '../src/estilos';
-import { montar, type Widget } from '../src/interface';
+import { mailtoContato, montar, textoParaGuardar, type Widget } from '../src/interface';
 import type { Enviar } from '../src/tipos';
 
 const config = { api: 'https://w.example', cor: '#8b0000' };
@@ -153,6 +153,28 @@ describe('conversa', () => {
     expect(msgs).toContain('Vestibular 2027');
     expect(msgs).toContain('Aplicação da prova: 22/11/2026');
     expect(q<HTMLAnchorElement>('.msgs .fontes a').href).toBe('https://coperse.furg.br/c.pdf');
+  });
+  it('resposta com fonte tem Copiar e Baixar; Copiar usa a área de transferência', async () => {
+    const escrever = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: escrever }, configurable: true });
+    montarCom(vi.fn().mockResolvedValue(ok));
+    digitar('Quando é a prova?');
+    clicarEnviar();
+    await pronto();
+    const [copiar, baixar] = [...w.raiz.querySelectorAll<HTMLButtonElement>('.acao-guardar')];
+    expect(copiar!.textContent).toBe('Copiar');
+    expect(baixar!.textContent).toBe('Baixar');
+    copiar!.click();
+    await pronto();
+    expect(escrever).toHaveBeenCalledWith(expect.stringContaining('Pergunta: Quando é a prova?'));
+    expect(q('.aviso-guardar').textContent).toBe('Resposta copiada.');
+  });
+  it('o link de contato leva a pergunta no e-mail', async () => {
+    montarCom(vi.fn().mockResolvedValue({ resposta: 'Não encontrei. Escreva para coperse@furg.br.', fontes: [], contato: true }));
+    digitar('Tem prova de redação?');
+    clicarEnviar();
+    await pronto();
+    expect(decodeURIComponent(q<HTMLAnchorElement>('.acao .contato').href)).toContain('Tem prova de redação?');
   });
   it('resposta oficial mostra o selo da COPERSE', async () => {
     montarCom(vi.fn().mockResolvedValue({ ...ok, oficial: true }));
@@ -346,21 +368,23 @@ describe('conversa', () => {
     }
   });
 
-  it('Tab e Shift+Tab passam pelos links das fontes e pelo link de privacidade', async () => {
+  it('Tab e Shift+Tab passam pelos links das fontes, pelos botões Copiar/Baixar e pelo link de privacidade', async () => {
     montarCom(vi.fn().mockResolvedValue(ok));
     digitar('A');
     clicarEnviar();
     await pronto();
     const link = q<HTMLElement>('.msgs a');
     link.focus();
+    // ordem: fechar, link de privacidade do aviso, mensagens (fonte, Copiar, Baixar), campo
+    const [copiar, baixar] = [...w.raiz.querySelectorAll<HTMLElement>('.acao-guardar')];
     tecla(link, 'Tab');
-    expect(w.raiz.activeElement).toBe(q('textarea'));
+    expect(w.raiz.activeElement).toBe(copiar);
     link.focus();
     tecla(link, 'Tab', true);
-    expect(w.raiz.activeElement).toBe(q('.privacidade')); // ordem: fechar, link de privacidade do aviso, mensagens
+    expect(w.raiz.activeElement).toBe(q('.privacidade'));
     q<HTMLElement>('textarea').focus();
     tecla(q('textarea'), 'Tab', true);
-    expect(w.raiz.activeElement).toBe(link);
+    expect(w.raiz.activeElement).toBe(baixar);
   });
 
   it('erro remove a bolha da pergunta que falhou', async () => {
@@ -486,5 +510,28 @@ describe('index', () => {
     } finally {
       if (!body.isConnected) document.documentElement.append(body);
     }
+  });
+});
+
+describe('copiar e baixar', () => {
+  it('textoParaGuardar: pergunta, resposta, fontes numeradas e lembrete', () => {
+    const t = textoParaGuardar('Quando é a prova?', 'Em 22/11/2026 [1].', [{ titulo: 'Edital', url: 'https://coperse.furg.br/e.pdf', site: 's', data: 'd' }], new Date('2026-11-16T12:00:00Z'));
+    expect(t).toBe(
+      ['Pergunta: Quando é a prova?', '', 'Resposta do Assistente COPERSE (16/11/2026):', 'Em 22/11/2026 [1].', '', 'Fontes:', '1. Edital - https://coperse.furg.br/e.pdf', '', 'Resposta automática. Confira sempre o edital oficial.'].join('\n'),
+    );
+  });
+});
+
+describe('e-mail já preenchido', () => {
+  it('leva pergunta, resposta sem [n] e páginas citadas; sem pergunta, só o assunto', () => {
+    const href = mailtoContato('Quando é a prova?', 'A prova será em 22/11/2026 [1].', [{ titulo: 'E', url: 'https://coperse.furg.br/e.pdf', site: 's', data: 'd' }]);
+    expect(href.startsWith('mailto:coperse@furg.br?subject=')).toBe(true);
+    const corpo = decodeURIComponent(href.split('&body=')[1]!);
+    expect(corpo).toContain('Quando é a prova?');
+    expect(corpo).toContain('A prova será em 22/11/2026.');
+    expect(corpo).not.toContain('[1]');
+    expect(corpo).toContain('https://coperse.furg.br/e.pdf');
+    expect(corpo.endsWith('Minha dúvida:\n')).toBe(true);
+    expect(mailtoContato()).not.toContain('body=');
   });
 });
