@@ -10,6 +10,8 @@ export interface Trecho {
   ano: number | null;
   texto: string;
   similaridade: number;
+  /** Página do PDF onde o trecho começa (null em HTML ou PDF indexado antes de 16/11/2026). */
+  pagina?: number | null;
   /** 'cronograma': etapas e datas conferidas (cronograma.ts), não um trecho da página. */
   tipo?: 'cronograma';
 }
@@ -149,6 +151,7 @@ interface LinhaTrecho {
   data_publicacao: string;
   processo: string;
   ano: number | null;
+  pagina: number | null;
 }
 
 async function buscarFts(db: D1Database, pergunta: string): Promise<{ id: string }[]> {
@@ -200,7 +203,7 @@ export async function buscarTrechos(
   const marcas = candidatos.map(() => '?').join(',');
   const r = await deps.db
     .prepare(
-      `SELECT t.id, t.texto, p.url, p.titulo, p.site, p.data_publicacao, p.processo, p.ano ` +
+      `SELECT t.id, t.texto, t.pagina, p.url, p.titulo, p.site, p.data_publicacao, p.processo, p.ano ` +
         `FROM trechos t JOIN paginas p ON p.url = t.url WHERE p.status = 'ok' AND t.id IN (${marcas})`,
     )
     .bind(...candidatos)
@@ -232,6 +235,7 @@ export async function buscarTrechos(
       ano: l.ano,
       texto: l.texto,
       similaridade: simPorId.get(id) ?? 0,
+      ...(l.pagina ? { pagina: l.pagina } : {}),
     };
   });
   const escolhidos = new Set(trechos.map((t) => t.id));

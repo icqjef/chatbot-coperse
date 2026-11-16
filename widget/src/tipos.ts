@@ -1,6 +1,7 @@
 /** `assinatura`: HMAC que o Worker põe em cada resposta; sem ela a resposta não volta como contexto. */
 export type Mensagem = { papel: 'usuario' | 'modelo'; texto: string; assinatura?: string };
-export type Fonte = { titulo: string; url: string; site: string; data: string };
+/** `pagina`: página do PDF do trecho citado (o link abre nela). */
+export type Fonte = { titulo: string; url: string; site: string; data: string; pagina?: number };
 /** `sugestoes`: próximas perguntas (botões). `contato`: o bot não achou base e oferece escrever para a COPERSE. */
 /** `oficial`: resposta escrita pela COPERSE no painel. */
 /** `aviso`: retificação de edital ou cronograma relacionada à resposta. */

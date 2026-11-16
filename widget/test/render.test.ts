@@ -39,3 +39,12 @@ describe('renderResposta', () => {
     expect(renderResposta('x', []).querySelector('ol')).toBeNull();
   });
 });
+
+describe('página do PDF', () => {
+  it('link abre o PDF na página e o título mostra p. N', () => {
+    const r = renderResposta('Texto [1].', [{ titulo: 'Edital', url: 'https://coperse.furg.br/e.pdf', site: 's', data: '2026-10-01', pagina: 12 }]);
+    const a = r.querySelector('a')!;
+    expect(a.getAttribute('href')).toBe('https://coperse.furg.br/e.pdf#page=12');
+    expect(a.textContent).toBe('Edital (p. 12)');
+  });
+});

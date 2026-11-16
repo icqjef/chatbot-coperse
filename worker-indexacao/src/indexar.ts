@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Site, Embedder, VetorTrecho, Documento, TipoDocumento } from '@chatbot/comum/tipos';
-import { dividirEmTrechos, prefixarTrecho } from '@chatbot/comum/trechos';
+import { dividirEmTrechos, paginasDosTrechos, prefixarTrecho } from '@chatbot/comum/trechos';
 import { ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import type { ClienteCloudflare } from './cloudflare.js';
 
@@ -107,6 +107,16 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
     const anterior = (await cf.d1('SELECT hash, status FROM paginas WHERE url = ?', [url]))[0];
     if (anterior && anterior.hash === hash && anterior.status === 'ok') {
       await cf.d1('UPDATE paginas SET data_vista = ? WHERE url = ?', [agora, url]);
+      // PDF indexado antes do número de página: o texto é o mesmo, então só a página é gravada (sem embedding).
+      if (doc.tipo === 'pdf' && doc.inicioPaginas?.length) {
+        const semPagina = Number((await cf.d1('SELECT COUNT(*) AS n FROM trechos WHERE url = ? AND pagina IS NULL', [url]))[0]?.n ?? 0);
+        if (semPagina > 0) {
+          const pags = paginasDosTrechos(texto, dividirEmTrechos(texto), doc.inicioPaginas);
+          for (const [i, pagina] of pags.entries()) {
+            if (pagina != null) await cf.d1('UPDATE trechos SET pagina = ? WHERE id = ?', [pagina, idTrecho(url, i)]);
+          }
+        }
+      }
       return 'igual';
     }
 
@@ -144,7 +154,8 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
     const obsoletos = antigos.filter((id) => !novos.has(id));
     if (obsoletos.length > 0) await cf.apagarVetores(obsoletos);
 
-    await cf.inserirLinhas('trechos', ['id', 'url', 'ordem', 'texto'], trechos.map((t, i) => [vetores[i]!.id, url, i, t]));
+    const paginas = doc.tipo === 'pdf' && doc.inicioPaginas?.length ? paginasDosTrechos(texto, trechos, doc.inicioPaginas) : [];
+    await cf.inserirLinhas('trechos', ['id', 'url', 'ordem', 'texto', 'pagina'], trechos.map((t, i) => [vetores[i]!.id, url, i, t, paginas[i] ?? null]));
     await cf.inserirLinhas('trechos_fts', ['texto', 'trecho_id'], trechos.map((t, i) => [t, vetores[i]!.id]));
     await cf.d1("UPDATE paginas SET hash = ?, status = 'ok' WHERE url = ?", [hash, url]);
     teto?.consumir(delta);

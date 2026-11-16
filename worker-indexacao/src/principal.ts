@@ -41,7 +41,7 @@ export interface OpcoesExecucao {
 
 export interface DepsExecucao extends DepsIndexacao {
   buscar: (url: string, dominiosPermitidos?: string[]) => Promise<Resposta>;
-  extrairPdf: (b: Uint8Array) => Promise<{ texto: string; paginas: number }>;
+  extrairPdf: (b: Uint8Array) => Promise<{ texto: string; paginas: number; inicioPaginas?: number[] }>;
   /** HEAD: Last-Modified sem baixar o corpo (listas em PDF) */
   cabecalho: (url: string) => Promise<{ ultimaModificacao?: string }>;
 }
@@ -142,7 +142,8 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       data = conhecida ?? (valida(item.data) ? item.data : agora);
       // URL sem cara de PDF que devolveu PDF: a regra de lista ainda vale (não lê o conteúdo).
       let lista = filhoDeLista || ehListaDeCandidatos(titulo, item.url, regras);
-      let texto = lista ? '' : (await deps.extrairPdf(resp.bytes ?? new Uint8Array(0))).texto;
+      const lido = lista ? null : await deps.extrairPdf(resp.bytes ?? new Uint8Array(0));
+      let texto = lido?.texto ?? '';
       // Privacidade: lista de nomes com título neutro é pega pelo cabeçalho/linhas do conteúdo; o texto é descartado.
       if (!lista && pareceListaDeNomes(texto)) {
         lista = true;
@@ -152,7 +153,8 @@ async function processar(item: ItemFila, site: Site, ctx: Contexto, saida: { tip
       saida.tipo = lista ? 'lista' : 'pdf';
       const c = classificar(titulo, item.url, data, item, site, regras, texto);
       return await indexarDocumento(
-        { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo: lista ? 'lista' : 'pdf', processo: c.processo, ano: c.ano, texto }, deps,
+        { site, url: item.url, titulo, data, dataDesconhecida: !conhecida, tipo: lista ? 'lista' : 'pdf', processo: c.processo, ano: c.ano, texto,
+          ...(!lista && lido?.inicioPaginas ? { inicioPaginas: lido.inicioPaginas } : {}) }, deps,
       );
     }
 

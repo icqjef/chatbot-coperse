@@ -78,6 +78,8 @@ export interface Documento {
   processo: string;
   ano: number;
   texto: string;
+  /** PDF: posição, no `texto`, onde começa cada página (a 1ª é a página 1). */
+  inicioPaginas?: number[];
   /** Trechos prontos que entram depois da divisão do texto (perguntas frequentes da página). */
   secoes?: string[];
 }

@@ -16,7 +16,10 @@ export function filtrarFontes(x: unknown): Fonte[] {
   const campos = ['titulo', 'url', 'site', 'data'] as const;
   return x
     .filter((f) => f && typeof f === 'object' && campos.every((k) => typeof f[k] === 'string'))
-    .map((f) => ({ titulo: f.titulo, url: f.url, site: f.site, data: f.data }));
+    .map((f) => ({
+      titulo: f.titulo, url: f.url, site: f.site, data: f.data,
+      ...(Number.isInteger(f.pagina) && f.pagina > 0 && f.pagina <= 2000 ? { pagina: f.pagina as number } : {}),
+    }));
 }
 
 const TEMPO_LIMITE_MS = 30_000;

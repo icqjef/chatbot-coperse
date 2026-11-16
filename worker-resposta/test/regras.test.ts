@@ -272,3 +272,10 @@ describe('perguntaIndividual e comEncaminhamento (regra 4 no código)', () => {
     expect(comEncaminhamento('A prova será em 22/11/2026 [1].', 'Quando é a prova?')).toBe('A prova será em 22/11/2026 [1].');
   });
 });
+
+describe('página do PDF na fonte', () => {
+  it('extrairFontes leva a página do trecho citado', () => {
+    const t = [{ id: 'a', url: 'https://x/e.pdf', titulo: 'E', site: 's', data: 'd', processo: 'p', ano: 2027, texto: 't', similaridade: 1, pagina: 7 }];
+    expect(extrairFontes('Texto [1].', t).fontes).toEqual([{ titulo: 'E', url: 'https://x/e.pdf', site: 's', data: 'd', pagina: 7 }]);
+  });
+});
