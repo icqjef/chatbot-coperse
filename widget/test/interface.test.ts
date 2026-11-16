@@ -176,6 +176,17 @@ describe('conversa', () => {
     await pronto();
     expect(decodeURIComponent(q<HTMLAnchorElement>('.acao .contato').href)).toContain('Tem prova de redação?');
   });
+  it('aviso de retificação aparece depois do texto, com o link do documento', async () => {
+    const aviso = { tipo: 'atencao', texto: 'Atenção: houve retificação em 05/11/2026.', url: 'https://coperse.furg.br/ret.pdf', titulo: 'Edital retificado' };
+    montarCom(vi.fn().mockResolvedValue({ ...ok, aviso }));
+    digitar('Quais documentos?');
+    clicarEnviar();
+    await pronto();
+    const p = q('.msgs .retificacao.atencao');
+    expect(p.previousElementSibling?.className).toBe('texto');
+    expect(p.textContent).toContain('Atenção: houve retificação em 05/11/2026.');
+    expect(q<HTMLAnchorElement>('.retificacao a').href).toBe('https://coperse.furg.br/ret.pdf');
+  });
   it('resposta oficial mostra o selo da COPERSE', async () => {
     montarCom(vi.fn().mockResolvedValue({ ...ok, oficial: true }));
     digitar('Quando é a prova?');

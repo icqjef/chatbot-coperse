@@ -47,7 +47,7 @@ export async function gravarCache(db: D1Database, chave: string, r: Resultado, a
     await db.batch([
       db
         .prepare('INSERT OR REPLACE INTO respostas_cache (chave, resultado, criado) VALUES (?, ?, ?)')
-        .bind(chave, JSON.stringify({ resposta: r.resposta, fontes: r.fontes, sugestoes: r.sugestoes, contato: r.contato }), agora.getTime()),
+        .bind(chave, JSON.stringify({ resposta: r.resposta, fontes: r.fontes, sugestoes: r.sugestoes, contato: r.contato, ...(r.aviso ? { aviso: r.aviso } : {}), ...(r.oficial ? { oficial: true } : {}) }), agora.getTime()),
       db.prepare('DELETE FROM respostas_cache WHERE criado < ?').bind(agora.getTime() - TTL_MS),
     ]);
   } catch {

@@ -435,3 +435,12 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Copiar e Baixar: em cada resposta com fonte. O texto leva a pergunta, a resposta com [n], as fontes numeradas (título e endereço), a data e o lembrete "Confira sempre o edital oficial". Baixar gera `resposta-coperse-AAAA-MM-DD.txt` no próprio navegador. Texto simples em vez de PDF: abre em qualquer celular e não aumenta o widget com uma biblioteca de PDF.
 - O aviso "Resposta copiada" usa `aria-live` para o leitor de tela. Os botões entram na ordem do Tab depois das fontes.
 - Widget: 24,5 KB (teto de 32 KB).
+
+## 16/11/2026 — Aviso de retificação (checklist, item 5)
+
+- Motivo: quando o edital ou o cronograma é retificado, uma resposta baseada no documento anterior pode trazer prazo ou regra superada, e o candidato não sabe que houve mudança.
+- `worker-resposta/src/retificacao.ts`: para o processo e a edição dos trechos citados, procura a última retificação de edital ou cronograma (pelo título ou pelo nome do arquivo, como `_Ret.pdf`; retificações de listas de candidatos não contam).
+- Se a resposta cita só documentos anteriores à retificação: alerta "Atenção: houve retificação em dd/mm/aaaa, depois de uma das páginas usadas nesta resposta. Confira o documento retificado:", com o link.
+- Se já cita a retificação ou um documento mais novo: nota discreta "Esta resposta considera a retificação publicada em dd/mm/aaaa", só nos 60 dias depois da publicação (para não aparecer em toda resposta o ano inteiro).
+- A versão nova já tem prioridade na busca (data mais recente), na regra 7 do prompt e no cronograma conferido (item 1).
+- O aviso vai no campo `aviso` da resposta, entra no cache e o widget mostra logo depois do texto. Endereço do aviso só http(s).

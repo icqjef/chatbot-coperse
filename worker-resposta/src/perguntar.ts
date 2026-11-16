@@ -4,6 +4,7 @@ import processosJson from '../../config/processos.json';
 import { chaveCache, gravarCache, lerCache } from './cache';
 import { cronogramaComoTrechos, perguntaDeData } from './cronograma';
 import { buscarOficial, comMemoria } from './oficiais';
+import { decidirAviso, edicaoCitada, ultimaRetificacao, type Aviso, type Retificacao } from './retificacao';
 import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type LinhaDiagnostico, type Trecho } from './busca';
@@ -67,6 +68,8 @@ export interface DepsResposta {
   aoParcial?: (texto: string) => void;
   /** Cronograma conferido do processo (cronograma.ts): entra à frente dos trechos nas perguntas sobre datas. */
   cronograma?: (processo: string) => Promise<Trecho[]>;
+  /** Última retificação de edital/cronograma da edição (retificacao.ts), para o aviso na resposta. */
+  retificacao?: (processo: string, ano: number) => Promise<Retificacao | null>;
   /** Resposta oficial da COPERSE (oficiais.ts) para a mesma pergunta: vale mais que a gerada. */
   oficial?: (consulta: string, processo: string | null) => Promise<Resultado | null>;
 }
@@ -134,6 +137,8 @@ export interface Resultado {
   contato: boolean;
   /** Resposta escrita pela COPERSE no painel (o widget mostra "Resposta conferida pela COPERSE"). */
   oficial?: boolean;
+  /** Retificação de edital ou cronograma relacionada à resposta (retificacao.ts). */
+  aviso?: Aviso;
 }
 
 const NAO_ACHOU: Resultado = { resposta: SEM_BASE, fontes: [], sugestoes: [], contato: true };
@@ -208,7 +213,13 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
     }
     return NAO_ACHOU;
   }
-  return { resposta, fontes, sugestoes, contato: false };
+  const citados = trechos.filter((t) => fontes.some((f) => f.url === t.url));
+  const edicao = edicaoCitada(citados);
+  let aviso: Aviso | null = null;
+  if (edicao && deps.retificacao) {
+    aviso = decidirAviso(citados, await deps.retificacao(edicao.processo, edicao.ano).catch(() => null), deps.agora());
+  }
+  return { resposta, fontes, sugestoes, contato: false, ...(aviso ? { aviso } : {}) };
 }
 
 /**
@@ -408,6 +419,7 @@ export async function tratarPerguntar(
       agora,
       aoParcial,
       cronograma: (processo) => cronogramaComoTrechos(env.DB, processo, agora()),
+      retificacao: (processo, ano) => ultimaRetificacao(env.DB, processo, ano),
       oficial: async (consulta, processo) => {
         const [vetor] = await embedder.embed([consulta], 'RETRIEVAL_QUERY');
         return vetor ? buscarOficial(env.DB, vetor, processo) : null;

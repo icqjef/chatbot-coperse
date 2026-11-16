@@ -3,7 +3,9 @@ export type Mensagem = { papel: 'usuario' | 'modelo'; texto: string; assinatura?
 export type Fonte = { titulo: string; url: string; site: string; data: string };
 /** `sugestoes`: próximas perguntas (botões). `contato`: o bot não achou base e oferece escrever para a COPERSE. */
 /** `oficial`: resposta escrita pela COPERSE no painel. */
-export type Resposta = { resposta: string; fontes: Fonte[]; assinatura?: string; sugestoes?: string[]; contato?: boolean; oficial?: boolean };
+/** `aviso`: retificação de edital ou cronograma relacionada à resposta. */
+export type Aviso = { tipo: 'info' | 'atencao'; texto: string; url: string; titulo: string };
+export type Resposta = { resposta: string; fontes: Fonte[]; assinatura?: string; sugestoes?: string[]; contato?: boolean; oficial?: boolean; aviso?: Aviso };
 /** `aoParcial`: prévia da resposta enquanto o assistente escreve (texto já com as citações [n]). */
 export type Enviar = (pergunta: string, historico: Mensagem[], aoParcial?: (texto: string) => void) => Promise<Resposta>;
 /** Próximas etapas dos cronogramas conferidos (GET /proximas). */
