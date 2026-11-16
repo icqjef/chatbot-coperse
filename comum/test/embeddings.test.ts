@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { criarEmbedder, ErroAutenticacaoProvedor } from '../src/provedores/embeddings';
 
 const CHAVE = 'CHAVE-SECRETA-123';
@@ -113,5 +113,19 @@ describe('criarEmbedder: autenticação recusada', () => {
     const p = criarEmbedder(env, resp(status, '{"error":{"message":"x"}}')).embed(['a'], 'RETRIEVAL_DOCUMENT');
     await expect(p).rejects.toThrow(Error);
     await expect(p).rejects.not.toBeInstanceOf(ErroAutenticacaoProvedor);
+  });
+
+  it('falha passageira (503) repete uma vez; erro de cliente não repete', async () => {
+    const vet = new Response(JSON.stringify({ embeddings: [{ values: new Array(768).fill(1) }] }), { status: 200 });
+    const f = vi.fn().mockResolvedValueOnce(new Response('{}', { status: 503 })).mockResolvedValueOnce(vet);
+    const r = await criarEmbedder(env, f as any, { esperar: async () => {} }).embed(['a'], 'RETRIEVAL_QUERY');
+    expect(r).toHaveLength(1);
+    expect(f).toHaveBeenCalledTimes(2);
+    const g = vi.fn(async () => new Response('{}', { status: 503 }));
+    await expect(criarEmbedder(env, g as any, { esperar: async () => {} }).embed(['a'], 'RETRIEVAL_QUERY')).rejects.toThrow(/503/);
+    expect(g).toHaveBeenCalledTimes(2);
+    const h = vi.fn(async () => new Response('{}', { status: 404 }));
+    await expect(criarEmbedder(env, h as any, { esperar: async () => {} }).embed(['a'], 'RETRIEVAL_QUERY')).rejects.toThrow(/404/);
+    expect(h).toHaveBeenCalledTimes(1);
   });
 });

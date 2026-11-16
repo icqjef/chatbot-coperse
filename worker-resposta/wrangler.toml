@@ -23,6 +23,8 @@ invocation_logs = false
 AMBIENTE = "producao"
 PROVEDOR_LLM = "gemini"
 MODELO_RESPOSTA = "gemini-3.5-flash-lite"
+# Usado quando o principal falha de forma passageira (429/5xx) ou esgota o tempo. Estável, outra geração (aistudio.google.com/docs/models, 16/11/2026).
+MODELO_RESERVA = "gemini-3.1-flash-lite"
 MODELO_EMBEDDING = "gemini-embedding-001"
 DIMENSAO_EMBEDDING = "768"
 LIMIAR_SIMILARIDADE = "0.5"

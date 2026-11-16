@@ -346,3 +346,12 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Mudança: `comEncaminhamento` (em `regras.ts`) reconhece a pergunta sobre a própria situação. Ou um possessivo da 1ª pessoa ("minha", "meu") perto de inscrição, isenção, homologação, nota, recurso, classificação, resultado, situação, matrícula, pedido ou aferição; ou "fui homologado/aprovado/classificado…" e "passei". Se a resposta não tem o e-mail, ganha a linha "Para a sua situação individual, consulte o sistema de inscrição ou escreva para coperse@furg.br."
 - Vale também para a recusa sem citação: com o e-mail acrescentado, ela passa como encaminhamento em vez de virar SEM_BASE.
 - Perguntas gerais ("Quando sai a homologação?", "Qual a nota mínima?", "meu curso tem quantas vagas?") não são afetadas.
+
+## 16/11/2026 — Gemini: tempo-limite, nova tentativa e modelo reserva
+
+- Motivo: na avaliação de 16/11, 3 perguntas voltaram com HTTP 503 do Gemini e passaram ao repetir. O candidato recebia "indisponível" numa falha de instantes. Não havia tempo-limite: se o Gemini demorasse, o widget desistia aos 30 s sem resposta do Worker.
+- Fonte: aistudio.google.com/docs/troubleshooting ("Retry strategy", conferido em 16/11/2026): repetir com espera em 408, 429 e 5xx; não repetir 400, 401, 402, 403 e 404.
+- Geração (`comum/src/provedores/geracao.ts`): no máximo 3 chamadas. Modelo principal; se a falha passageira foi rápida, o principal de novo após 0,6 s; depois o modelo reserva. Tempo esgotado vai direto à reserva. Cada chamada tem 12 s, e o Worker não começa tentativa depois de 26 s do início (o widget espera 30 s). Resposta bloqueada (SAFETY/RECITATION) e erro de cliente não são repetidos.
+- Reserva: `MODELO_RESERVA = "gemini-3.1-flash-lite"`, estável e de outra geração, com capacidade separada (aistudio.google.com/docs/models, 16/11/2026). Uso registrado no log ("resposta pelo modelo reserva"). Preço da reserva a conferir na página de preços antes de ela virar rotina; hoje é usada só em falha.
+- Embeddings: uma nova tentativa em falha passageira, sem reserva (vetores de outro modelo não se comparam aos do índice). 6 s por chamada na pergunta; 30 s no indexador.
+- Padrão adotado: o mesmo das bibliotecas oficiais (repetição com espera); não houve projeto do GitHub a adaptar para um trecho tão pequeno.
