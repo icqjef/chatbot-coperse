@@ -7,6 +7,7 @@ import {
 import { criarEmbedder, ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador } from '@chatbot/comum/provedores/geracao';
 import { atualizarCronogramas } from './cronograma.js';
+import { completarPaginas } from './paginas-pdf.js';
 import type { Site, TipoDocumento } from '@chatbot/comum/tipos';
 import { criarClienteCloudflare } from './cloudflare.js';
 import { lerFeed } from './feed.js';
@@ -521,8 +522,15 @@ async function main(): Promise<void> {
     if (e instanceof ErroAutenticacaoProvedor) throw e;
     cronograma = { erro: e instanceof Error ? e.message.split(' — ')[0] : String(e) };
   }
+  // Página dos trechos de PDFs indexados antes do item 7 (até 30 por execução, sem novo embedding).
+  let paginasPdf: unknown;
+  try {
+    paginasPdf = await completarPaginas({ cf, buscar: deps.buscar, extrairPdf, esperar: dormir }, sites);
+  } catch (e) {
+    paginasPdf = { erro: e instanceof Error ? e.message : String(e) };
+  }
   const falhas = (await cf.d1("SELECT url, erro FROM paginas WHERE erro IS NOT NULL AND status IN ('erro', 'ok')")).map((r) => ({ url: r.url, erro: r.erro }));
-  console.log(JSON.stringify({ ...resumo, limite, cronograma, urls_com_erro: falhas }));
+  console.log(JSON.stringify({ ...resumo, limite, cronograma, paginas_pdf: paginasPdf, urls_com_erro: falhas }));
   if (resumo.teto_atingido) console.error(`Teto de ${tetoVetores} vetores atingido: a indexação parou. Ver docs/decisoes.md.`);
   process.exitCode = codigoSaida(resumo);
 }

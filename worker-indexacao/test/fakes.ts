@@ -22,9 +22,11 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
       if (/^SELECT COUNT\(\*\) AS n FROM trechos WHERE url = \? AND pagina IS NULL$/i.test(s)) {
         return [{ n: trechos.filter((t) => t.url === params[0] && t.pagina == null).length }];
       }
-      if (/^UPDATE trechos SET pagina = \? WHERE id = \?$/i.test(s)) {
-        const t = trechos.find((x) => x.id === params[1]);
-        if (t) t.pagina = params[0] as number;
+      if (/^UPDATE trechos SET pagina = CASE ordem (WHEN \? THEN \? ?)+ELSE 0 END WHERE url = \?$/i.test(s)) {
+        const url = params.at(-1);
+        const mapa = new Map<number, number>();
+        for (let i = 0; i + 1 < params.length - 1; i += 2) mapa.set(params[i] as number, params[i + 1] as number);
+        for (const t of trechos) if (t.url === url) t.pagina = mapa.get(t.ordem) ?? 0;
         return [];
       }
       if (/^SELECT id FROM trechos/i.test(s)) {
