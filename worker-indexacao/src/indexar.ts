@@ -3,6 +3,7 @@ import type { Site, Embedder, VetorTrecho, Documento, TipoDocumento } from '@cha
 import { dividirEmTrechos, paginasDosTrechos, prefixarTrecho } from '@chatbot/comum/trechos';
 import { ErroAutenticacaoProvedor } from '@chatbot/comum/provedores/embeddings';
 import type { ClienteCloudflare } from './cloudflare.js';
+import { gravarPaginas } from './paginas-pdf.js';
 
 export type ResultadoIndexacao = 'nova' | 'alterada' | 'igual' | 'vazia' | 'erro' | 'teto';
 
@@ -111,10 +112,7 @@ export async function indexarDocumento(doc: Documento, deps: DepsIndexacao): Pro
       if (doc.tipo === 'pdf' && doc.inicioPaginas?.length) {
         const semPagina = Number((await cf.d1('SELECT COUNT(*) AS n FROM trechos WHERE url = ? AND pagina IS NULL', [url]))[0]?.n ?? 0);
         if (semPagina > 0) {
-          const pags = paginasDosTrechos(texto, dividirEmTrechos(texto), doc.inicioPaginas);
-          for (const [i, pagina] of pags.entries()) {
-            if (pagina != null) await cf.d1('UPDATE trechos SET pagina = ? WHERE id = ?', [pagina, idTrecho(url, i)]);
-          }
+          await gravarPaginas(cf, url, paginasDosTrechos(texto, dividirEmTrechos(texto), doc.inicioPaginas));
         }
       }
       return 'igual';
