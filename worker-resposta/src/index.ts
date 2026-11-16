@@ -7,7 +7,7 @@ import { tratarReindexar, tratarSaude } from './operacao';
 import { comFiltro, criarLimites, type CotaDiaria, type FiltroNativo } from './limites';
 import { tratarPerguntar, type RateLimit } from './perguntar';
 import { tratarAvaliar } from './avaliar';
-import { paginaPainel, scriptPainel, tratarPainelDados } from './painel';
+import { paginaPainel, scriptPainel, tratarPainelDados, tratarPainelOficiais } from './painel';
 import { WIDGET } from './widget-gerado';
 import { DEMO_HTML } from './demo';
 import { paginaPrivacidade } from './privacidade';
@@ -73,6 +73,11 @@ export default {
     if (url.pathname === '/privacidade' && req.method === 'GET') return paginaPrivacidade();
     if (url.pathname === '/painel' && req.method === 'GET') return paginaPainel();
     if (url.pathname === '/painel.js' && req.method === 'GET') return scriptPainel();
+    const oficial = /^\/painel\/oficiais\/(listar|salvar|desativar)$/.exec(url.pathname);
+    if (oficial) {
+      if (req.method === 'POST') return tratarPainelOficiais(req, env, oficial[1]!);
+      return new Response(null, { status: 405, headers: { Allow: 'POST' } });
+    }
     if (url.pathname === '/painel/dados') {
       if (req.method === 'POST') return tratarPainelDados(req, env);
       return new Response(null, { status: 405, headers: { Allow: 'POST' } });

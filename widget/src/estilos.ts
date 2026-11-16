@@ -47,6 +47,7 @@ sup { font-weight: 700; color: var(--cor-escura); margin-left: 1px; }
 .digitando i:nth-child(3) { animation-delay: .3s; }
 @keyframes pulo { 0%, 60%, 100% { transform: translateY(0); background: #b9c1ca; } 30% { transform: translateY(-4px); background: #5d6670; } }
 .so-leitor { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.oficial { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; color: #1e6b3a; }
 .atalhos { display: flex; margin: 0 0 8px; }
 .datas { font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--cor); color: var(--cor-escura); background: #fff; cursor: pointer; }
 .datas:disabled { color: #5d6670; border-color: #8a939c; cursor: default; }

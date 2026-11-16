@@ -16,7 +16,7 @@ const MAILTO = `mailto:${EMAIL}?subject=${encodeURIComponent('Dúvida sobre proc
 export const ESPERA_CONVITE_MS = 15_000;
 
 /** `avaliado`: a pessoa já respondeu "Esta resposta ajudou?". */
-type Item = Mensagem & { fontes?: Fonte[]; sugestoes?: string[]; contato?: boolean; avaliado?: boolean };
+type Item = Mensagem & { fontes?: Fonte[]; sugestoes?: string[]; contato?: boolean; oficial?: boolean; avaliado?: boolean };
 /** `convidado`: o convite proativo já apareceu nesta sessão. */
 type Estado = { aberto: boolean; itens: Item[]; convidado?: boolean };
 
@@ -36,6 +36,7 @@ function lerEstado(): Estado {
           const sugestoes = filtrarSugestoes(i.sugestoes);
           if (sugestoes.length) item.sugestoes = sugestoes;
           if (i.contato === true) item.contato = true;
+          if (i.oficial === true) item.oficial = true;
           if (i.avaliado === true) item.avaliado = true;
         }
         itens.push(item);
@@ -232,6 +233,7 @@ export function montar(
     }
     const fontes = item.fontes ?? [];
     const bolha = renderResposta(item.texto, fontes);
+    if (item.oficial) bolha.insertBefore(el('p', 'oficial', '✔ Resposta conferida pela COPERSE'), bolha.firstChild);
     if (item.contato) {
       const acao = el('div', 'acao');
       acao.append(linkContato('Escrever para a COPERSE'));
@@ -299,6 +301,7 @@ export function montar(
       if (r.assinatura) modelo.assinatura = r.assinatura;
       if (r.sugestoes?.length) modelo.sugestoes = r.sugestoes;
       if (r.contato) modelo.contato = true;
+      if (r.oficial) modelo.oficial = true;
       mostrar(modelo, true);
       estado.itens.push({ papel: 'usuario', texto: pergunta }, modelo);
       salvar();

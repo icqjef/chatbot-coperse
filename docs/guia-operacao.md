@@ -150,9 +150,19 @@ Para acompanhar as avaliações, abra o painel https://chatbot-coperse.coperse-f
 - quantas perguntas os candidatos fizeram e quantas ficaram sem resposta, separando as não encontradas nas páginas (falta página ou edital) das recusadas (fora do tema ou caso individual);
 - o texto das perguntas sem resposta, as mais recentes primeiro (perguntas repetidas mostram o que falta nas páginas);
 - o dia com mais perguntas frente à cota diária e quantos candidatos a cota barrou;
+- as respostas oficiais (seção abaixo);
 - o tempo de resposta: a mediana (metade das respostas chega até esse tempo) e a porcentagem acima de 5 segundos. Se a parte acima de 5 s passar de 10%, avise quem mantém o código;
 - o total de avaliações, a taxa de aprovação e os votos por dia (em gráfico ou tabela);
 - as páginas mais citadas nas respostas com 👎 (as primeiras a revisar) e as próprias respostas com 👎.
+
+**Respostas oficiais.** Quando o assistente errar ou não souber, a COPERSE pode escrever a resposta certa no painel:
+
+1. Na lista "Perguntas sem resposta", clique em "Responder" (a pergunta vai para o formulário). Ou, em "Respostas que não ajudaram", clique em "Corrigir" (a fonte vai para o formulário e você escreve a pergunta).
+2. Escreva a resposta oficial, curta e com as datas no formato dd/mm/aaaa.
+3. Cole o endereço da página oficial que confirma a resposta. Precisa ser uma página que o assistente já lê: copie de uma fonte citada pelo assistente.
+4. Clique em "Salvar resposta oficial".
+
+A partir daí, perguntas de mesmo sentido e do mesmo processo seletivo recebem essa resposta, com a fonte e o selo "Resposta conferida pela COPERSE". Quando a informação mudar (edital novo, retificação), clique em "Desativar" na lista "Em uso" e, se for o caso, escreva a nova. Se a página de fonte sair do ar, a resposta oficial deixa de ser usada sozinha.
 
 Só contam as perguntas feitas nos sites da FURG; os testes pela página `/demo` e a avaliação automática (`avaliar.mjs`) ficam de fora. A senha fica guardada só naquela aba do navegador e some ao fechá-la; use "Sair" em computador compartilhado.
 
