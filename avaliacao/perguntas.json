@@ -854,6 +854,22 @@
       ],
       "fonte": "Atendimento_especializado_-_PS_Transg",
       "origem": "Caso relatado pelo Jeferson em 17/11/2026: o bot não achava o PDF publicado na véspera."
+    },
+    {
+      "id": "varios-processos-atendimento",
+      "categoria": "listas-publicadas",
+      "pergunta": "Saiu resultado do atendimento especializado?",
+      "resposta_esperada": "Lista os processos que publicaram o resultado (em 17/11/2026: Vestibular 2027 e Transgêneros 2027, entre outros), cada um com data e fonte, em vez de escolher um só.",
+      "fatos": [
+        [
+          "vestibular"
+        ],
+        [
+          "transg"
+        ]
+      ],
+      "fonte": "",
+      "origem": "Caso de 17/11/2026 (regra 12 e limite por processo na busca). Depende das publicações da época: rever quando os resultados mudarem."
     }
   ]
 }

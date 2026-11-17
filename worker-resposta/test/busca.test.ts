@@ -236,3 +236,15 @@ describe('escolher', () => {
     expect(escolher(f.slice(0, 4), undefined, 3, url)).toEqual(['lista#1', 'lista#2', 'lista#3']);
   });
 });
+
+describe('escolher: vários processos (pergunta sem processo)', () => {
+  it('no máximo 4 dos 8 lugares por processo; processo "geral" não conta; sobra completa no fim', () => {
+    // 6 trechos do vestibular (páginas diferentes) na frente, depois transgêneros, quilombolas e uma página geral.
+    const ids = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 't1', 'q1', 'g1', 'g2'];
+    const processo = (id: string) => ({ v: 'vestibular', t: 'transgeneros', q: 'quilombolas', g: 'geral' })[id[0] as 'v'];
+    const r = escolher(ids.map((id) => ({ id })), undefined, 8, (id) => id, processo);
+    expect(r).toEqual(['v1', 'v2', 'v3', 'v4', 't1', 'q1', 'g1', 'g2']);
+    const poucos = escolher(['v1', 'v2', 'v3', 'v4', 'v5', 'v6'].map((id) => ({ id })), undefined, 8, (id) => id, processo);
+    expect(poucos).toEqual(['v1', 'v2', 'v3', 'v4', 'v5', 'v6']);
+  });
+});
