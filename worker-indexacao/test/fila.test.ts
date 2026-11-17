@@ -167,12 +167,12 @@ describe('enfileirar', () => {
 describe('carregarEstado', () => {
   it('lê paginas e fila', async () => {
     const { cf, paginas } = criarCfFalso();
-    paginas.set('https://a/x', { url: 'https://a/x', data_vista: AGORA, status: 'ok', tipo: 'html' });
+    paginas.set('https://a/x', { url: 'https://a/x', data_vista: AGORA, status: 'ok', tipo: 'html', titulo: 'Página X' });
     await enfileirar(cf, estadoVazio(), [item(u('y'))], { agora: AGORA });
     const e = await carregarEstado(cf);
     paginas.set('https://a/e', { url: 'https://a/e', data_vista: AGORA, status: 'erro', tipo: 'pdf', falhas: 5 });
-    expect(e.paginas.get('https://a/x')).toEqual({ dataVista: AGORA, status: 'ok', tipo: 'html', falhas: 0 });
-    expect((await carregarEstado(cf)).paginas.get('https://a/e')).toEqual({ dataVista: AGORA, status: 'erro', tipo: 'pdf', falhas: 5 });
+    expect(e.paginas.get('https://a/x')).toEqual({ dataVista: AGORA, status: 'ok', tipo: 'html', falhas: 0, titulo: 'Página X' });
+    expect((await carregarEstado(cf)).paginas.get('https://a/e')).toEqual({ dataVista: AGORA, status: 'erro', tipo: 'pdf', falhas: 5, titulo: '' });
     expect(e.naFila.has(u('y'))).toBe(true);
   });
 });
@@ -240,5 +240,29 @@ describe('urlExcluida', () => {
   });
   it('sem excluir nada é excluído', () => {
     expect(urlExcluida('https://coperse.furg.br/anos-anteriores/x', { ...coperse, excluir: undefined })).toBe(false);
+  });
+});
+
+describe('PDF com título do nome do arquivo', () => {
+  const pdf = 'https://coperse.furg.br/images/2026/Vestibular-2026/transgeneros/Atendimento_especializado_-_PS_Transgneros_2027.pdf';
+  const estadoCom = (titulo: string): EstadoRastreio => ({
+    paginas: new Map([[pdf, { dataVista: antes(2), status: 'ok', tipo: 'lista', titulo }]]),
+    naFila: new Set(),
+    listas: new Set(),
+  });
+
+  it('volta à fila quando um link traz título descritivo (o resumo da lista fica achável)', async () => {
+    const { cf } = criarCfFalso();
+    const n = await enfileirar(cf, estadoCom('Atendimento especializado PS Transgneros 2027'), [
+      item(pdf, { titulo: 'Resultado preliminar da solicitação de atendimento especializado' }),
+    ], { agora: AGORA });
+    expect(n).toBe(1);
+  });
+
+  it('não volta se o título já é descritivo, se o link é genérico ou sem título', async () => {
+    const { cf } = criarCfFalso();
+    expect(await enfileirar(cf, estadoCom('Resultado preliminar da solicitação de atendimento especializado'), [item(pdf, { titulo: 'Outro título qualquer' })], { agora: AGORA })).toBe(0);
+    expect(await enfileirar(cf, estadoCom('Atendimento especializado PS Transgneros 2027'), [item(pdf, { titulo: 'Clique aqui' })], { agora: AGORA })).toBe(0);
+    expect(await enfileirar(cf, estadoCom('Atendimento especializado PS Transgneros 2027'), [item(pdf, { titulo: null })], { agora: AGORA })).toBe(0);
   });
 });

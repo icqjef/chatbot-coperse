@@ -18,7 +18,7 @@ import {
   indexarDocumento, registrarErro, removerPagina, type DepsIndexacao, type ResultadoIndexacao,
 } from './indexar.js';
 import {
-  adiar, carregarEstado, concluir, deveIgnorar, ehPdf, enfileirar, normalizarUrl, proximos, urlExcluida,
+  adiar, carregarEstado, concluir, deveIgnorar, ehPdf, enfileirar, normalizarUrl, proximos, tituloDoArquivo, urlExcluida,
   type EstadoRastreio, type ItemFila, type NovoItem,
 } from './fila.js';
 
@@ -69,10 +69,6 @@ export function codigoSaida(r: Contagem): 0 | 1 {
 }
 
 const valida = (d: string | null | undefined): d is string => !!d && !Number.isNaN(Date.parse(d));
-
-function tituloDoArquivo(url: string): string {
-  return nomeDoArquivo(url).replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim() || url;
-}
 
 /** título de PDF: o do link/feed, salvo se for genérico ("Clique aqui"); senão o nome do arquivo */
 const tituloPdf = (item: ItemFila) => (item.titulo && !ehGenerico(item.titulo) ? item.titulo : tituloDoArquivo(item.url));

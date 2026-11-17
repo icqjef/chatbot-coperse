@@ -841,6 +841,19 @@
       "proibidos": [
         "paris"
       ]
+    },
+    {
+      "id": "trans-atendimento-resultado",
+      "categoria": "listas-publicadas",
+      "pergunta": "Saiu o resultado da solicitação de atendimento especializado do processo para transgêneros?",
+      "resposta_esperada": "Sim: publicado em 16/11/2026, em lista nominal; aponta o link do documento (o assistente não reproduz os nomes).",
+      "fatos": [
+        [
+          "16/11"
+        ]
+      ],
+      "fonte": "Atendimento_especializado_-_PS_Transg",
+      "origem": "Caso relatado pelo Jeferson em 17/11/2026: o bot não achava o PDF publicado na véspera."
     }
   ]
 }
