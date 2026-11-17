@@ -84,6 +84,23 @@ function icone(): SVGSVGElement {
   return svg;
 }
 
+/** Partes da Web Speech API que o widget usa (Chrome, Edge, Safari; o Firefox não tem). */
+interface ReconhecimentoFala {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+function reconhecedorDeFala(): (new () => ReconhecimentoFala) | undefined {
+  const w = window as unknown as { SpeechRecognition?: new () => ReconhecimentoFala; webkitSpeechRecognition?: new () => ReconhecimentoFala };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition;
+}
+
 function linkContato(texto: string, href = MAILTO): HTMLAnchorElement {
   const a = el('a', 'contato', texto);
   a.href = href;
@@ -198,12 +215,62 @@ export function montar(
   campo.placeholder = 'Escreva sua pergunta…';
   campo.setAttribute('aria-label', 'Sua pergunta');
   const enviar = botao('enviar', '➤', 'Enviar');
-  entrada.append(campo, enviar);
+  // Entrada por voz (checklist, item 9): só onde o navegador reconhece fala; o texto vai para o campo e a pessoa
+  // confere antes de enviar (a máscara de dados pessoais continua valendo no envio).
+  const Reconhecedor = reconhecedorDeFala();
+  const microfone = botao('microfone', '🎤', 'Falar a pergunta');
+  microfone.setAttribute('aria-pressed', 'false');
+  const avisoVoz = el('p', 'aviso-voz');
+  avisoVoz.setAttribute('aria-live', 'polite');
+  avisoVoz.hidden = true;
+  let ouvindo: ReconhecimentoFala | null = null;
+  function pararDeOuvir(msg = ''): void {
+    ouvindo = null;
+    microfone.setAttribute('aria-pressed', 'false');
+    microfone.setAttribute('aria-label', 'Falar a pergunta');
+    avisoVoz.textContent = msg;
+    avisoVoz.hidden = !msg;
+  }
+  microfone.addEventListener('click', () => {
+    if (!Reconhecedor) return;
+    if (ouvindo) {
+      ouvindo.stop();
+      return;
+    }
+    const rec = new Reconhecedor();
+    rec.lang = 'pt-BR';
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e) => {
+      campo.value = Array.from(e.results, (r) => r[0]?.transcript ?? '').join('').slice(0, 500);
+    };
+    rec.onerror = (e) =>
+      pararDeOuvir(
+        e.error === 'not-allowed' || e.error === 'service-not-allowed'
+          ? 'O microfone não foi liberado. Permita o microfone no navegador ou digite a pergunta.'
+          : 'Não consegui ouvir. Tente de novo ou digite a pergunta.',
+      );
+    rec.onend = () => {
+      if (ouvindo === rec) pararDeOuvir(campo.value.trim() ? 'Confira o texto e envie.' : '');
+      campo.focus();
+    };
+    ouvindo = rec;
+    microfone.setAttribute('aria-pressed', 'true');
+    microfone.setAttribute('aria-label', 'Parar de ouvir');
+    avisoVoz.textContent = 'Ouvindo… O navegador converte sua fala em texto (no Chrome, pelo serviço do Google). Não fale dados pessoais.';
+    avisoVoz.hidden = false;
+    try {
+      rec.start();
+    } catch {
+      pararDeOuvir('Não consegui usar o microfone. Digite a pergunta.');
+    }
+  });
+  entrada.append(campo, ...(Reconhecedor ? [microfone] : []), enviar);
   // "Próximas datas": direto dos cronogramas conferidos, sem IA e sem gastar a cota.
   const datas = botao('datas', '📅 Próximas datas');
   const atalhos = el('div', 'atalhos');
   if (deps.proximas) atalhos.append(datas);
-  rodape.append(atalhos, entrada, el('p', 'nota', 'Pode conter erros. Confira sempre o edital oficial.'));
+  rodape.append(atalhos, entrada, avisoVoz, el('p', 'nota', 'Pode conter erros. Confira sempre o edital oficial.'));
 
   painel.append(cab, aviso, msgs, rodape);
   raiz.append(estilo, convite, abrirBotao, painel);

@@ -9,7 +9,7 @@ Ordem de execução definida pelo Jeferson. Cada item vira um PR; marcar aqui qu
 - [x] 5. Aviso de retificação: quando há edital ou cronograma retificado, a resposta avisa e prioriza a versão nova. No ar em 16/11 (PR #65).
 - [x] 6. Página atual como contexto: o widget envia a página em que o candidato está, para desfazer perguntas ambíguas. No ar em 16/11 (PR #66).
 - [x] 7. Link para a página certa do PDF citado (guardar o número da página na indexação). No ar em 16/11 (PRs #67, #68); os PDFs já indexados ganham a página aos poucos, 30 por indexação.
-- [ ] 8. Perguntas sugeridas a partir do uso real (as mais feitas na semana, do registro de perguntas).
-- [ ] 9. Entrada por voz no widget (onde o navegador permitir).
+- [x] 8. Perguntas sugeridas a partir do uso real (as mais feitas na semana, do registro de perguntas). No ar em 17/11 (PR #69); aparecem quando uma pergunta se repete 3 vezes na semana.
+- [x] 9. Entrada por voz no widget (onde o navegador permitir). PR #70; Chrome, Edge, Safari e Android (o Firefox não tem reconhecimento de fala).
 
 Fora da lista por decisão do Jeferson: versão em espanhol. "Adicionar à agenda" (.ics) não foi pedido nesta rodada.

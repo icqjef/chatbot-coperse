@@ -62,6 +62,9 @@ sup { font-weight: 700; color: var(--cor-escura); margin-left: 1px; }
 .rodape { border-top: 1px solid #e1e5ea; padding: 10px 12px 8px; padding-bottom: 8px; padding-bottom: max(8px, env(safe-area-inset-bottom)); background: #fff; }
 .entrada { display: flex; gap: 8px; }
 .entrada textarea { flex: 1; min-width: 0; resize: none; font-size: 14.5px; padding: 9px 11px; border: 1px solid #7a8591; border-radius: 10px; height: 42px; }
+.microfone { width: 42px; height: 42px; border: 1px solid #7a8591; border-radius: 10px; background: #fff; cursor: pointer; font-size: 18px; }
+.microfone[aria-pressed="true"] { background: #fde8e8; border-color: #b3261e; }
+.aviso-voz { font-size: 12.5px; color: #3c444d; margin: 6px 2px 0; }
 .enviar { width: 42px; height: 42px; border: 0; border-radius: 10px; background: var(--cor); color: #fff; cursor: pointer; }
 .nota { font-size: 12.5px; color: #5d6670; margin: 6px 2px 0; }
 @media (max-width: 600px) {

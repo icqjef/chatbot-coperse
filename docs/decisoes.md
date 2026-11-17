@@ -468,3 +468,11 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - `worker-resposta/src/sugestoes.ts` e `GET /sugestoes`: as perguntas respondidas com fonte nos últimos 7 dias, agrupadas pelo texto normalizado (sem acento, pontuação e maiúsculas), com 3 repetições ou mais; até 4, as mais feitas primeiro. No vestibular.furg.br e no sisu.furg.br, só as daquele processo ou sem processo. O navegador guarda a lista por 1 hora; falha devolve lista vazia.
 - Privacidade: são textos de outros candidatos, já mascarados. Só entram perguntas idênticas repetidas 3 vezes (pergunta pessoal quase nunca se repete igual), de 8 a 70 caracteres, sem "[removido]", número de 5 dígitos ou mais, "@" ou apresentação ("meu nome", "me chamo", "sou a/o…", "meu filho", "minha inscrição"). O painel lista as sugestões em uso com o botão "Ocultar" (tabela `sugestoes_ocultas`, migration 0012). O aviso `/privacidade` e o inventário foram atualizados.
 - Widget: na primeira abertura busca as sugestões; as do uso real entram antes das fixas do perfil, até 4.
+
+## 17/11/2026 — Entrada por voz (checklist, item 9)
+
+- Botão 🎤 ao lado do campo, só quando o navegador tem reconhecimento de fala (Web Speech API: Chrome, Edge, Safari, Android; o Firefox não tem, e lá o botão não aparece). Nada de biblioteca nova: o widget ficou com 27,9 KB.
+- A fala vira texto no campo, em português (`pt-BR`), e não é enviada sozinha: a pessoa confere e envia. O texto passa pela mesma máscara de dados pessoais da pergunta digitada.
+- Privacidade: quem converte a fala é o navegador (no Chrome, um serviço do Google; no Edge, da Microsoft; no Safari, da Apple). O widget avisa ao começar a ouvir ("Não fale dados pessoais") e o `/privacidade` explica. O assistente só recebe o texto.
+- Acessibilidade: o botão tem nome ("Falar a pergunta" / "Parar de ouvir") e `aria-pressed`; os avisos ("Ouvindo…", "Confira o texto e envie", microfone negado) usam `aria-live`.
+- Checklist de 16/11 concluída: itens 1 a 9.
