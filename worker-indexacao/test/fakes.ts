@@ -72,8 +72,8 @@ export function criarCfFalso(inj: { insertTrechoN?: number; upsertErro?: boolean
         if (p) p.status = 'removida';
         return [];
       }
-      if (/^SELECT url, data_vista, status, tipo, falhas FROM paginas$/i.test(s)) {
-        return [...paginas.values()].map((p) => ({ url: p.url, data_vista: p.data_vista, status: p.status, tipo: p.tipo, falhas: p.falhas }));
+      if (/^SELECT url, data_vista, status, tipo, falhas, titulo FROM paginas$/i.test(s)) {
+        return [...paginas.values()].map((p) => ({ url: p.url, data_vista: p.data_vista, status: p.status, tipo: p.tipo, falhas: p.falhas, titulo: p.titulo }));
       }
       if (/^SELECT falhas FROM paginas WHERE url = \?$/i.test(s)) {
         const p = paginas.get(params[0] as string);

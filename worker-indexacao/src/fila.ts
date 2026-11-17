@@ -1,5 +1,7 @@
 import type { Site } from '@chatbot/comum/tipos';
+import { nomeDoArquivo, normalizar } from '@chatbot/comum/classificar';
 import type { ClienteCloudflare } from './cloudflare.js';
+import { ehGenerico } from './extrair.js';
 
 const IGNORAR = /\.(css|js|png|jpe?g|gif|svg|ico|webp|zip|docx?|xlsx?|mp4)(\?|$)|\/_next\/|format=feed|\/login|\/area|[?&](start|limitstart|print|tmpl)=/i;
 const PDF = /\.pdf(\?|$)|\/api\/documentos\/publico/i;
@@ -32,7 +34,16 @@ export interface PaginaVista {
   tipo: string;
   /** falhas seguidas (status 'erro'); ausente = 0 */
   falhas?: number;
+  /** título gravado (para saber se veio só do nome do arquivo) */
+  titulo?: string;
 }
+
+/** Título de PDF tirado do nome do arquivo, quando o link não tinha texto útil. */
+export function tituloDoArquivo(url: string): string {
+  return nomeDoArquivo(url).replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim() || url;
+}
+
+const mesmoTexto = (a: string, b: string) => normalizar(a).replace(/[^a-z0-9]+/g, '') === normalizar(b).replace(/[^a-z0-9]+/g, '');
 
 export interface EstadoRastreio {
   paginas: Map<string, PaginaVista>;
@@ -74,9 +85,10 @@ export function ehPdf(url: string): boolean {
 
 export async function carregarEstado(cf: ClienteCloudflare): Promise<EstadoRastreio> {
   const paginas = new Map<string, PaginaVista>();
-  for (const l of await cf.d1('SELECT url, data_vista, status, tipo, falhas FROM paginas')) {
+  for (const l of await cf.d1('SELECT url, data_vista, status, tipo, falhas, titulo FROM paginas')) {
     paginas.set(String(l.url), {
       dataVista: String(l.data_vista ?? ''), status: String(l.status ?? ''), tipo: String(l.tipo ?? ''), falhas: Number(l.falhas ?? 0),
+      titulo: String(l.titulo ?? ''),
     });
   }
   const naFila = new Set((await cf.d1('SELECT url FROM fila')).map((l) => String(l.url)));
@@ -128,7 +140,13 @@ export async function enfileirar(
     const vista = estado.paginas.get(url);
     // PDF já indexado com conteúdo e agora linkado por uma lista: volta à fila para virar só resumo.
     const reabrir = !!bruto.lista && vista?.status === 'ok' && vista.tipo === 'pdf';
-    if (!opts.forcar && !reabrir && dentroDaJanela(url, vista, agora)) continue;
+    // PDF gravado com o título do nome do arquivo e agora linkado com texto descritivo: volta à fila para ganhar
+    // o título (ex.: "Resultado preliminar da solicitação de atendimento especializado"). Sem isso, o resumo de
+    // uma lista nominal fica sem as palavras da pergunta e a busca não o acha.
+    const renomear =
+      vista?.status === 'ok' && ehPdf(url) && !!bruto.titulo && !ehGenerico(bruto.titulo) && !!vista.titulo &&
+      mesmoTexto(vista.titulo, tituloDoArquivo(url)) && !mesmoTexto(vista.titulo, bruto.titulo);
+    if (!opts.forcar && !reabrir && !renomear && dentroDaJanela(url, vista, agora)) continue;
     novos.set(url, { ...bruto, url });
   }
   for (const [url, prioridade] of elevar) {
