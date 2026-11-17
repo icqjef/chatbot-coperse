@@ -492,3 +492,9 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Regra 12 do prompt: sem processo na pergunta e com a mesma publicação (resultado, homologação, lista, convocação, chamada) em mais de um processo, o bot lista um processo por linha, com data e citação, o mais recente primeiro. Nas demais perguntas, continua respondendo sobre o processo mais provável.
 - Nada é específico de um processo: vale para os que existirem quando a pergunta for feita.
 - Pergunta de avaliação `varios-processos-atendimento` (depende das publicações da época).
+
+## 17/11/2026 — "Próximas datas" só quando há datas
+
+- Caso (relatado pelo Jeferson): no sisu.furg.br o botão respondia "Não encontrei datas futuras". O SiSU 2026 terminou, o cronograma do SiSU 2027 não saiu, e o do SiSU vem do MEC em HTML (o cronograma conferido só lê PDF).
+- Decisão do Jeferson (opção 1 de 3): o widget consulta `/proximas` na primeira abertura e só mostra o botão se houver datas para aquele site; o clique usa a lista já carregada. No sisu.furg.br o botão some até haver cronograma; nos outros sites continua igual. As perguntas sobre datas seguem usando o cronograma conferido, com ou sem o botão.
+- `/proximas` deixa de gastar o limite de perguntas do visitante (a consulta agora acontece sozinha, ao abrir) e fica 10 minutos no cache do navegador. Não usa IA.

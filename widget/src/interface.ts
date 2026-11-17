@@ -3,7 +3,7 @@ import { ESTILOS } from './estilos';
 import { filtrarAviso, filtrarFontes, filtrarSugestoes, historicoParaEnvio } from './conversa';
 import { perfilDoSite } from './perfil';
 import { renderResposta } from './render';
-import type { Avaliar, Aviso, BuscarProximas, BuscarSugestoes, Enviar, Fonte, Mensagem } from './tipos';
+import type { Avaliar, Aviso, BuscarProximas, BuscarSugestoes, Enviar, Fonte, Mensagem, Proximas } from './tipos';
 
 export type Widget = { host: HTMLElement; abrir(): void; fechar(): void; raiz: ShadowRoot };
 
@@ -269,7 +269,10 @@ export function montar(
   // "Próximas datas": direto dos cronogramas conferidos, sem IA e sem gastar a cota.
   const datas = botao('datas', '📅 Próximas datas');
   const atalhos = el('div', 'atalhos');
-  if (deps.proximas) atalhos.append(datas);
+  // O botão só aparece se houver datas futuras para este site (consulta na primeira abertura): no sisu.furg.br,
+  // entre uma edição e outra, não há cronograma publicado e o botão não mostraria nada.
+  let proximasCarregadas: Proximas | null = null;
+  let buscouProximas = false;
   rodape.append(atalhos, entrada, avisoVoz, el('p', 'nota', 'Pode conter erros. Confira sempre o edital oficial.'));
 
   painel.append(cab, aviso, msgs, rodape);
@@ -476,7 +479,7 @@ export function montar(
     limparSugestoes();
     msgs.querySelector('.erro')?.remove();
     try {
-      const { processos } = await deps.proximas();
+      const { processos } = proximasCarregadas ?? (await deps.proximas());
       const bolha = el('div', 'msg bot');
       if (!processos.length) {
         bolha.append('Não encontrei datas futuras nos cronogramas publicados. Consulte o edital do processo ou escreva para ', linkContato(EMAIL), '.');
@@ -548,6 +551,21 @@ export function montar(
   }
   if (!estado.itens.length) boasVindas.append(chips(sugestoesDoSite));
 
+  function carregarProximas(): void {
+    if (buscouProximas || !deps.proximas) return;
+    buscouProximas = true;
+    deps
+      .proximas()
+      .then((p) => {
+        if (!p.processos.length) return;
+        proximasCarregadas = p;
+        atalhos.append(datas);
+      })
+      .catch(() => {
+        // sem botão; as perguntas sobre datas seguem funcionando
+      });
+  }
+
   function carregarSugestoes(): void {
     if (buscouSugestoes || !deps.sugestoes) return;
     buscouSugestoes = true;
@@ -568,6 +586,7 @@ export function montar(
 
   function abrir(): void {
     carregarSugestoes();
+    carregarProximas();
     esconderConvite();
     painel.hidden = false;
     abrirBotao.hidden = true;
