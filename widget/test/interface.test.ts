@@ -146,6 +146,7 @@ describe('conversa', () => {
     });
     w = montar(config, { enviar: env as unknown as Enviar, proximas });
     w.abrir();
+    await pronto();
     q<HTMLButtonElement>('.datas').click();
     await pronto();
     expect(env).not.toHaveBeenCalled();
@@ -256,6 +257,16 @@ describe('conversa', () => {
       rec.onerror({ error: 'not-allowed' });
       expect(q('.aviso-voz').textContent).toContain('O microfone não foi liberado');
     });
+  });
+  it('sem datas futuras para o site, o botão não aparece (e o clique não consulta de novo)', async () => {
+    document.body.replaceChildren();
+    const proximas = vi.fn().mockResolvedValue({ processos: [] });
+    w = montar(config, { enviar: vi.fn() as unknown as Enviar, proximas });
+    w.abrir();
+    await pronto();
+    expect(w.raiz.querySelector('.datas')).toBeNull();
+    w.abrir();
+    expect(proximas).toHaveBeenCalledTimes(1);
   });
   it('sem proximas nas dependências, o botão não aparece', () => {
     document.body.replaceChildren();

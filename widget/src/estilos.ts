@@ -55,6 +55,7 @@ sup { font-weight: 700; color: var(--cor-escura); margin-left: 1px; }
 .retificacao.atencao { background: #fff4d6; border: 1px solid #c98a00; border-radius: 8px; padding: 6px 8px; color: #4a3500; }
 .retificacao a { color: inherit; }
 .atalhos { display: flex; margin: 0 0 8px; }
+.atalhos:empty { display: none; }
 .datas { font-size: 13px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--cor); color: var(--cor-escura); background: #fff; cursor: pointer; }
 .datas:disabled { color: #5d6670; border-color: #8a939c; cursor: default; }
 .lista-datas { margin: 4px 0 8px; padding-left: 18px; }

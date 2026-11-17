@@ -98,9 +98,11 @@ describe('GET /proximas', () => {
     expect(j.processos.map((p) => p.processo)).toEqual(['vestibular']);
   });
 
-  it('origem de fora: 403; limite: 429', async () => {
+  it('origem de fora: 403; sem limite por visitante, com cache de 10 minutos no navegador', async () => {
     expect((await tratarProximas(pedir('https://outro.com'), env(), ORIGENS, () => undefined, agora)).status).toBe(403);
-    expect((await tratarProximas(pedir('https://coperse.furg.br'), env(false), ORIGENS, () => undefined, agora)).status).toBe(429);
+    const r = await tratarProximas(pedir('https://coperse.furg.br'), env(false), ORIGENS, () => undefined, agora);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('Cache-Control')).toBe('public, max-age=600');
   });
 });
 

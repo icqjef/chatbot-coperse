@@ -6,7 +6,7 @@ import { juntarVersoes, normalizarTexto, type FonteCronograma, type LinhaDatada 
 import type { Trecho } from './busca';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { diaSaoPaulo } from './limites';
-import { aplicarLimite, json, type RateLimit } from './perguntar';
+import { json } from './perguntar';
 
 export const NOMES: Record<string, string> = {
   vestibular: 'Vestibular',
@@ -136,10 +136,14 @@ export function proximasEtapas(edicoes: Edicao[], hoje: string) {
     .map(({ primeira: _p, ...p }) => p);
 }
 
-/** GET /proximas: sem IA. No site de um processo só aquele processo; no da COPERSE, os mais próximos. */
+/**
+ * GET /proximas: sem IA. No site de um processo só aquele processo; no da COPERSE, os mais próximos. O widget
+ * consulta ao abrir (o botão só aparece se houver datas), então não gasta o limite de perguntas do visitante:
+ * o navegador guarda a resposta por 10 minutos.
+ */
 export async function tratarProximas(
   req: Request,
-  env: { DB: D1Database; LIMITADOR: RateLimit },
+  env: { DB: D1Database },
   origens: string[],
   processoDoSite: (origem: string) => string | undefined,
   agora = new Date(),
@@ -147,13 +151,14 @@ export async function tratarProximas(
   const origem = req.headers.get('Origin');
   const cors = cabecalhosCors(origem, origens);
   if (!origemPermitida(origem, origens)) return json({ erro: 'Origem não permitida.' }, 403, cors);
-  const negado = await aplicarLimite(req, env.LIMITADOR, cors);
-  if (negado) return negado;
   try {
     const hoje = diaSaoPaulo(agora);
     const proc = processoDoSite(origem!);
     const edicoes = await lerEdicoes(env.DB, agora, proc);
-    return json({ hoje, processos: proximasEtapas(edicoes, hoje) }, 200, cors);
+    return new Response(JSON.stringify({ hoje, processos: proximasEtapas(edicoes, hoje) }), {
+      status: 200,
+      headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=600', 'X-Content-Type-Options': 'nosniff' },
+    });
   } catch {
     console.error('Falha ao ler o cronograma');
     return json({ erro: 'Não foi possível ler as datas agora. Tente de novo em instantes.' }, 503, cors);
