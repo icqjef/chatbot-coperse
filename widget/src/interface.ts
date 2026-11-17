@@ -3,7 +3,7 @@ import { ESTILOS } from './estilos';
 import { filtrarAviso, filtrarFontes, filtrarSugestoes, historicoParaEnvio } from './conversa';
 import { perfilDoSite } from './perfil';
 import { renderResposta } from './render';
-import type { Avaliar, Aviso, BuscarProximas, Enviar, Fonte, Mensagem } from './tipos';
+import type { Avaliar, Aviso, BuscarProximas, BuscarSugestoes, Enviar, Fonte, Mensagem } from './tipos';
 
 export type Widget = { host: HTMLElement; abrir(): void; fechar(): void; raiz: ShadowRoot };
 
@@ -126,9 +126,12 @@ export function mailtoContato(pergunta?: string, resposta?: string, fontes: Font
 
 export function montar(
   config: Config,
-  deps: { enviar?: Enviar; avaliar?: Avaliar; proximas?: BuscarProximas; host?: string } = {},
+  deps: { enviar?: Enviar; avaliar?: Avaliar; proximas?: BuscarProximas; sugestoes?: BuscarSugestoes; host?: string } = {},
 ): Widget {
   const perfil = perfilDoSite(deps.host ?? location.hostname);
+  // Assuntos frequentes: as perguntas mais feitas na semana (se houver) antes das fixas do perfil, até 4.
+  let sugestoesDoSite = perfil.sugestoes;
+  let buscouSugestoes = false;
   const host = el('div');
   host.id = 'chatbot-coperse';
   // O widget fala português mesmo em página de outro idioma (leitor de tela usa a pronúncia certa).
@@ -319,7 +322,7 @@ export function montar(
     msgs.append(bolha);
     if (!ultimo) return;
     if (item.sugestoes?.length) msgs.append(chips(item.sugestoes, 'Você também pode perguntar'));
-    else if (!fontes.length) msgs.append(chips(perfil.sugestoes, 'Assuntos frequentes'));
+    else if (!fontes.length) msgs.append(chips(sugestoesDoSite, 'Assuntos frequentes'));
   }
 
   function limparSugestoes(): void {
@@ -453,7 +456,7 @@ export function montar(
     estado.itens = [];
     salvar();
     msgs.replaceChildren(boasVindas);
-    boasVindas.append(chips(perfil.sugestoes));
+    boasVindas.append(chips(sugestoesDoSite));
     campo.value = '';
     campo.focus();
   }
@@ -476,9 +479,28 @@ export function montar(
       estado = { aberto: false, itens: [] };
     }
   }
-  if (!estado.itens.length) boasVindas.append(chips(perfil.sugestoes));
+  if (!estado.itens.length) boasVindas.append(chips(sugestoesDoSite));
+
+  function carregarSugestoes(): void {
+    if (buscouSugestoes || !deps.sugestoes) return;
+    buscouSugestoes = true;
+    void deps.sugestoes().then((dinamicas) => {
+      if (!dinamicas.length) return;
+      const vistas = new Set<string>();
+      sugestoesDoSite = [...dinamicas, ...perfil.sugestoes]
+        .filter((s) => {
+          const k = s.toLowerCase();
+          if (vistas.has(k)) return false;
+          vistas.add(k);
+          return true;
+        })
+        .slice(0, 4);
+      if (!estado.itens.length) boasVindas.querySelector('.sugestoes')?.replaceWith(chips(sugestoesDoSite));
+    });
+  }
 
   function abrir(): void {
+    carregarSugestoes();
     esconderConvite();
     painel.hidden = false;
     abrirBotao.hidden = true;

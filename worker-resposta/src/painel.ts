@@ -14,6 +14,7 @@ import { aplicarLimite, json } from './perguntar';
 import { diaSaoPaulo } from './limites';
 import { MAX_PERGUNTA_OFICIAL, MAX_RESPOSTA_OFICIAL } from './oficiais';
 import { mascararDadosPessoais } from './regras';
+import { lerSugestoes } from './sugestoes';
 
 const REGRAS_PROCESSO = carregarRegras(processosJson, listasJson);
 
@@ -147,6 +148,27 @@ export async function tratarPainelOficiais(req: Request, env: Env, acao: string,
   }
 }
 
+/** POST /painel/sugestoes/ocultar: a pergunta sai das sugestões automáticas do widget. */
+export async function tratarOcultarSugestao(req: Request, env: Env, agora = new Date()): Promise<Response> {
+  const cab = { 'Cache-Control': 'no-store' };
+  const negado = await negarAcesso(req, env, cab);
+  if (negado) return negado;
+  let chave = '';
+  try {
+    chave = String(((await req.json()) as { chave?: unknown }).chave ?? '').trim();
+  } catch {
+    // corpo inválido
+  }
+  if (!chave || chave.length > 200) return json({ erro: 'Pedido inválido.' }, 400, cab);
+  try {
+    await env.DB.prepare('INSERT OR IGNORE INTO sugestoes_ocultas (chave, criada) VALUES (?, ?)').bind(chave, agora.toISOString()).run();
+    return json({ ok: true }, 200, cab);
+  } catch {
+    console.error('Falha ao ocultar a sugestão');
+    return json({ erro: 'Não foi possível ocultar agora. Tente de novo.' }, 503, cab);
+  }
+}
+
 export async function tratarPainelDados(req: Request, env: Env, agora = new Date()): Promise<Response> {
   const cab = { 'Cache-Control': 'no-store' };
   const negado = await negarAcesso(req, env, cab);
@@ -185,6 +207,7 @@ export async function tratarPainelDados(req: Request, env: Env, agora = new Date
         .all<{ faixa: string; n: number }>(),
     ]);
     const top = contarUrls(fontesNegativas.results.map((l) => l.fontes));
+    const sugestoes = registro ? await lerSugestoes(env.DB, agora, REGRAS_PROCESSO, undefined, 10).catch(() => []) : [];
     const titulos = await tituloDasPaginas(env.DB, [...top.map(([u]) => u), ...negativas.results.flatMap((n) => lerFontes(n.fontes))]);
     return json(
       {
@@ -197,6 +220,7 @@ export async function tratarPainelDados(req: Request, env: Env, agora = new Date
         registro,
         semResposta: semResposta.results,
         tempos: tempos.results,
+        sugestoes,
         paginasRuins: top.map(([url, n]) => ({ url, titulo: titulos.get(url) ?? url, n })),
         negativas: negativas.results.map((n) => ({
           dia: n.dia,
@@ -339,6 +363,11 @@ th { color: var(--texto-2); font-weight: 600; }
     <div class="kpis">
       <div class="cartao kpi"><div class="rotulo">Tempo de resposta (mediana)</div><div class="valor" id="k-tempo">–</div><div class="nota" id="k-tempo-nota">metade das respostas chega até esse tempo</div></div>
       <div class="cartao kpi"><div class="rotulo">Respostas acima de 5 s</div><div class="valor" id="k-lentas">–</div><div class="nota" id="k-lentas-nota">até a resposta completa</div></div>
+    </div>
+    <div class="cartao secao" id="cartao-sugestoes">
+      <h2>Sugestões automáticas</h2>
+      <p class="ajuda">As perguntas mais feitas na semana (3 vezes ou mais, iguais, respondidas com fonte) aparecem como "Assuntos frequentes" no widget, até 4 por site. Oculte qualquer uma que não deva aparecer.</p>
+      <ul class="lista" id="sugestoes"></ul>
     </div>
     <div class="cartao secao" id="cartao-sem-resposta">
       <h2>Perguntas sem resposta</h2>
@@ -527,6 +556,7 @@ const PAINEL_JS = `(() => {
     $('k-limite').textContent = num(limite);
     $('k-limite-nota').textContent = limite ? 'candidatos que receberam "limite de hoje atingido"' : 'nenhum candidato barrado';
     semResposta();
+    sugestoes();
     tempos();
 
     const aval = porDia(dados.porDia, (_acc, l) => ({ a: Number(l.ajudou), b: Number(l.nao) }));
@@ -626,6 +656,25 @@ const PAINEL_JS = `(() => {
     const lentas = (n.get('ate10') || 0) + (n.get('mais10') || 0);
     $('k-lentas').textContent = pct(lentas / total);
     $('k-lentas-nota').textContent = num(lentas) + ' de ' + num(total) + ' respostas';
+  }
+
+  function sugestoes() {
+    const ul = $('sugestoes');
+    ul.replaceChildren();
+    const lista = dados.sugestoes || [];
+    if (!dados.registro) { ul.append(el('li', { class: 'vazio' }, 'O registro de perguntas está desligado: sem sugestões automáticas.')); return; }
+    if (!lista.length) { ul.append(el('li', { class: 'vazio' }, 'Nenhuma pergunta se repetiu o bastante nesta semana. O widget mostra as sugestões fixas.')); return; }
+    for (const s of lista) {
+      const li = el('li');
+      const b = el('button', { type: 'button', class: 'leve' }, 'Ocultar');
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try { await api('/painel/sugestoes/ocultar', { chave: s.chave }); li.remove(); }
+        catch (e) { b.disabled = false; li.append(el('p', { class: 'msg-erro' }, e.message)); }
+      });
+      li.append(el('div', { class: 'dia' }, s.vezes + ' vezes'), el('p', {}, s.texto), b);
+      ul.append(li);
+    }
   }
 
   const TIPOS = { sem_base: 'não encontrada', recusa: 'recusada', limite: 'cota esgotada' };

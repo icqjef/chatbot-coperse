@@ -2,12 +2,16 @@ import { carregarOrigens } from '@chatbot/comum';
 import origensJson from '../../config/origens.json';
 import { tratarProximas } from './cronograma';
 import { processoDoSite } from './sites';
+import { tratarSugestoes } from './sugestoes';
+import { carregarRegras } from '@chatbot/comum/classificar';
+import listasJson from '../../config/listas.json';
+import processosJson from '../../config/processos.json';
 import { cabecalhosCors, origemPermitida } from './cors';
 import { tratarReindexar, tratarSaude } from './operacao';
 import { comFiltro, criarLimites, type CotaDiaria, type FiltroNativo } from './limites';
 import { tratarPerguntar, type RateLimit } from './perguntar';
 import { tratarAvaliar } from './avaliar';
-import { paginaPainel, scriptPainel, tratarPainelDados, tratarPainelOficiais } from './painel';
+import { paginaPainel, scriptPainel, tratarOcultarSugestao, tratarPainelDados, tratarPainelOficiais } from './painel';
 import { WIDGET } from './widget-gerado';
 import { DEMO_HTML } from './demo';
 import { paginaPrivacidade } from './privacidade';
@@ -42,6 +46,7 @@ export interface Env {
 export { Limites } from './limites';
 
 const ORIGENS = carregarOrigens(origensJson);
+const REGRAS = carregarRegras(processosJson, listasJson);
 
 
 export default {
@@ -63,6 +68,10 @@ export default {
     if (url.pathname === '/privacidade' && req.method === 'GET') return paginaPrivacidade();
     if (url.pathname === '/painel' && req.method === 'GET') return paginaPainel();
     if (url.pathname === '/painel.js' && req.method === 'GET') return scriptPainel();
+    if (url.pathname === '/painel/sugestoes/ocultar') {
+      if (req.method === 'POST') return tratarOcultarSugestao(req, env);
+      return new Response(null, { status: 405, headers: { Allow: 'POST' } });
+    }
     const oficial = /^\/painel\/oficiais\/(listar|salvar|desativar)$/.exec(url.pathname);
     if (oficial) {
       if (req.method === 'POST') return tratarPainelOficiais(req, env, oficial[1]!);
@@ -85,6 +94,14 @@ export default {
       return new Response(DEMO_HTML, {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
       });
+    }
+    if (url.pathname === '/sugestoes') {
+      if (req.method === 'GET') return tratarSugestoes(req, env, ORIGENS, REGRAS, processoDoSite);
+      if (req.method === 'OPTIONS') {
+        const origem = req.headers.get('Origin');
+        return new Response(null, { status: origemPermitida(origem, ORIGENS) ? 204 : 403, headers: cabecalhosCors(origem, ORIGENS) });
+      }
+      return new Response(null, { status: 405, headers: { Allow: 'GET, OPTIONS' } });
     }
     if (url.pathname === '/proximas') {
       if (req.method === 'GET') return tratarProximas(req, env, ORIGENS, processoDoSite);

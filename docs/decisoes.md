@@ -461,3 +461,10 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Resposta: a fonte leva `pagina`; o widget monta o link com `#page=N` (os visualizadores de PDF do Chrome, Edge, Firefox e Safari abrem na página; os que não entendem só abrem o PDF) e mostra "(p. N)" no título. Copiar e Baixar também levam a página.
 - Conferido com o edital dos Quilombolas 2026 (16 páginas): páginas em ordem e cada trecho na página onde começa.
 - Complemento no mesmo dia: PDF sem mudança só volta à fila a cada 30 dias, e a primeira indexação depois do item 7 não deu página a nenhum dos 910 trechos de PDF. `worker-indexacao/src/paginas-pdf.ts` baixa até 30 PDFs sem página por execução, confere que os trechos são os mesmos e grava só a página (uma chamada `UPDATE ... CASE`), sem novo embedding. Se os trechos mudaram, a página fica 0 (desconhecida) até a revisita normal reindexar o PDF.
+
+## 16/11/2026 — Sugestões a partir do uso real (checklist, item 8)
+
+- Motivo: as sugestões iniciais ("Assuntos frequentes") eram fixas por site; as perguntas que os candidatos realmente fazem mudam com a época (inscrição, prova, resultado).
+- `worker-resposta/src/sugestoes.ts` e `GET /sugestoes`: as perguntas respondidas com fonte nos últimos 7 dias, agrupadas pelo texto normalizado (sem acento, pontuação e maiúsculas), com 3 repetições ou mais; até 4, as mais feitas primeiro. No vestibular.furg.br e no sisu.furg.br, só as daquele processo ou sem processo. O navegador guarda a lista por 1 hora; falha devolve lista vazia.
+- Privacidade: são textos de outros candidatos, já mascarados. Só entram perguntas idênticas repetidas 3 vezes (pergunta pessoal quase nunca se repete igual), de 8 a 70 caracteres, sem "[removido]", número de 5 dígitos ou mais, "@" ou apresentação ("meu nome", "me chamo", "sou a/o…", "meu filho", "minha inscrição"). O painel lista as sugestões em uso com o botão "Ocultar" (tabela `sugestoes_ocultas`, migration 0012). O aviso `/privacidade` e o inventário foram atualizados.
+- Widget: na primeira abertura busca as sugestões; as do uso real entram antes das fixas do perfil, até 4.

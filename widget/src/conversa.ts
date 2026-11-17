@@ -1,4 +1,4 @@
-import type { Avaliar, Aviso, BuscarProximas, Enviar, Fonte, Mensagem, Proximas, Resposta } from './tipos';
+import type { Avaliar, Aviso, BuscarProximas, BuscarSugestoes, Enviar, Fonte, Mensagem, Proximas, Resposta } from './tipos';
 
 export class ErroWidget extends Error {
   mensagem: string;
@@ -158,6 +158,22 @@ export function criarProximas(api: string, fetchFn: typeof fetch = (...a) => fet
       throw new ErroWidget(typeof erro === 'string' && erro ? erro : MSG_REDE);
     }
     return filtrarProximas(corpo);
+  };
+}
+
+/** Sugestões do uso real: qualquer falha vira lista vazia (o widget fica com as fixas). */
+export function criarSugestoes(api: string, fetchFn: typeof fetch = (...a) => fetch(...a)): BuscarSugestoes {
+  return async () => {
+    try {
+      const r = await fetchFn(`${api}/sugestoes`);
+      if (!r.ok) return [];
+      const c = (await r.json()) as { sugestoes?: unknown };
+      return Array.isArray(c.sugestoes)
+        ? c.sugestoes.filter((s): s is string => typeof s === 'string' && s.trim().length > 0 && s.length <= 80).slice(0, 4)
+        : [];
+    } catch {
+      return [];
+    }
   };
 }
 
