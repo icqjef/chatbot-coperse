@@ -484,3 +484,11 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Correção (`worker-indexacao/src/fila.ts`): PDF gravado com o título do nome do arquivo volta à fila quando aparece linkado com um texto descritivo (não genérico). A revisita grava o título novo e refaz o resumo.
 - Pergunta de regressão `trans-atendimento-resultado` (categoria `listas-publicadas`).
 - As 3 perguntas parecidas registradas como "sem base" ou "recusa" em 16 e 17/11 não se repetiram em 7 tentativas, com e sem o contexto da página; o registro guarda só o dia, então não dá para saber se vieram antes da indexação das páginas do Vestibular ou de variação do modelo.
+
+## 17/11/2026 — Mesma publicação em vários processos
+
+- Caso: "Saiu resultado do atendimento especializado?" respondia só sobre o Vestibular, embora Transgêneros e EAD também tivessem publicado o mesmo resultado. Há três processos específicos em andamento com a mesma estrutura (Transgêneros, Quilombolas, Indígenas) e outros virão.
+- Busca (`escolher`, em `busca.ts`): quando a pergunta não diz o processo, cada processo ocupa no máximo 4 dos 8 lugares (páginas "geral" não contam). Os que passam do limite completam a lista se faltar trecho.
+- Regra 12 do prompt: sem processo na pergunta e com a mesma publicação (resultado, homologação, lista, convocação, chamada) em mais de um processo, o bot lista um processo por linha, com data e citação, o mais recente primeiro. Nas demais perguntas, continua respondendo sobre o processo mais provável.
+- Nada é específico de um processo: vale para os que existirem quando a pergunta for feita.
+- Pergunta de avaliação `varios-processos-atendimento` (depende das publicações da época).

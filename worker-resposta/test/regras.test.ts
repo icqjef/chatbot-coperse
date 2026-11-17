@@ -279,3 +279,10 @@ describe('página do PDF na fonte', () => {
     expect(extrairFontes('Texto [1].', t).fontes).toEqual([{ titulo: 'E', url: 'https://x/e.pdf', site: 's', data: 'd', pagina: 7 }]);
   });
 });
+
+describe('regra 12: mesma publicação em vários processos', () => {
+  it('o prompt manda listar cada processo em vez de escolher um', () => {
+    const s = montarSistema([], new Date('2026-11-17T12:00:00Z'));
+    expect(s).toContain('mesma publicação (resultado, homologação, lista, convocação, chamada) em mais de um processo, não escolha um');
+  });
+});
