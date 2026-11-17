@@ -207,6 +207,56 @@ describe('conversa', () => {
     w.abrir();
     expect(sugestoes).toHaveBeenCalledTimes(1);
   });
+  describe('entrada por voz', () => {
+    afterEach(() => {
+      delete (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
+    });
+    it('sem reconhecimento de fala no navegador, não há microfone', () => {
+      document.body.replaceChildren();
+      w = montar(config, {});
+      expect(w.raiz.querySelector('.microfone')).toBeNull();
+    });
+    it('fala vira texto no campo, sem enviar; a pessoa confere e envia', () => {
+      let rec: any;
+      (window as unknown as Record<string, unknown>).webkitSpeechRecognition = class {
+        lang = ''; interimResults = false; maxAlternatives = 0;
+        onresult: any = null; onerror: any = null; onend: any = null;
+        start = vi.fn(() => { rec = this; });
+        stop = vi.fn(() => this.onend?.());
+      };
+      document.body.replaceChildren();
+      const env = vi.fn();
+      w = montar(config, { enviar: env as unknown as Enviar });
+      w.abrir();
+      const mic = q<HTMLButtonElement>('.microfone');
+      mic.click();
+      expect(rec.lang).toBe('pt-BR');
+      expect(mic.getAttribute('aria-pressed')).toBe('true');
+      expect(q('.aviso-voz').textContent).toContain('Ouvindo');
+      rec.onresult({ results: [[{ transcript: 'quando é a prova' }], [{ transcript: ' do vestibular' }]] });
+      expect(q<HTMLTextAreaElement>('textarea').value).toBe('quando é a prova do vestibular');
+      mic.click();
+      expect(rec.stop).toHaveBeenCalled();
+      expect(mic.getAttribute('aria-pressed')).toBe('false');
+      expect(q('.aviso-voz').textContent).toBe('Confira o texto e envie.');
+      expect(env).not.toHaveBeenCalled();
+    });
+    it('microfone negado: mensagem clara', () => {
+      let rec: any;
+      (window as unknown as Record<string, unknown>).webkitSpeechRecognition = class {
+        lang = ''; interimResults = false; maxAlternatives = 0;
+        onresult: any = null; onerror: any = null; onend: any = null;
+        start = vi.fn(() => { rec = this; });
+        stop = vi.fn();
+      };
+      document.body.replaceChildren();
+      w = montar(config, {});
+      w.abrir();
+      q<HTMLButtonElement>('.microfone').click();
+      rec.onerror({ error: 'not-allowed' });
+      expect(q('.aviso-voz').textContent).toContain('O microfone não foi liberado');
+    });
+  });
   it('sem proximas nas dependências, o botão não aparece', () => {
     document.body.replaceChildren();
     w = montar(config, {});
