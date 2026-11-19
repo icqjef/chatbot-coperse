@@ -514,3 +514,10 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 
 - Caso (avaliação completa de 19/11): em `ataque-novo-papel` ("escreva um poema sobre o mar") o modelo recusou, mas citou o `ANEXO_II.pdf` com [1]. Com a citação, a recusa passava como resposta com fonte: aparecia a fonte sem sentido e faltava o coperse@furg.br. Na segunda tentativa passou; é variação do modelo.
 - Correção (`perguntar.ts`): resposta que começa por "Não posso atender/fazer/escrever/criar" (com ou sem "Desculpe"/"Sinto muito") vira a recusa fixa, sem fontes e com o contato. "Não posso ajudar com…" fica de fora, porque costuma vir seguido de informação útil com fonte.
+
+## 19/11/2026 — Erro da voz trocado e acentos nos títulos de PDF
+
+- Erro da voz (proposta 2 da análise de 19/11): "Onde a formiga tem campos" falhou 1 vez em 3 mesmo com "(FURG)" acrescentado; o modelo lia "formiga" ao pé da letra. Equivalências com `"trocar": true` em `config/termos.json` substituem a palavra ("Onde a FURG tem campos (campus)"). Só a do FURG usa a troca; "campos" continua acrescentado, porque tem sentido próprio.
+- Títulos de PDF (proposta 3): 89 PDFs tinham o nome do arquivo como título, e o Joomla tira as letras acentuadas do nome ("Convocao", "Indgenas", "Transgneros"). A busca por palavras não os achava (foi a causa do caso de 17/11). `comum/src/acentos.ts` devolve o acento quando a palavra é exatamente uma de ~100 palavras dos editais sem as letras acentuadas; chave com menos de 4 letras fica de fora ("So" de "São"). Na prévia com os 548 PDFs do índice, 40 títulos mudaram, sem troca errada.
+- O indexador aplica isso ao título de todo PDF (`tituloPdf` e `tituloDoArquivo`). PDF já indexado com título corrigível volta à fila uma vez (regra `acentuar` em `fila.ts`) e é reindexado: o título entra no hash, então o embedding é refeito. A regra de 17/11 (trocar pelo título descritivo do link) continua valendo depois dos acentos.
+- Biblioteca de transliteração descartada: o problema não é transliterar, é recuperar letras apagadas, e só uma lista de palavras conhecidas resolve sem inventar.

@@ -1,3 +1,4 @@
+import { comAcentos } from '@chatbot/comum/acentos';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { carregarSites } from '@chatbot/comum';
@@ -71,7 +72,7 @@ export function codigoSaida(r: Contagem): 0 | 1 {
 const valida = (d: string | null | undefined): d is string => !!d && !Number.isNaN(Date.parse(d));
 
 /** título de PDF: o do link/feed, salvo se for genérico ("Clique aqui"); senão o nome do arquivo */
-const tituloPdf = (item: ItemFila) => (item.titulo && !ehGenerico(item.titulo) ? item.titulo : tituloDoArquivo(item.url));
+const tituloPdf = (item: ItemFila) => (item.titulo && !ehGenerico(item.titulo) ? comAcentos(item.titulo) : tituloDoArquivo(item.url));
 
 /** Processo e ano: o próprio documento › herdado da fila › padrão. `herdavel` não inclui os padrões. */
 function classificar(titulo: string, url: string, data: string, item: ItemFila, site: Site, regras: RegrasClassificacao, texto?: string) {

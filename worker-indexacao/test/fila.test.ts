@@ -262,7 +262,19 @@ describe('PDF com título do nome do arquivo', () => {
   it('não volta se o título já é descritivo, se o link é genérico ou sem título', async () => {
     const { cf } = criarCfFalso();
     expect(await enfileirar(cf, estadoCom('Resultado preliminar da solicitação de atendimento especializado'), [item(pdf, { titulo: 'Outro título qualquer' })], { agora: AGORA })).toBe(0);
-    expect(await enfileirar(cf, estadoCom('Atendimento especializado PS Transgneros 2027'), [item(pdf, { titulo: 'Clique aqui' })], { agora: AGORA })).toBe(0);
-    expect(await enfileirar(cf, estadoCom('Atendimento especializado PS Transgneros 2027'), [item(pdf, { titulo: null })], { agora: AGORA })).toBe(0);
+    expect(await enfileirar(cf, estadoCom('Atendimento especializado PS Transgêneros 2027'), [item(pdf, { titulo: 'Clique aqui' })], { agora: AGORA })).toBe(0);
+    expect(await enfileirar(cf, estadoCom('Atendimento especializado PS Transgêneros 2027'), [item(pdf, { titulo: null })], { agora: AGORA })).toBe(0);
+  });
+
+  it('título do arquivo já com acentos devolvidos ainda é trocado pelo título descritivo do link', async () => {
+    const { cf } = criarCfFalso();
+    expect(await enfileirar(cf, estadoCom('Atendimento especializado PS Transgêneros 2027'), [
+      item(pdf, { titulo: 'Resultado preliminar da solicitação de atendimento especializado' }),
+    ], { agora: AGORA })).toBe(1);
+  });
+
+  it('título gravado sem os acentos ("Transgneros") volta à fila mesmo com link genérico', async () => {
+    const { cf } = criarCfFalso();
+    expect(await enfileirar(cf, estadoCom('Atendimento especializado PS Transgneros 2027'), [item(pdf, { titulo: 'Clique aqui' })], { agora: AGORA })).toBe(1);
   });
 });

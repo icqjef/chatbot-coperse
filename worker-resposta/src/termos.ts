@@ -4,6 +4,7 @@ import termosJson from '../../config/termos.json';
  * Grafia errada, variante ou erro do reconhecimento de voz ("campos da furg", "formiga", "vestibulat"):
  * acrescenta o termo certo entre parênteses, sem trocar o texto, porque "campos" também é usado no sentido
  * próprio ("campos do formulário"). A busca e o modelo recebem os dois.
+ * Exceção: com "trocar", a palavra é substituída ("formiga" é erro da voz; mantida, o modelo a lê ao pé da letra).
  */
 const normalizar = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
@@ -12,6 +13,8 @@ const EQUIVALENCIAS = termosJson.equivalencias.map((e) => ({
   para: e.para,
   norm: normalizar(e.para),
   exceto: 'exceto' in e && e.exceto ? new RegExp(e.exceto) : null,
+  // Vale sobre o texto original: os padrões com "trocar" não podem ter acento.
+  troca: 'trocar' in e && e.trocar ? new RegExp(e.de, 'gi') : null,
 }));
 const VOCABULARIO = termosJson.vocabulario.map((p) => ({ p, n: normalizar(p) }));
 
@@ -25,10 +28,12 @@ function distancia(a: string, b: string): number {
   return ant[b.length]!;
 }
 
-export function expandirTermos(pergunta: string): string {
+export function expandirTermos(original: string): string {
+  let pergunta = original;
+  for (const e of EQUIVALENCIAS) if (e.troca) pergunta = pergunta.replace(e.troca, e.para);
   const n = normalizar(pergunta);
   const extras = new Set<string>();
-  for (const e of EQUIVALENCIAS) if (e.de.test(n) && !e.exceto?.test(n) && !n.includes(e.norm)) extras.add(e.para);
+  for (const e of EQUIVALENCIAS) if (!e.troca && e.de.test(n) && !e.exceto?.test(n) && !n.includes(e.norm)) extras.add(e.para);
   for (const tok of new Set(n.split(/[^a-z0-9]+/))) {
     for (const v of VOCABULARIO) {
       // Uma letra de diferença só: com duas, "homologadas" e "inscrições" viravam erro de "homologação" e "inscrição".
