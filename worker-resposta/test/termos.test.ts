@@ -24,5 +24,6 @@ describe('expandirTermos', () => {
     'Vagas para quilombola e indigena',
     'Quem foi convocada para a matrícula?',
     'Educação do Campo tem vagas?',
+    'Quando é a lista de espera do SiSU?',
   ])('não mexe em: %s', (p) => expect(expandirTermos(p)).toBe(p));
 });
