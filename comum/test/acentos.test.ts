@@ -7,6 +7,7 @@ describe('comAcentos', () => {
     ['PS INDGENAS 2026 RESULTADO RECURSOS NOTASdocx', 'PS INDÍGENAS 2026 RESULTADO RECURSOS NOTASdocx'],
     ['Atendimento especializado PS Transgneros 2027', 'Atendimento especializado PS Transgêneros 2027'],
     ['resultado da homologao das inscries', 'resultado da homologação das inscrições'],
+    ['SOLICITAO DE MATRCULAS', 'SOLICITAÇÃO DE MATRÍCULAS'],
     ['Campus So Loureno do Sul', 'Campus So Lourenço do Sul'],
     ['PS Prprio 2026 CONFIRMAO', 'PS Próprio 2026 CONFIRMAÇÃO'],
   ])('%s', (entrada, esperado) => expect(comAcentos(entrada)).toBe(esperado));

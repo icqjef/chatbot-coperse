@@ -5,7 +5,7 @@
  */
 const PALAVRAS = (
   'convocação convocações inscrição inscrições isenção isenções homologação homologações classificação classificações ' +
-  'documentação heteroidentificação retificação retificações divulgação seleção seleções edição situação relação relações ' +
+  'documentação solicitação solicitações heteroidentificação retificação retificações divulgação seleção seleções edição situação relação relações ' +
   'análise matrícula matrículas indígena indígenas transgênero transgêneros público pública públicos específico ' +
   'específica específicos graduação educação prática práticas câmpus lourenço antônio vitória distância complementação ' +
   'atualização prorrogação alteração alterações avaliação admissão comissão habilitação técnico técnicos médio gênero ' +
