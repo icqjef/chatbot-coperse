@@ -10,6 +10,7 @@ import { criarEmbedder } from '@chatbot/comum/provedores/embeddings';
 import { criarGerador, RespostaBloqueada, type Gerador, type Mensagem } from '@chatbot/comum/provedores/geracao';
 import { buscarTrechos, type LinhaDiagnostico, type Trecho } from './busca';
 import { diaSaoPaulo } from './limites';
+import { expandirTermos } from './termos';
 import { corrigirTempo, correcaoDeTempo, problemasDeTempo, semAvisoVencido } from './tempo';
 import { assinar, paresAutenticos, type MensagemRecebida } from './historico';
 import { ENCERRAMENTO, limparDatas, respostaSocial, saudacaoInicial, semSaudacaoDoModelo } from './conversa';
@@ -147,8 +148,10 @@ export interface Resultado {
 const NAO_ACHOU: Resultado = { resposta: SEM_BASE, fontes: [], sugestoes: [], contato: true };
 
 async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta): Promise<Resultado> {
-  const consulta = consultaDeBusca(entrada.pergunta, entrada.historico);
-  const daPergunta = inferirProcesso([entrada.pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS);
+  // Grafia errada ou erro da voz ("campos da formiga"): busca, processo e modelo recebem também o termo certo.
+  const pergunta = expandirTermos(entrada.pergunta);
+  const consulta = consultaDeBusca(pergunta, entrada.historico);
+  const daPergunta = inferirProcesso([pergunta], REGRAS) ?? inferirProcesso([consulta], REGRAS);
   const processo = daPergunta ?? entrada.processoPagina ?? null;
   // Só o nome fixo do processo vai ao prompt (nunca o título da página, que vem do navegador).
   const contextoPagina = !daPergunta && entrada.processoPagina ? NOMES[entrada.processoPagina] : undefined;
@@ -168,7 +171,7 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
   }
   if (trechos.length === 0) return NAO_ACHOU;
   const sistema = montarSistema(trechos, deps.agora(), contextoPagina);
-  const mensagens: Mensagem[] = [...entrada.historico, { papel: 'usuario', texto: entrada.pergunta }];
+  const mensagens: Mensagem[] = [...entrada.historico, { papel: 'usuario', texto: pergunta }];
   const hoje = diaSaoPaulo(deps.agora());
   let bruta: string;
   try {

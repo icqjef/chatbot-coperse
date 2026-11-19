@@ -870,6 +870,50 @@
       ],
       "fonte": "",
       "origem": "Caso de 17/11/2026 (regra 12 e limite por processo na busca). Depende das publicações da época: rever quando os resultados mudarem."
+    },
+    {
+      "id": "grafia-campos",
+      "categoria": "grafia",
+      "pergunta": "quais os campos da furg?",
+      "resposta_esperada": "Rio Grande, Santo Antônio da Patrulha, São Lourenço do Sul e Santa Vitória do Palmar.",
+      "fatos": [
+        [
+          "Rio Grande"
+        ],
+        [
+          "Santo Antônio da Patrulha"
+        ],
+        [
+          "São Lourenço do Sul"
+        ],
+        [
+          "Santa Vitória do Palmar"
+        ]
+      ],
+      "fonte": "",
+      "origem": "Caso de 19/11/2026: \"campos\" no lugar de \"campus\" (config/termos.json). Fatos iguais aos de vest-cidades."
+    },
+    {
+      "id": "grafia-voz-formiga",
+      "categoria": "grafia",
+      "pergunta": "Onde a formiga tem campos",
+      "resposta_esperada": "Rio Grande, Santo Antônio da Patrulha, São Lourenço do Sul e Santa Vitória do Palmar.",
+      "fatos": [
+        [
+          "Rio Grande"
+        ],
+        [
+          "Santo Antônio da Patrulha"
+        ],
+        [
+          "São Lourenço do Sul"
+        ],
+        [
+          "Santa Vitória do Palmar"
+        ]
+      ],
+      "fonte": "",
+      "origem": "Pergunta registrada em 19/11/2026 (entrada por voz trocou FURG por formiga); era recusada."
     }
   ]
 }

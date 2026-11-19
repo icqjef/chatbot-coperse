@@ -1,0 +1,17 @@
+{
+  "nota": "Grafias erradas e sinônimos que o candidato usa. A pergunta não é trocada: o termo certo é acrescentado entre parênteses (termos.ts). Os padrões valem sobre o texto em minúsculas e sem acento.",
+  "equivalencias": [
+    { "de": "\\b(campos|campi|campu|canpus|canpos|kampus|campis)\\b", "para": "campus",
+      "exceto": "\\b(formulario|preench\\w*|ficha|cadastr\\w*|obrigatori\\w*)\\b" },
+    { "de": "\\b(formiga|furgue|furgi|furj|furgh)\\b", "para": "FURG" },
+    { "de": "\\b(sizu|cisu|sissu|sisy|si su)\\b", "para": "SiSU" },
+    { "de": "\\b(enen|eneem|enm)\\b", "para": "ENEM" },
+    { "de": "\\b(cotas?|cotistas?)\\b", "para": "reserva de vagas, ações afirmativas" },
+    { "de": "\\b(transferen\\w*|vagas? ociosas?)\\b", "para": "vagas complementares" },
+    { "de": "\\b(repescagem|lista de espera)\\b", "para": "chamada" },
+    { "de": "\\b(pne|deficientes?|portador\\w* de deficiencia)\\b", "para": "pessoa com deficiência (PcD)" }
+  ],
+  "vocabulario": ["Vestibular", "inscrição", "isenção", "matrícula", "homologação", "cronograma", "gabarito",
+                  "classificação", "convocação", "documentação", "heteroidentificação", "quilombolas",
+                  "indígenas", "transgêneros"]
+}

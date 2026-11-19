@@ -460,6 +460,21 @@ describe('responderPergunta', () => {
     expect(mensagens).toHaveLength(3);
     expect(r.fontes).toHaveLength(1);
   });
+
+  it('busca e modelo recebem o termo certo junto com a grafia errada', async () => {
+    let buscada = '';
+    let enviada = '';
+    await responderPergunta(
+      { pergunta: 'quais os campos da furg?', historico: [] },
+      {
+        buscar: async (p) => ((buscada = p), { trechos: [trecho(1)], melhorSimilaridade: 0.9 }),
+        gerador: { gerar: async (_s, m) => ((enviada = m.at(-1)!.texto), 'Rio Grande [1]') },
+        agora: () => new Date('2026-11-12T12:00:00Z'),
+      },
+    );
+    expect(buscada).toBe('quais os campos da furg? (campus)');
+    expect(enviada).toBe('quais os campos da furg? (campus)');
+  });
 });
 
 describe('responderPergunta: saudação decidida no código', () => {
