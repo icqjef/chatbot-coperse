@@ -498,3 +498,14 @@ Pedido do Jeferson (três itens escolhidos entre quatro; ficou de fora a respost
 - Caso (relatado pelo Jeferson): no sisu.furg.br o botão respondia "Não encontrei datas futuras". O SiSU 2026 terminou, o cronograma do SiSU 2027 não saiu, e o do SiSU vem do MEC em HTML (o cronograma conferido só lê PDF).
 - Decisão do Jeferson (opção 1 de 3): o widget consulta `/proximas` na primeira abertura e só mostra o botão se houver datas para aquele site; o clique usa a lista já carregada. No sisu.furg.br o botão some até haver cronograma; nos outros sites continua igual. As perguntas sobre datas seguem usando o cronograma conferido, com ou sem o botão.
 - `/proximas` deixa de gastar o limite de perguntas do visitante (a consulta agora acontece sozinha, ao abrir) e fica 10 minutos no cache do navegador. Não usa IA.
+
+## 19/11/2026 — Grafia errada e erro da entrada por voz
+
+- Caso (relatado pelo Jeferson): "quais os campos da furg?" respondia só parte dos campi. O registro de perguntas mostrou também "Onde a formiga tem campos" (a entrada por voz trocou FURG por "formiga"), recusada.
+- Causa: a busca por palavras procura o termo exato ("campos" não acha "campus"), e o modelo pode ler "campos" no sentido de "campos de um formulário". No índice, "campos" aparece em 79 trechos com esse sentido próprio, então trocar a palavra seria errado.
+- Correção (`worker-resposta/src/termos.ts`, lista em `config/termos.json`): a pergunta não é trocada; o termo certo é acrescentado entre parênteses ("quais os campos da furg? (campus)") antes da busca, da escolha do processo e do envio ao modelo. Duas formas:
+  - equivalências: variantes, erros de voz e sinônimos do candidato (campi, formiga, cisu, cotas → reserva de vagas, transferência → vagas complementares, repescagem → chamada, PNE → PcD), com exceção de contexto ("campos do formulário" fica como está);
+  - vocabulário: 14 palavras longas dos editais (inscrição, isenção, homologação…) reconhecidas com uma letra de diferença ("incrição", "vestibulat"). Duas letras confundiam palavras reais ("homologadas", "inscrições").
+- Biblioteca de busca aproximada (Fuse.js e similares) descartada: seria dependência nova para uma distância de 10 linhas sobre uma lista de 14 palavras.
+- Perguntas de avaliação `grafia-campos` e `grafia-voz-formiga` (categoria nova `grafia`).
+- Para incluir um termo: acrescentar em `config/termos.json` e um caso em `worker-resposta/test/termos.test.ts`.
