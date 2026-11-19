@@ -22,7 +22,20 @@ if (desconhecidos.length > 0) {
 const perguntas = conjunto.perguntas.filter((p) => !so || so.includes(p.id));
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// 'antes': perguntas feitas de verdade antes desta; o histórico leva as respostas assinadas pelo bot
+// (sem assinatura o servidor descarta o par e o seguimento não é testado).
 async function perguntar(p) {
+  const historico = [...(p.historico ?? [])];
+  for (const anterior of p.antes ?? []) {
+    const r = await perguntarUma({ pergunta: anterior, historico });
+    if (r.erro !== undefined) return { ...r, erro: `pergunta anterior: ${r.erro}` };
+    historico.push({ papel: "usuario", texto: anterior }, { papel: "modelo", texto: r.resposta, assinatura: r.assinatura });
+    await dormir(ESPERA_MS);
+  }
+  return perguntarUma({ pergunta: p.pergunta, historico });
+}
+
+async function perguntarUma(p) {
   try {
     const res = await fetch(`${url}/perguntar`, {
       method: "POST",
@@ -30,11 +43,11 @@ async function perguntar(p) {
         "Content-Type": "application/json",
         Origin: "https://chatbot-coperse.coperse-furg.workers.dev",
       },
-      body: JSON.stringify({ pergunta: p.pergunta, historico: p.historico ?? [] }),
+      body: JSON.stringify({ pergunta: p.pergunta, historico: p.historico }),
     });
     const corpo = await res.json().catch(() => ({}));
     if (res.status !== 200) return { erro: corpo.erro ?? "", status: res.status };
-    return { resposta: corpo.resposta ?? "", fontes: corpo.fontes ?? [], diagnostico: corpo.diagnostico };
+    return { resposta: corpo.resposta ?? "", fontes: corpo.fontes ?? [], diagnostico: corpo.diagnostico, assinatura: corpo.assinatura };
   } catch (e) {
     return { erro: String(e), status: 0 };
   }

@@ -670,6 +670,13 @@ describe('consultaDeBusca', () => {
     expect(consultaDeBusca('e no SiSU?', hist)).toBe('Quantas vagas de Direito tem no Vestibular 2027?\ne no SiSU?');
   });
 
+  it('encadeia seguimento de seguimento até o assunto', () => {
+    const h = [...hist, { papel: 'usuario' as const, texto: 'e de Medicina?' }, { papel: 'modelo' as const, texto: '34 vagas [1]' }];
+    expect(consultaDeBusca('e quando é a prova?', h)).toBe(
+      'Quantas vagas de Direito tem no Vestibular 2027?\ne de Medicina?\ne quando é a prova?',
+    );
+  });
+
   it('mantém a pergunta com 60 ou mais caracteres ou sem histórico', () => {
     const longa = 'x'.repeat(60);
     expect(consultaDeBusca(longa, hist)).toBe(longa);
