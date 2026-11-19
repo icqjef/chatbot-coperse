@@ -8,7 +8,7 @@
     { "de": "\\b(enen|eneem|enm)\\b", "para": "ENEM" },
     { "de": "\\b(cotas?|cotistas?)\\b", "para": "reserva de vagas, ações afirmativas" },
     { "de": "\\b(transferen\\w*|vagas? ociosas?)\\b", "para": "vagas complementares" },
-    { "de": "\\b(repescagem|lista de espera)\\b", "para": "chamada" },
+    { "de": "\\brepescagem\\b", "para": "chamada" },
     { "de": "\\b(pne|deficientes?|portador\\w* de deficiencia)\\b", "para": "pessoa com deficiência (PcD)" }
   ],
   "vocabulario": ["Vestibular", "inscrição", "isenção", "matrícula", "homologação", "cronograma", "gabarito",
