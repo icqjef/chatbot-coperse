@@ -116,8 +116,9 @@ export function consultaDeBusca(pergunta: string, historico: Mensagem[]): string
   const elo = /^(e\b|mesmo\b|tambem\b)/.test(p);
   const citaProcesso = /\b(vestibular|sisu|quilombola|indigena|transgen\w*|trans|ead|distancia|complementar|ociosa|enem)\b/.test(p);
   if (!elo && citaProcesso) return pergunta;
-  const anterior = [...historico].reverse().find((m) => m.papel === 'usuario');
-  return anterior ? `${anterior.texto}\n${pergunta}` : pergunta;
+  // A anterior também pode ser seguimento ("e de Medicina?" -> "e quando é a prova?"): sobe até achar o assunto.
+  const i = historico.map((m) => m.papel).lastIndexOf('usuario');
+  return i < 0 ? pergunta : `${consultaDeBusca(historico[i]!.texto, historico.slice(0, i))}\n${pergunta}`;
 }
 
 export async function responderPergunta(
