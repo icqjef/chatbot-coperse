@@ -5,7 +5,8 @@ describe('expandirTermos', () => {
   it.each([
     ['quais os campos da furg?', 'quais os campos da furg? (campus)'],
     ['Quais são os campi?', 'Quais são os campi? (campus)'],
-    ['Onde a formiga tem campos', 'Onde a formiga tem campos (campus; FURG)'],
+    ['Onde a formiga tem campos', 'Onde a FURG tem campos (campus)'],
+    ['Formiga tem medicina?', 'FURG tem medicina?'],
     ['quando abre o vestibulat?', 'quando abre o vestibulat? (Vestibular)'],
     ['como faço a incrição', 'como faço a incrição (inscrição)'],
     ['pedido de insenção da taxa', 'pedido de insenção da taxa (isenção)'],

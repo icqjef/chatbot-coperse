@@ -1,4 +1,5 @@
 import type { Site } from '@chatbot/comum/tipos';
+import { comAcentos } from '@chatbot/comum/acentos';
 import { nomeDoArquivo, normalizar } from '@chatbot/comum/classificar';
 import type { ClienteCloudflare } from './cloudflare.js';
 import { ehGenerico } from './extrair.js';
@@ -40,7 +41,7 @@ export interface PaginaVista {
 
 /** Título de PDF tirado do nome do arquivo, quando o link não tinha texto útil. */
 export function tituloDoArquivo(url: string): string {
-  return nomeDoArquivo(url).replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim() || url;
+  return comAcentos(nomeDoArquivo(url).replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim()) || url;
 }
 
 const mesmoTexto = (a: string, b: string) => normalizar(a).replace(/[^a-z0-9]+/g, '') === normalizar(b).replace(/[^a-z0-9]+/g, '');
@@ -145,8 +146,10 @@ export async function enfileirar(
     // uma lista nominal fica sem as palavras da pergunta e a busca não o acha.
     const renomear =
       vista?.status === 'ok' && ehPdf(url) && !!bruto.titulo && !ehGenerico(bruto.titulo) && !!vista.titulo &&
-      mesmoTexto(vista.titulo, tituloDoArquivo(url)) && !mesmoTexto(vista.titulo, bruto.titulo);
-    if (!opts.forcar && !reabrir && !renomear && dentroDaJanela(url, vista, agora)) continue;
+      mesmoTexto(comAcentos(vista.titulo), tituloDoArquivo(url)) && !mesmoTexto(vista.titulo, bruto.titulo);
+    // Título gravado sem os acentos do nome do arquivo ("Convocao", "Indgenas"): volta uma vez para ganhá-los.
+    const acentuar = vista?.status === 'ok' && ehPdf(url) && !!vista.titulo && comAcentos(vista.titulo) !== vista.titulo;
+    if (!opts.forcar && !reabrir && !renomear && !acentuar && dentroDaJanela(url, vista, agora)) continue;
     novos.set(url, { ...bruto, url });
   }
   for (const [url, prioridade] of elevar) {
