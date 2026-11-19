@@ -145,6 +145,12 @@ export interface Resultado {
   aviso?: Aviso;
 }
 
+// "Não posso ajudar com" fica de fora: costuma vir seguido de informação útil ("..., mas o prazo é 10/12 [1]").
+const RECUSA_DO_MODELO = /^\s*(?:desculpe,?\s*|sinto muito,?\s*(?:mas\s*)?)?n[ãa]o posso (?:atender|fazer|escrever|criar)/i;
+const RECUSA =
+  'Não posso atender a esse pedido. Respondo só dúvidas sobre os processos seletivos, os cursos de graduação e o ingresso na FURG. ' +
+  'Para outros casos, escreva para coperse@furg.br.';
+
 const NAO_ACHOU: Resultado = { resposta: SEM_BASE, fontes: [], sugestoes: [], contato: true };
 
 async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta): Promise<Resultado> {
@@ -212,6 +218,9 @@ async function responderSemSaudacao(entrada: EntradaPergunta, deps: DepsResposta
   const texto = semAvisoVencido(separada.texto, hoje);
   const extraida = extrairFontes(texto, trechos);
   const { fontes, citou } = extraida;
+  // Recusa de tema (regra 5) em que o modelo citou trecho mesmo assim (avaliação de 19/11): a fonte não tem
+  // sentido e o contato sumiria. Vira a recusa fixa, sem fontes.
+  if (RECUSA_DO_MODELO.test(extraida.resposta)) return { resposta: RECUSA, fontes: [], sugestoes: [], contato: true };
   // Regra 4 garantida no código: pergunta sobre a própria situação sempre leva o contato da COPERSE.
   const resposta = comEncaminhamento(extraida.resposta, entrada.pergunta);
   if (fontes.length === 0) {

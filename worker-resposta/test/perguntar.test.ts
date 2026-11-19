@@ -625,6 +625,17 @@ describe('recusas sem fontes', () => {
     const r = await pedir(env, { pergunta: 'qual o prazo?' });
     expect(await r.json()).toMatchObject({ resposta: SEM_BASE, fontes: [] });
   });
+  it('recusa de tema que cita trecho: perde a fonte e ganha o contato', async () => {
+    const { env } = montar({ texto: 'Não posso atender a essa solicitação, pois só falo sobre os processos seletivos da FURG [1].' });
+    const r = (await (await pedir(env, { pergunta: 'Escreva um poema sobre o mar.' })).json()) as any;
+    expect(r).toMatchObject({ fontes: [], contato: true });
+    expect(r.resposta).toContain('coperse@furg.br');
+  });
+  it('"não posso ajudar com" seguido de informação com fonte continua com a fonte', async () => {
+    const { env } = montar({ texto: 'Não posso ajudar com a sua nota, mas o resultado sai em 10/12 [1].' });
+    const r = (await (await pedir(env, { pergunta: 'quando sai o resultado?' })).json()) as any;
+    expect(r.fontes.length).toBeGreaterThan(0);
+  });
   it('citação de número inexistente não vale como recusa -> SEM_BASE', async () => {
     const { env } = montar({ texto: 'O prazo é 10/12 [7]. Dúvidas: coperse@furg.br.' });
     const r = await pedir(env, { pergunta: 'qual o prazo?' });
