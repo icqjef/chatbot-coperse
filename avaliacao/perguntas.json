@@ -32,7 +32,10 @@
           "19:30"
         ]
       ],
-      "fonte": "vestibular.furg.br"
+      "fonte": [
+        "vestibular.furg.br",
+        "Vestibular-2026/Cronograma_retificado.pdf"
+      ]
     },
     {
       "id": "vest-inscricoes",
@@ -355,7 +358,10 @@
           "22/11/2026"
         ]
       ],
-      "fonte": "vestibular.furg.br"
+      "fonte": [
+        "vestibular.furg.br",
+        "Vestibular-2026/Cronograma_retificado.pdf"
+      ]
     },
     {
       "id": "vest-cidades",
